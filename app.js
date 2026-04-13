@@ -85,14 +85,32 @@ function getFeelingInput() {
   return customFeeling || selectedFeeling || "";
 }
 
+function getCurrentBusinessName() {
+  return (
+    initialProfile?.businessProfile?.name ||
+    document.getElementById("businessName").value.trim() ||
+    "Your Brand"
+  );
+}
+
+function getCurrentBusinessSummary() {
+  return (
+    initialProfile?.businessProfile?.summary ||
+    document.getElementById("businessSummary").value.trim() ||
+    ""
+  );
+}
+
 async function buildInitialProfile() {
   const mode = document.getElementById("generationMode").value;
   const businessUrl = document.getElementById("businessUrl").value.trim();
   const pastedSourceText = document.getElementById("pastedSourceText").value.trim();
   const manualBusinessContext = document.getElementById("manualBusinessContext").value.trim();
   const intakeStatus = document.getElementById("intakeStatus");
+  const ownerKbStatus = document.getElementById("ownerKbStatus");
 
   clearOutputs();
+  ownerKbStatus.innerText = "";
 
   if (!businessUrl && !pastedSourceText && !manualBusinessContext) {
     intakeStatus.innerText = "Please add at least one source.";
@@ -143,10 +161,17 @@ async function buildInitialProfile() {
       data.profile?.sourceProfile?.voiceSourceText || "";
 
     const weakVoice = data.profile?.sourceProfile?.weakVoiceSource;
+    const kbMeta = data.profile?.ownerKbMeta || {};
 
     intakeStatus.innerText = weakVoice
-      ? `Profile ready. Voice source is a bit thin — paste more owner writing for deeper results.`
+      ? "Profile ready. Voice source is a bit thin — paste more owner writing for deeper results."
       : `Profile ready (${data.profile?.sourceProfile?.voiceSourceLane || "unknown"} voice).`;
+
+    if (kbMeta.entryCount > 0) {
+      ownerKbStatus.innerText = `Owner KB active — ${kbMeta.entryCount} saved choice${kbMeta.entryCount === 1 ? "" : "s"} for this business.`;
+    } else {
+      ownerKbStatus.innerText = "Owner KB active — no saved choices yet. It will start learning when you choose posts.";
+    }
   } catch (error) {
     console.error(error);
     intakeStatus.innerText = "Error: " + error.message;
@@ -165,6 +190,12 @@ async function quickGenerate(type) {
     return;
   }
 
+  const ownerFeeling = getFeelingInput();
+  if (!ownerFeeling) {
+    alert("Choose how you're feeling right now first, or type your own.");
+    return;
+  }
+
   currentQuickType = type;
   currentCategory = config.category;
   selectedPost = "";
@@ -176,18 +207,6 @@ async function quickGenerate(type) {
   postsDiv.innerHTML = "Generating posts...";
 
   try {
-    const businessName =
-      initialProfile?.businessProfile?.name ||
-      document.getElementById("businessName").value.trim() ||
-      "Your Brand";
-
-    const businessSummary =
-      initialProfile?.businessProfile?.summary ||
-      document.getElementById("businessSummary").value.trim() ||
-      "";
-
-    const ownerFeeling = getFeelingInput();
-
     const res = await fetch("/generate", {
       method: "POST",
       headers: {
@@ -199,8 +218,8 @@ async function quickGenerate(type) {
         quickType: type,
         ownerNudge: ownerFeeling,
         category: config.category,
-        businessName,
-        businessSummary,
+        businessName: getCurrentBusinessName(),
+        businessSummary: getCurrentBusinessSummary(),
         manualVoiceInput: document.getElementById("voiceInput").value.trim(),
         voiceProfile,
         initialProfile,
@@ -235,15 +254,49 @@ async function quickGenerate(type) {
   }
 }
 
+async function saveOwnerChoice({ chosenPost, ownerFeeling }) {
+  try {
+    const res = await fetch("/save-owner-choice", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        businessName: getCurrentBusinessName(),
+        businessSummary: getCurrentBusinessSummary(),
+        quickType: currentQuickType,
+        category: currentCategory,
+        ownerFeeling: ownerFeeling || "",
+        chosenPost,
+        voiceSourceText: document.getElementById("voiceInput").value.trim(),
+        ownerWritingSample: document.getElementById("pastedSourceText").value.trim(),
+        manualBusinessContext: document.getElementById("manualBusinessContext").value.trim(),
+      }),
+    });
+
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      const text = await res.text();
+      console.error("Non-JSON response from /save-owner-choice:", text);
+      return;
+    }
+
+    const data = await res.json();
+    if (!res.ok) {
+      console.error("Owner KB save failed:", data.error || "Unknown error");
+    }
+  } catch (error) {
+    console.error("Owner KB save failed:", error);
+  }
+}
+
 function renderPostChoices(posts, typeLabel, ownerFeeling) {
   postsDiv.innerHTML = "";
 
   const intro = document.createElement("div");
   intro.style.marginBottom = "12px";
   intro.style.fontWeight = "600";
-  intro.innerText = ownerFeeling
-    ? `${typeLabel} posts — feeling: ${ownerFeeling} — choose one to generate its image.`
-    : `${typeLabel} posts — choose one to generate its image.`;
+  intro.innerText = `${typeLabel} posts — feeling: ${ownerFeeling} — choose one to generate its image.`;
   postsDiv.appendChild(intro);
 
   posts.forEach((post) => {
@@ -288,13 +341,18 @@ function renderPostChoices(posts, typeLabel, ownerFeeling) {
       selectedPostBox.innerText = post;
       generatedImage.style.display = "none";
       generatedImage.src = "";
-      imageStatus.innerText = "Generating image...";
+      imageStatus.innerText = "Saving choice and generating image...";
+
+      await saveOwnerChoice({
+        chosenPost: post,
+        ownerFeeling,
+      });
 
       const imagePrompt = buildImagePrompt({
         post,
         quickType: currentQuickType,
         category: currentCategory,
-        ownerFeeling: ownerFeeling || getFeelingInput(),
+        ownerFeeling,
         initialProfile,
       });
 
@@ -333,7 +391,7 @@ function renderPostChoices(posts, typeLabel, ownerFeeling) {
 
         generatedImage.src = imgData.imageUrl;
         generatedImage.style.display = "block";
-        imageStatus.innerText = "Image ready.";
+        imageStatus.innerText = "Image ready. Owner KB updated.";
       } catch (error) {
         console.error(error);
         imageStatus.innerText = "Image generation failed: " + error.message;

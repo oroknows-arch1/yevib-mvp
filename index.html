@@ -62,6 +62,7 @@
     <button onclick="buildInitialProfile()">Build Profile</button>
 
     <div id="intakeStatus" style="margin-top: 12px;"></div>
+    <div id="ownerKbStatus" style="margin-top: 8px; color:#444;"></div>
   </section>
 
   <section style="margin-bottom: 28px;">
@@ -95,20 +96,10 @@
 
   <section style="margin-bottom: 28px;">
     <h3>Quick Generate</h3>
-    <p>Choose what type of post you want:</p>
-
-    <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:18px;">
-      <button onclick="quickGenerate('Business')">Business</button>
-      <button onclick="quickGenerate('Family')">Family</button>
-      <button onclick="quickGenerate('Educational')">Educational</button>
-      <button onclick="quickGenerate('Community')">Community</button>
-      <button onclick="quickGenerate('Personal')">Personal</button>
-      <button onclick="quickGenerate('Something Real')">Something Real</button>
-    </div>
 
     <h4 style="margin-bottom:8px;">How are you feeling right now?</h4>
     <div style="max-width:900px; font-size:14px; color:#444; margin-bottom:10px;">
-      Pick what fits best. This helps YEVIB shape today’s post around your real mindset.
+      Start here first. This helps YEVIB shape today’s post around your real mindset.
     </div>
 
     <div id="feelingButtons" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
@@ -130,6 +121,22 @@
       placeholder="quietly proud, more direct, less polished, more human..."
       style="width:100%; max-width:900px;"
     />
+
+    <br /><br />
+
+    <h4 style="margin-bottom:8px;">Choose what type of post you want</h4>
+    <div style="max-width:900px; font-size:14px; color:#444; margin-bottom:10px;">
+      Same owner voice, different lens.
+    </div>
+
+    <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:18px;">
+      <button onclick="quickGenerate('Business')">Business</button>
+      <button onclick="quickGenerate('Family')">Family</button>
+      <button onclick="quickGenerate('Educational')">Educational</button>
+      <button onclick="quickGenerate('Community')">Community</button>
+      <button onclick="quickGenerate('Personal')">Personal</button>
+      <button onclick="quickGenerate('Something Real')">Something Real</button>
+    </div>
   </section>
 
   <section style="margin-top:20px;">
