@@ -599,6 +599,29 @@ function chooseVoiceSourceText({
     .trim();
 }
 
+function isWeakVoiceSource(text = "") {
+  const cleaned = clipText(text || "", 5000);
+  const lower = cleaned.toLowerCase();
+
+  if (!cleaned) return true;
+  if (cleaned.length < 180) return true;
+  if (looksLikeTestimonial(cleaned)) return true;
+
+  const genericProductSignals =
+    /best tasting|organic matcha|quality you can trust|popular regions|settled for what we believe|you can buy|premium quality|carefully selected/i.test(
+      lower
+    );
+
+  const founderSignals =
+    /i |we |our story|why we|we started|i started|what matters|we care|i believe|we believe|we wanted/i.test(
+      lower
+    );
+
+  if (genericProductSignals && !founderSignals) return true;
+
+  return false;
+}
+
 function buildVoiceInstructions(profile) {
   if (!profile) {
     return `
@@ -706,6 +729,7 @@ function getHashtags(category, idea, businessName) {
     "Standards and Care": "#StandardsAndCare",
     "Busy Day Ease": "#BusyDayEase",
     "Small Moment Real Value": "#SmallMomentRealValue",
+    "Something Real": "#SomethingReal",
   };
 
   const topicTag =
@@ -720,6 +744,95 @@ function getHashtags(category, idea, businessName) {
       .join("") || "SmallBusiness");
 
   return `${brandTag} ${categoryMap[category] || "#BrandContent"} ${topicTag}`;
+}
+
+function getLensRules({ quickType = "", category = "", weakVoice = false }) {
+  const qt = String(quickType || "").toLowerCase();
+
+  let lensTitle = "General";
+  let lensRules = `
+- Keep the same owner voice throughout
+- Change the lens, not the personality
+- Keep the owner as the human being behind the operation
+`;
+
+  if (qt === "business") {
+    lensTitle = "Business";
+    lensRules = `
+- Keep the owner voice constant
+- Focus on value, standards, decisions, effort, and why the business works
+- Show the owner as the brain and body behind the operation
+- Make the post feel like the owner understands what holds the whole thing together
+- Highlight judgment, consistency, positioning, or operational care
+- Do NOT slip into customer review language
+- Do NOT write like a brochure
+`;
+  } else if (qt === "family") {
+    lensTitle = "Family";
+    lensRules = `
+- Keep the owner voice constant
+- Focus on home life, routine, sacrifice, togetherness, care, or the human side of running the business
+- Make the owner feel like a real person carrying both business and life
+- Let warmth show, but keep it grounded and believable
+- The business should feel connected to the owner's life, not separate from it
+`;
+  } else if (qt === "educational") {
+    lensTitle = "Educational";
+    lensRules = `
+- Keep the owner voice constant
+- Focus on teaching, explaining, clarifying, or passing on something useful
+- Make the owner sound informed, capable, and worth listening to
+- The post should leave the reader understanding something better than before
+- Do not become dry or textbook-like
+- Do not lose the human voice
+`;
+  } else if (qt === "community") {
+    lensTitle = "Community";
+    lensRules = `
+- Keep the owner voice constant
+- Focus on people, support, belonging, shared effort, local impact, or the wider circle around the business
+- Make it feel like the owner sees more than just transactions
+- Show connection, trust, and shared momentum
+- The business should feel part of a bigger human ecosystem
+`;
+  } else if (qt === "personal") {
+    lensTitle = "Personal";
+    lensRules = `
+- Keep the owner voice constant
+- Focus on reflection, beliefs, lessons, pressure, pride, doubt, or lived experience
+- Make it clearly feel like the owner speaking from inside the work
+- Show the owner as a real person with thought, effort, and perspective
+- Let personality and self-awareness show more here than in other lenses
+`;
+  } else if (qt === "something real") {
+    lensTitle = "Something Real";
+    lensRules = `
+- Keep the owner voice constant
+- Focus on an honest, human, less-polished moment
+- This is for days where the owner feels off-rhythm, tired, reflective, restless, or simply real
+- Make the post feel truthful, not dramatic
+- It can be quieter, less strategic, and more in-the-moment
+- Still keep it brand-safe and believable
+- Do not force optimism or polish
+`;
+  }
+
+  if (category === "Founder Reflection" && qt !== "personal") {
+    lensRules += `
+- Keep a slightly more reflective edge because of the internal content frame
+`;
+  }
+
+  if (weakVoice) {
+    lensRules += `
+- The available voice sample is weak or thin, so rely more heavily on this lens
+- Increase contrast between this lens and the others
+- Use the business summary, product truth, and owner role as stronger anchors than the thin voice sample
+- Make the difference in angle obvious without changing the speaker
+`;
+  }
+
+  return { lensTitle, lensRules };
 }
 
 const voiceAgentPrompt = (input) => `
@@ -826,7 +939,7 @@ Use this exact structure:
     "summary": "plain English summary of what the business/person/brand appears to do"
   },
   "contentProfile": {
-    "suggestedCategory": "one of: Daily Relief, Everyday Ritual, Founder Reflection, Product in Real Life, Quiet Value, Standards and Care, Busy Day Ease, Small Moment Real Value",
+    "suggestedCategory": "one of: Daily Relief, Everyday Ritual, Founder Reflection, Product in Real Life, Quiet Value, Standards and Care, Busy Day Ease, Small Moment Real Value, Something Real",
     "suggestedIdea": "strong first content angle"
   },
   "visualProfile": {
@@ -1054,6 +1167,7 @@ app.post("/build-profile", async (req, res) => {
             : safeVoiceSourceText === manualBusinessContext
             ? "manual"
             : "fallback",
+        weakVoiceSource: isWeakVoiceSource(safeVoiceSourceText),
         founderLanePreview: founderText,
         customerLanePreview: customerText,
         productLanePreview: productText,
@@ -1105,6 +1219,7 @@ app.post("/generate", async (req, res) => {
     manualVoiceInput,
     voiceProfile,
     initialProfile,
+    quickType,
   } = req.body;
 
   let extraCategoryRule = "";
@@ -1149,6 +1264,11 @@ app.post("/generate", async (req, res) => {
 - Focus on a small ordinary moment that reveals real value
 - Keep it human, simple, and believable
 `;
+  } else if (category === "Something Real") {
+    extraCategoryRule = `
+- Focus on something more human, less polished, and more honest
+- Let the post feel like it came from a real day, not a campaign plan
+`;
   }
 
   try {
@@ -1163,10 +1283,23 @@ app.post("/generate", async (req, res) => {
       manualVoiceInput,
     });
 
+    const weakVoice = Boolean(initialProfile?.sourceProfile?.weakVoiceSource);
+    const { lensTitle, lensRules } = getLensRules({
+      quickType: quickType || idea || "",
+      category,
+      weakVoice,
+    });
+
     const prompt = `
 Create exactly 3 X posts.
 
 ${generationContext}
+
+QUICK LENS:
+${lensTitle}
+
+LENS RULES:
+${lensRules}
 
 LIFE FRAME:
 ${category}
@@ -1181,15 +1314,27 @@ VOICE PROFILE:
 ${buildVoiceInstructions(voiceProfile)}
 
 CORE RULE:
-All 3 posts must sound like the SAME founder / brand voice.
+All 3 posts must sound like the SAME owner / founder / business voice.
 Do NOT create 3 different personalities.
-Change only the level of explicitness and framing.
+The owner must remain the speaker and central force behind the business.
+
+OWNER-CENTRED RULE:
+- The owner is the main character behind the operation
+- The post should feel aware of the owner's effort, judgment, care, articulation, and signal
+- The business should feel human-led, not faceless
+- Even when the lens changes, keep the owner as the constant presence behind the words
 
 IMPORTANT VOICE RULE:
 - Do NOT write like a customer testimonial
 - Do NOT write as if praising the business from the outside
-- Write from inside the brand voice, not from the buyer's review perspective
-- Even when customer outcome is strong, keep the post framed as brand reflection or brand observation
+- Write from inside the owner voice, not from the buyer's review perspective
+- Even when customer outcome is strong, keep the post framed as owner reflection, owner observation, or owner-led business truth
+
+LENS SEPARATION RULE:
+- Make this lens clearly distinct from the other quick buttons
+- The difference should be obvious in angle, emphasis, and feeling
+- Do NOT let all outputs collapse into the same safe narrative
+- Change the viewpoint emphasis, not the speaker
 
 3-TIER OUTPUT RULE:
 Post 1 = SUBTLE
@@ -1215,7 +1360,7 @@ REAL LIFE RULE:
 - the product/service must appear naturally inside that moment
 - do NOT describe the product directly like a brochure
 - show what it does to the day, not just what it is
-- write as if the founder is reflecting on a real situation
+- write as if the owner is reflecting on a real situation
 
 STYLE:
 - write like a real person
@@ -1242,6 +1387,7 @@ IMPORTANT:
 - Product truth should keep the content accurate, not make it sound like a brochure
 - Manual mode should follow manual and pasted inputs most closely
 - Hybrid mode should combine both cleanly
+- If the voice sample is thin, rely harder on the lens and business truth
 
 AVOID:
 - generic motivation clichés
@@ -1312,6 +1458,7 @@ ${clipText(imagePrompt || "", 3500)}
 
 NON-NEGOTIABLE IMAGE SAFETY RULES:
 - no readable words anywhere in the image
+- no signage text, shop signs, labels, or written words
 - no readable logos anywhere in the image
 - no fake brand names
 - no invented company names on clothing, packaging, signage, or vehicles
