@@ -6,23 +6,41 @@ const imageStatus = document.getElementById("imageStatus");
 let initialProfile = null;
 let voiceProfile = null;
 
+let currentQuickType = "";
+let currentCategory = "";
+let selectedPost = "";
+
 const QUICK_TYPES = {
   Business: {
     category: "Product in Real Life",
+    idea: "business",
   },
   Family: {
     category: "Small Moment Real Value",
+    idea: "family",
   },
   Educational: {
     category: "Standards and Care",
+    idea: "educational",
   },
   Community: {
     category: "Quiet Value",
+    idea: "community",
   },
   Personal: {
     category: "Founder Reflection",
+    idea: "personal",
   },
 };
+
+function clearOutputs() {
+  postsDiv.innerHTML = "";
+  selectedPostBox.innerText = "";
+  generatedImage.style.display = "none";
+  generatedImage.src = "";
+  imageStatus.innerText = "";
+  selectedPost = "";
+}
 
 async function buildInitialProfile() {
   const mode = document.getElementById("generationMode").value;
@@ -30,6 +48,8 @@ async function buildInitialProfile() {
   const pastedSourceText = document.getElementById("pastedSourceText").value.trim();
   const manualBusinessContext = document.getElementById("manualBusinessContext").value.trim();
   const intakeStatus = document.getElementById("intakeStatus");
+
+  clearOutputs();
 
   if (!businessUrl && !pastedSourceText && !manualBusinessContext) {
     intakeStatus.innerText = "Please add at least one source.";
@@ -52,6 +72,14 @@ async function buildInitialProfile() {
       }),
     });
 
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      const text = await res.text();
+      console.error("Non-JSON response from /build-profile:", text);
+      intakeStatus.innerText = "Profile build failed: server returned HTML instead of JSON.";
+      return;
+    }
+
     const data = await res.json();
 
     if (!res.ok) {
@@ -59,8 +87,8 @@ async function buildInitialProfile() {
       return;
     }
 
-    initialProfile = data.profile;
-    voiceProfile = data.profile?.founderVoice;
+    initialProfile = data.profile || null;
+    voiceProfile = data.profile?.founderVoice || null;
 
     document.getElementById("businessName").value =
       data.profile?.businessProfile?.name || "";
@@ -71,9 +99,9 @@ async function buildInitialProfile() {
     document.getElementById("voiceInput").value =
       data.profile?.sourceProfile?.voiceSourceText || "";
 
-    intakeStatus.innerText = `Profile ready (${data.profile?.sourceProfile?.voiceSourceLane || "unknown"} voice)`;
-
+    intakeStatus.innerText = `Profile ready (${data.profile?.sourceProfile?.voiceSourceLane || "unknown"} voice).`;
   } catch (error) {
+    console.error(error);
     intakeStatus.innerText = "Error: " + error.message;
   }
 }
@@ -84,14 +112,33 @@ async function quickGenerate(type) {
     return;
   }
 
-  postsDiv.innerHTML = "Generating...";
-  imageStatus.innerText = "";
-  generatedImage.style.display = "none";
-
   const config = QUICK_TYPES[type];
+  if (!config) {
+    alert("Unknown quick type.");
+    return;
+  }
+
+  currentQuickType = type;
+  currentCategory = config.category;
+  selectedPost = "";
+
+  selectedPostBox.innerText = "";
+  generatedImage.style.display = "none";
+  generatedImage.src = "";
+  imageStatus.innerText = "";
+  postsDiv.innerHTML = "Generating posts...";
 
   try {
-    // STEP 1: Generate posts
+    const businessName =
+      initialProfile?.businessProfile?.name ||
+      document.getElementById("businessName").value.trim() ||
+      "Your Brand";
+
+    const businessSummary =
+      initialProfile?.businessProfile?.summary ||
+      document.getElementById("businessSummary").value.trim() ||
+      "";
+
     const res = await fetch("/generate", {
       method: "POST",
       headers: {
@@ -99,93 +146,209 @@ async function quickGenerate(type) {
       },
       body: JSON.stringify({
         mode: "hybrid",
-        idea: type,
+        idea: config.idea,
         category: config.category,
-        businessName: initialProfile.businessProfile?.name,
-        businessSummary: initialProfile.businessProfile?.summary,
+        businessName,
+        businessSummary,
+        manualVoiceInput: document.getElementById("voiceInput").value.trim(),
         voiceProfile,
         initialProfile,
       }),
     });
 
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      const text = await res.text();
+      console.error("Non-JSON response from /generate:", text);
+      postsDiv.innerHTML = "Generate failed: server returned HTML instead of JSON.";
+      return;
+    }
+
     const data = await res.json();
 
     if (!res.ok) {
-      postsDiv.innerHTML = "Error: " + data.error;
+      postsDiv.innerHTML = "Error: " + (data.error || "Generate failed.");
+      return;
+    }
+
+    if (!data.text) {
+      postsDiv.innerHTML = "No posts returned.";
       return;
     }
 
     const posts = data.text.split("\n\n\n").filter(Boolean);
-    const bestPost = posts[1] || posts[0]; // pick middle one (balanced)
-
-    postsDiv.innerHTML = "";
-
-    posts.forEach((post) => {
-      const div = document.createElement("div");
-      div.style.border = "1px solid #ccc";
-      div.style.padding = "10px";
-      div.style.marginTop = "10px";
-      div.style.whiteSpace = "pre-wrap";
-      div.innerText = post;
-      postsDiv.appendChild(div);
-    });
-
-    selectedPostBox.innerText = bestPost;
-
-    // STEP 2: Build image prompt
-    const imagePrompt = buildImagePrompt(bestPost);
-
-    // STEP 3: Generate image
-    imageStatus.innerText = "Generating image...";
-
-    const imgRes = await fetch("/generate-image", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        imagePrompt,
-      }),
-    });
-
-    const imgData = await imgRes.json();
-
-    if (!imgData.imageUrl) {
-      imageStatus.innerText = "Image failed.";
-      return;
-    }
-
-    generatedImage.src = imgData.imageUrl;
-    generatedImage.style.display = "block";
-    imageStatus.innerText = "Done.";
-
+    renderPostChoices(posts, type);
   } catch (error) {
+    console.error(error);
     postsDiv.innerHTML = "Error: " + error.message;
   }
 }
 
-function buildImagePrompt(post) {
+function renderPostChoices(posts, typeLabel) {
+  postsDiv.innerHTML = "";
+
+  const intro = document.createElement("div");
+  intro.style.marginBottom = "12px";
+  intro.style.fontWeight = "600";
+  intro.innerText = `${typeLabel} posts — choose one to generate its image.`;
+  postsDiv.appendChild(intro);
+
+  posts.forEach((post) => {
+    const card = document.createElement("div");
+    card.className = "post-choice-card";
+    card.style.border = "1px solid #ccc";
+    card.style.padding = "12px";
+    card.style.marginTop = "10px";
+    card.style.cursor = "pointer";
+    card.style.whiteSpace = "pre-wrap";
+    card.style.background = "white";
+    card.style.borderRadius = "10px";
+
+    const postText = document.createElement("div");
+    postText.innerText = post;
+    card.appendChild(postText);
+
+    const counter = document.createElement("div");
+    counter.style.fontSize = "12px";
+    counter.style.color = "#666";
+    counter.style.marginTop = "8px";
+    counter.innerText = `Characters: ${post.length}`;
+    card.appendChild(counter);
+
+    const helper = document.createElement("div");
+    helper.style.fontSize = "12px";
+    helper.style.color = "#444";
+    helper.style.marginTop = "8px";
+    helper.innerText = "Click to choose this post and generate its image.";
+    card.appendChild(helper);
+
+    card.onclick = async () => {
+      document.querySelectorAll(".post-choice-card").forEach((el) => {
+        el.style.background = "white";
+        el.style.border = "1px solid #ccc";
+      });
+
+      card.style.background = "#e8f0fe";
+      card.style.border = "1px solid #8ab4f8";
+
+      selectedPost = post;
+      selectedPostBox.innerText = post;
+      generatedImage.style.display = "none";
+      generatedImage.src = "";
+      imageStatus.innerText = "Generating image...";
+
+      const imagePrompt = buildImagePrompt({
+        post,
+        quickType: currentQuickType,
+        category: currentCategory,
+        initialProfile,
+      });
+
+      try {
+        const imgRes = await fetch("/generate-image", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            imagePrompt,
+          }),
+        });
+
+        const contentType = imgRes.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+          const text = await imgRes.text();
+          console.error("Non-JSON response from /generate-image:", text);
+          imageStatus.innerText =
+            "Image generation failed: server returned HTML instead of JSON.";
+          return;
+        }
+
+        const imgData = await imgRes.json();
+
+        if (!imgRes.ok) {
+          imageStatus.innerText =
+            "Image generation failed: " + (imgData.error || "Unknown error.");
+          return;
+        }
+
+        if (!imgData.imageUrl) {
+          imageStatus.innerText = "Image generation failed: No image returned.";
+          return;
+        }
+
+        generatedImage.src = imgData.imageUrl;
+        generatedImage.style.display = "block";
+        imageStatus.innerText = "Image ready.";
+      } catch (error) {
+        console.error(error);
+        imageStatus.innerText = "Image generation failed: " + error.message;
+      }
+    };
+
+    postsDiv.appendChild(card);
+  });
+}
+
+function buildImagePrompt({ post, quickType, category, initialProfile }) {
+  const cleanedPost = (post || "").replace(/\n?#\w+(?:\s+#\w+)*/g, "").trim();
+
+  const businessName =
+    initialProfile?.businessProfile?.name ||
+    document.getElementById("businessName").value.trim() ||
+    "the business";
+
+  const businessSummary =
+    initialProfile?.businessProfile?.summary ||
+    document.getElementById("businessSummary").value.trim() ||
+    "a real business";
+
+  const audience =
+    (initialProfile?.brandProductTruth?.audience || []).join(", ") || "not specified";
+
+  const offers =
+    (initialProfile?.brandProductTruth?.offers || []).join(", ") || "not specified";
+
+  const visualDirections =
+    (initialProfile?.visualProfile?.visualDirections || []).join(", ") ||
+    "grounded, realistic, documentary";
+
   return `
-Create a realistic 4-panel business image collage.
+Create a realistic 4-panel image collage that matches this post.
 
-POST:
-"${post}"
+POST TO VISUALIZE:
+"${cleanedPost}"
 
-RULES:
+QUICK TYPE:
+${quickType}
+
+INTERNAL CONTENT FRAME:
+${category}
+
+BUSINESS CONTEXT:
+- Business name: ${businessName}
+- Business summary: ${businessSummary}
+- Audience: ${audience}
+- Offers/services: ${offers}
+- Visual direction hints: ${visualDirections}
+
+GLOBAL RULES:
 - documentary realism
+- grounded and believable
+- modern real-life business context
+- natural lighting
+- no fantasy
+- no stock-photo feel
+- each panel must show a different but related real-world moment
+- show realistic people, places, tasks, interactions, tools, workflow, or environments relevant to the business
+- plain unbranded clothing only
 - no logos
 - no text
 - no symbols
-- no branding
-- plain workwear only
-- real business environments
-- natural lighting
-- each panel shows a different moment
-- people interacting, working, delivering, preparing
-
-IMPORTANT:
-- clothing must be completely unbranded
-- no icons, no chest logos, no sleeve logos
-- no fake company names
-`;
+- no fake brand marks
+- no lettering on clothing
+- no pseudo-branding
+- no invented company names on signage, vehicles, garments, packaging, or walls
+- keep the whole collage truthful to the business and the post
+`.trim();
 }
