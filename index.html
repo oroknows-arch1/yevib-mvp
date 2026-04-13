@@ -6,17 +6,19 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+
   <h1>YEVIB</h1>
   <h2>Your Voice Your Brand</h2>
 
+  <!-- STEP 1: SOURCE -->
   <section style="margin-bottom: 28px;">
     <h3>Step 1: Source Intake</h3>
 
     <label for="generationMode">Mode:</label>
     <select id="generationMode">
       <option value="express">Express (URL-first)</option>
-      <option value="hybrid" selected>Hybrid (mixed sources)</option>
-      <option value="manual">Manual (user-led)</option>
+      <option value="hybrid" selected>Hybrid</option>
+      <option value="manual">Manual</option>
     </select>
 
     <br /><br />
@@ -31,12 +33,10 @@
 
     <br /><br />
 
-    <label for="pastedSourceText">Pasted Text / Writing / Brand Copy:</label><br />
+    <label for="pastedSourceText">Pasted Text:</label><br />
     <textarea
       id="pastedSourceText"
-      rows="10"
-      cols="120"
-      placeholder="Paste website text, captions, founder writing, notes, product copy, About page text, customer-facing copy, or anything else..."
+      rows="6"
       style="width:100%; max-width:900px;"
     ></textarea>
 
@@ -45,133 +45,66 @@
     <label for="manualBusinessContext">Manual Context:</label><br />
     <textarea
       id="manualBusinessContext"
-      rows="6"
-      cols="120"
-      placeholder="Add or correct what the business does, who it's for, what matters, what tone feels right, what the system should know..."
+      rows="4"
       style="width:100%; max-width:900px;"
     ></textarea>
 
     <br /><br />
-    <button onclick="buildInitialProfile()">Build Initial Profile</button>
+    <button onclick="buildInitialProfile()">Build Profile</button>
 
     <div id="intakeStatus" style="margin-top: 12px;"></div>
   </section>
 
+  <!-- PROFILE -->
   <section style="margin-bottom: 28px;">
-    <h3>Initial Profile</h3>
+    <h3>Profile</h3>
 
-    <label for="businessName">Business Name:</label>
-    <input
-      id="businessName"
-      type="text"
-      placeholder="Auto-filled or editable"
-      style="width:100%; max-width:900px;"
-    />
+    <label>Business Name:</label>
+    <input id="businessName" type="text" style="width:100%; max-width:900px;" />
 
     <br /><br />
 
-    <label for="businessSummary">Business Summary:</label><br />
-    <textarea
-      id="businessSummary"
-      rows="6"
-      cols="120"
-      placeholder="Auto-filled or editable"
-      style="width:100%; max-width:900px;"
-    ></textarea>
+    <label>Business Summary:</label><br />
+    <textarea id="businessSummary" rows="4" style="width:100%; max-width:900px;"></textarea>
 
     <br /><br />
 
-    <label for="voiceInput">Voice Source Text:</label><br />
-    <textarea
-      id="voiceInput"
-      rows="12"
-      cols="120"
-      placeholder="Auto-filled from sources or editable"
-      style="width:100%; max-width:900px;"
-    ></textarea>
-
-    <br /><br />
-    <button onclick="analyzeVoice()">Analyze Voice</button>
-
-    <pre id="voiceResult" style="white-space: pre-wrap; margin-top:10px;"></pre>
+    <label>Voice Source:</label><br />
+    <textarea id="voiceInput" rows="8" style="width:100%; max-width:900px;"></textarea>
   </section>
 
+  <!-- 🔥 QUICK MODE -->
   <section style="margin-bottom: 28px;">
-    <h3>Step 2: Content Setup</h3>
+    <h3>Quick Generate</h3>
+    <p>Choose what type of post you want:</p>
 
-    <label for="category">Life Frame:</label>
-    <select id="category">
-      <option>Daily Relief</option>
-      <option>Everyday Ritual</option>
-      <option>Founder Reflection</option>
-      <option>Product in Real Life</option>
-      <option>Quiet Value</option>
-      <option>Standards and Care</option>
-      <option>Busy Day Ease</option>
-      <option>Small Moment Real Value</option>
-    </select>
-
-    <br /><br />
-
-    <label for="idea">Post Angle / Topic:</label>
-    <input
-      id="idea"
-      type="text"
-      placeholder="What should this post focus on?"
-      style="width:100%; max-width:900px;"
-    />
-
-    <div id="weeklyPostsWrap" style="display:none; margin-top:10px;">
-      <label for="weeklyPosts">Weekly Notes / Source Material:</label><br />
-      <textarea
-        id="weeklyPosts"
-        rows="8"
-        cols="120"
-        placeholder="Paste the week's updates, posts, lessons, wins, notes..."
-        style="width:100%; max-width:900px;"
-      ></textarea>
-    </div>
-
-    <br /><br />
-
-    <label for="manualImageNotes">Manual Image Direction:</label><br />
-    <textarea
-      id="manualImageNotes"
-      rows="6"
-      cols="120"
-      placeholder="Optional: product focus, environment, people, tone, colours, setting, visual feel..."
-      style="width:100%; max-width:900px;"
-    ></textarea>
-
-    <br /><br />
-    <button onclick="generatePosts()">Generate Posts</button>
+    <button onclick="quickGenerate('Business')">Business</button>
+    <button onclick="quickGenerate('Family')">Family</button>
+    <button onclick="quickGenerate('Educational')">Educational</button>
+    <button onclick="quickGenerate('Community')">Community</button>
+    <button onclick="quickGenerate('Personal')">Personal</button>
   </section>
 
+  <!-- POSTS -->
   <section style="margin-top:20px;">
     <h3>Generated Posts</h3>
     <div id="posts"></div>
   </section>
 
-  <section id="selectedOutputSection" style="margin-top:30px;">
+  <!-- SELECTED + IMAGE -->
+  <section style="margin-top:30px;">
     <h3>Selected Post</h3>
     <div id="selectedPost" style="white-space: pre-wrap; margin-bottom:16px;"></div>
-
-    <button id="generateImageBtn" style="display:none; margin-bottom:16px;">
-      Generate Image
-    </button>
 
     <div id="imageStatus" style="margin-bottom:12px;"></div>
 
     <img
       id="generatedImage"
-      alt="Generated image"
-      style="display:none; width:100%; max-width:800px; border-radius:10px; margin-bottom:16px;"
+      style="display:none; width:100%; max-width:800px; border-radius:10px;"
     >
-
-    <h3>Image Prompt</h3>
-    <div id="imagePrompt" style="margin-top:20px; white-space: pre-wrap;"></div>
   </section>
 
   <script src="app.js"></script>
+
 </body>
 </html>
