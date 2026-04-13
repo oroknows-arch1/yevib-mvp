@@ -87,6 +87,19 @@ function extractLinks(html = "", baseUrl = "") {
   return links;
 }
 
+function looksLikeTestimonial(text = "") {
+  const lower = String(text).toLowerCase();
+
+  return (
+    /our company has been using|we have been using|we've been using|would not go anywhere else|value for money|communication is great|second to none|tried a few of the bigger companies|before .* we tried|highly recommend|couldn't be happier|customer service/i.test(
+      lower
+    ) ||
+    (/\bwe\b/.test(lower) && /\busing\b/.test(lower) && /\byears?\b/.test(lower)) ||
+    (/\bservice\b/.test(lower) && /\bcommunication\b/.test(lower)) ||
+    (/\bbefore\b/.test(lower) && /\btried\b/.test(lower) && /\bcompanies\b/.test(lower))
+  );
+}
+
 function scoreFounderLink(link) {
   const text = (link.text || "").toLowerCase();
   const href = (link.href || "").toLowerCase();
@@ -105,19 +118,19 @@ function scoreFounderLink(link) {
   }
 
   if (
-    /furoshiki|videos|video|start here|new to matcha|faq|collection|collections|shop|product|products|blog|guide|how to/i.test(
+    /reviews|review|testimonial|testimonials|furoshiki|videos|video|start here|new to matcha|faq|collection|collections|shop|product|products|blog|guide|how to/i.test(
       text
     )
   ) {
-    score -= 8;
+    score -= 10;
   }
 
   if (
-    /furoshiki|videos|video|start-here|new-to-matcha|faq|collection|collections|shop|product|products|blog|guide|how-to/i.test(
+    /reviews|review|testimonial|testimonials|furoshiki|videos|video|start-here|new-to-matcha|faq|collection|collections|shop|product|products|blog|guide|how-to/i.test(
       href
     )
   ) {
-    score -= 8;
+    score -= 10;
   }
 
   if (/contact|cart|login|account/.test(text)) {
@@ -272,7 +285,19 @@ function scoreFounderBlock(text = "") {
     score += 8;
   }
 
+  if (
+    /about us|who we are|our approach|what matters to us|why we started|family owned|family-run|locally owned|small business/i.test(
+      lower
+    )
+  ) {
+    score += 4;
+  }
+
   if (/\bwe\b|\bour\b/.test(lower)) score += 1;
+
+  if (looksLikeTestimonial(lower)) {
+    score -= 12;
+  }
 
   if (
     /i bought|i tried|my husband|highly recommend|worth the price|shipping|5 stars|review/i.test(
@@ -308,19 +333,23 @@ function scoreCustomerBlock(text = "") {
   if (text.length >= 100) score += 1;
 
   if (
-    /i bought|i tried|my experience|i noticed|since using|highly recommend|worth the price|my husband|sleep improved|better than|addicted/i.test(
+    /i bought|i tried|my experience|i noticed|since using|highly recommend|worth the price|my husband|sleep improved|better than|addicted|our company has been using|we have been using|we've been using|would not go anywhere else|value for money|communication is great|second to none/i.test(
       lower
     )
   ) {
-    score += 4;
+    score += 6;
+  }
+
+  if (looksLikeTestimonial(lower)) {
+    score += 5;
   }
 
   if (
-    /our mission|we started|we believe|our story|founder|our goal|our vision/i.test(
+    /our mission|we started|we believe|our story|founder|our goal|our vision|why we started/i.test(
       lower
     )
   ) {
-    score -= 4;
+    score -= 5;
   }
 
   return score;
@@ -333,7 +362,7 @@ function scoreProductBlock(text = "") {
   if (text.length >= 80) score += 1;
 
   if (
-    /ceremonial grade|organic|sourced from|uji|japan|blend|ingredients|product|powder|tea|matcha|origin|quality|flavour/i.test(
+    /ceremonial grade|organic|sourced from|uji|japan|blend|ingredients|product|powder|tea|matcha|origin|quality|flavour|embroidery|printing|custom uniforms|workwear|apparel|signage/i.test(
       lower
     )
   ) {
@@ -341,9 +370,7 @@ function scoreProductBlock(text = "") {
   }
 
   if (
-    /i bought|highly recommend|my husband|worth the price|review|5 stars/i.test(
-      lower
-    )
+    /i bought|highly recommend|my husband|worth the price|review|5 stars/i.test(lower)
   ) {
     score -= 3;
   }
@@ -409,7 +436,7 @@ async function gatherLaneSources(normalizedUrl) {
     "founder",
   ];
 
-  const productPaths = ["", "shop", "products", "collections", "our-matcha", "faq"];
+  const productPaths = ["", "shop", "products", "collections", "services", "faq"];
 
   const allPages = [];
   const attempted = new Set();
@@ -439,18 +466,22 @@ async function gatherLaneSources(normalizedUrl) {
       const hrefText = (link.href || "").toLowerCase();
 
       const hasPositiveFounderSignal =
-        /about|our story|story|mission|founder|why we started|who we are/.test(titleText) ||
-        /about|our story|story|mission|founder|why we started|who we are/.test(linkText) ||
+        /about|our story|story|mission|founder|why we started|who we are|family owned|family-run/.test(
+          titleText
+        ) ||
+        /about|our story|story|mission|founder|why we started|who we are|family owned|family-run/.test(
+          linkText
+        ) ||
         /\/about|\/about-us|\/our-story|\/story|\/mission|\/founder/.test(hrefText);
 
       const hasNegativeSignal =
-        /furoshiki|videos|video|start here|new to matcha|guide|faq|collection|collections|shop|product|products|how to/i.test(
+        /reviews|review|testimonial|testimonials|furoshiki|videos|video|start here|new to matcha|guide|faq|collection|collections|shop|product|products|how to/i.test(
           titleText
         ) ||
-        /furoshiki|videos|video|start here|new to matcha|guide|faq|collection|collections|shop|product|products|how to/i.test(
+        /reviews|review|testimonial|testimonials|furoshiki|videos|video|start here|new to matcha|guide|faq|collection|collections|shop|product|products|how to/i.test(
           linkText
         ) ||
-        /furoshiki|videos|video|start-here|new-to-matcha|guide|faq|collection|collections|shop|product|products|how-to/i.test(
+        /reviews|review|testimonial|testimonials|furoshiki|videos|video|start-here|new-to-matcha|guide|faq|collection|collections|shop|product|products|how-to/i.test(
           hrefText
         );
 
@@ -528,6 +559,44 @@ function laneText(blocks = [], fallback = "") {
 
   const text = filteredBlocks.slice(0, 6).join("\n\n").trim();
   return text || fallback;
+}
+
+function chooseVoiceSourceText({
+  mode,
+  founderText,
+  customerText,
+  productText,
+  pastedSourceText,
+  manualBusinessContext,
+  sourceProfileSummary,
+}) {
+  const founderClean = clipText(founderText || "", 3000);
+  const customerClean = clipText(customerText || "", 3000);
+  const productClean = clipText(productText || "", 3000);
+  const pastedClean = clipText(pastedSourceText || "", 3000);
+  const manualClean = clipText(manualBusinessContext || "", 2000);
+  const summaryClean = clipText(sourceProfileSummary || "", 1000);
+
+  if (mode === "manual") {
+    return manualClean || pastedClean || founderClean || productClean || summaryClean;
+  }
+
+  if (mode === "hybrid") {
+    if (manualClean) return manualClean;
+    if (pastedClean && !looksLikeTestimonial(pastedClean)) return pastedClean;
+    if (founderClean && !looksLikeTestimonial(founderClean)) return founderClean;
+    return [summaryClean, productClean, customerClean ? `Customer signals:\n${customerClean}` : ""]
+      .filter(Boolean)
+      .join("\n\n")
+      .trim();
+  }
+
+  if (founderClean && !looksLikeTestimonial(founderClean)) return founderClean;
+
+  return [summaryClean, productClean, customerClean ? `Customer signals:\n${customerClean}` : ""]
+    .filter(Boolean)
+    .join("\n\n")
+    .trim();
 }
 
 function buildVoiceInstructions(profile) {
@@ -676,8 +745,11 @@ Rules:
 - No code fences
 - Keep it grounded
 - Do not exaggerate
-- Treat this as founder or mission language, not customer review language
-- Focus on beliefs, standards, purpose, care, and reflection style
+- If the input sounds like a customer testimonial, do NOT preserve the testimonial perspective
+- Convert the underlying brand traits into neutral brand voice guidance
+- Never write the voice summary from the perspective of a customer praising the business
+- Focus on beliefs, standards, purpose, care, reliability, and reflection style
+- Avoid loyalty/review phrasing like "we've used them for years", "highly recommend", "second to none", "value for money"
 
 INPUT:
 """
@@ -774,6 +846,8 @@ Rules:
 - If mode is manual, let manual context and pasted writing lead
 - If mode is hybrid, blend intelligently
 - Suggested category must be a lived-use frame
+- Do not mistake testimonial language for founder voice
+- If founder lane is weak, infer business tone from business summary and product truth instead
 
 FOUNDER LANE:
 """
@@ -937,6 +1011,20 @@ app.post("/build-profile", async (req, res) => {
         ),
       ]);
 
+    const safeVoiceSourceText = chooseVoiceSourceText({
+      mode,
+      founderText,
+      customerText,
+      productText,
+      pastedSourceText,
+      manualBusinessContext,
+      sourceProfileSummary: sourceProfile?.businessProfile?.summary || "",
+    });
+
+    const safeFounderVoice = await runJsonChat(
+      voiceAgentPrompt(clipText(safeVoiceSourceText || founderSourceInput || "", 5000))
+    );
+
     const profile = {
       businessProfile: {
         name: sourceProfile?.businessProfile?.name || brandProductTruth?.productType || "",
@@ -955,12 +1043,17 @@ app.post("/build-profile", async (req, res) => {
       },
       sourceProfile: {
         dominantSource: sourceProfile?.sourceProfile?.dominantSource || "mixed",
-        voiceSourceText:
+        voiceSourceText: safeVoiceSourceText,
+        voiceSourceLane:
           mode === "manual"
-            ? manualBusinessContext || pastedSourceText
-            : mode === "hybrid"
-            ? pastedSourceText || manualBusinessContext || founderText
-            : founderText,
+            ? "manual"
+            : safeVoiceSourceText === founderText
+            ? "founder"
+            : safeVoiceSourceText === pastedSourceText
+            ? "pasted"
+            : safeVoiceSourceText === manualBusinessContext
+            ? "manual"
+            : "fallback",
         founderLanePreview: founderText,
         customerLanePreview: customerText,
         productLanePreview: productText,
@@ -968,7 +1061,7 @@ app.post("/build-profile", async (req, res) => {
         pastedTextUsed: Boolean(pastedSourceText),
         manualContextUsed: Boolean(manualBusinessContext),
       },
-      founderVoice,
+      founderVoice: safeFounderVoice,
       customerOutcome,
       brandProductTruth,
       debug: {
@@ -1092,6 +1185,12 @@ All 3 posts must sound like the SAME founder / brand voice.
 Do NOT create 3 different personalities.
 Change only the level of explicitness and framing.
 
+IMPORTANT VOICE RULE:
+- Do NOT write like a customer testimonial
+- Do NOT write as if praising the business from the outside
+- Write from inside the brand voice, not from the buyer's review perspective
+- Even when customer outcome is strong, keep the post framed as brand reflection or brand observation
+
 3-TIER OUTPUT RULE:
 Post 1 = SUBTLE
 - feels like a natural reflection or passing thought
@@ -1152,6 +1251,9 @@ AVOID:
 - empty hype
 - obvious ad language
 - repeated sentence structures across all 3 posts
+- review-style phrasing like "we've used them for years"
+- praise framing like "would not go anywhere else"
+- recommendation framing like "highly recommend"
 
 ${extraCategoryRule}
 `;
@@ -1205,9 +1307,21 @@ app.post("/generate-image", async (req, res) => {
   const { imagePrompt } = req.body;
 
   try {
+    const hardenedPrompt = `
+${clipText(imagePrompt || "", 3500)}
+
+NON-NEGOTIABLE IMAGE SAFETY RULES:
+- no readable words anywhere in the image
+- no readable logos anywhere in the image
+- no fake brand names
+- no invented company names on clothing, packaging, signage, or vehicles
+- no letters or text on garments
+- keep all clothing and objects visually unbranded unless real assets were explicitly provided
+`.trim();
+
     const response = await openai.images.generate({
       model: "gpt-image-1",
-      prompt: clipText(imagePrompt, 4000),
+      prompt: hardenedPrompt,
       size: "1024x1024",
     });
 
