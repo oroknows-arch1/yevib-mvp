@@ -10,7 +10,6 @@
   <h1>YEVIB</h1>
   <h2>Your Voice Your Brand</h2>
 
-  <!-- STEP 1: SOURCE -->
   <section style="margin-bottom: 28px;">
     <h3>Step 1: Source Intake</h3>
 
@@ -33,11 +32,20 @@
 
     <br /><br />
 
-    <label for="pastedSourceText">Pasted Text:</label><br />
+    <div style="max-width:900px; font-size:14px; color:#444; line-height:1.5;">
+      Optional: paste extra written material from the owner for stronger voice results.
+      This should be real writing from the business owner, not customer reviews.
+      Examples: About page text, founder story, captions, notes, product copy, brand thoughts, mission statement.
+    </div>
+
+    <br />
+
+    <label for="pastedSourceText">Owner Writing / Pasted Text:</label><br />
     <textarea
       id="pastedSourceText"
-      rows="6"
+      rows="8"
       style="width:100%; max-width:900px;"
+      placeholder="Paste writing from the owner here..."
     ></textarea>
 
     <br /><br />
@@ -47,6 +55,7 @@
       id="manualBusinessContext"
       rows="4"
       style="width:100%; max-width:900px;"
+      placeholder="Add any business context, corrections, or notes..."
     ></textarea>
 
     <br /><br />
@@ -55,43 +64,79 @@
     <div id="intakeStatus" style="margin-top: 12px;"></div>
   </section>
 
-  <!-- PROFILE -->
   <section style="margin-bottom: 28px;">
     <h3>Profile</h3>
 
-    <label>Business Name:</label>
-    <input id="businessName" type="text" style="width:100%; max-width:900px;" />
+    <label for="businessName">Business Name:</label>
+    <input
+      id="businessName"
+      type="text"
+      style="width:100%; max-width:900px;"
+    />
 
     <br /><br />
 
-    <label>Business Summary:</label><br />
-    <textarea id="businessSummary" rows="4" style="width:100%; max-width:900px;"></textarea>
+    <label for="businessSummary">Business Summary:</label><br />
+    <textarea
+      id="businessSummary"
+      rows="4"
+      style="width:100%; max-width:900px;"
+    ></textarea>
 
     <br /><br />
 
-    <label>Voice Source:</label><br />
-    <textarea id="voiceInput" rows="8" style="width:100%; max-width:900px;"></textarea>
+    <label for="voiceInput">Voice Source:</label><br />
+    <textarea
+      id="voiceInput"
+      rows="8"
+      style="width:100%; max-width:900px;"
+    ></textarea>
   </section>
 
-  <!-- 🔥 QUICK MODE -->
   <section style="margin-bottom: 28px;">
     <h3>Quick Generate</h3>
     <p>Choose what type of post you want:</p>
 
-    <button onclick="quickGenerate('Business')">Business</button>
-    <button onclick="quickGenerate('Family')">Family</button>
-    <button onclick="quickGenerate('Educational')">Educational</button>
-    <button onclick="quickGenerate('Community')">Community</button>
-    <button onclick="quickGenerate('Personal')">Personal</button>
+    <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:18px;">
+      <button onclick="quickGenerate('Business')">Business</button>
+      <button onclick="quickGenerate('Family')">Family</button>
+      <button onclick="quickGenerate('Educational')">Educational</button>
+      <button onclick="quickGenerate('Community')">Community</button>
+      <button onclick="quickGenerate('Personal')">Personal</button>
+      <button onclick="quickGenerate('Something Real')">Something Real</button>
+    </div>
+
+    <h4 style="margin-bottom:8px;">How are you feeling right now?</h4>
+    <div style="max-width:900px; font-size:14px; color:#444; margin-bottom:10px;">
+      Pick what fits best. This helps YEVIB shape today’s post around your real mindset.
+    </div>
+
+    <div id="feelingButtons" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+      <button type="button" class="feeling-btn" data-feeling="Focused">Focused</button>
+      <button type="button" class="feeling-btn" data-feeling="Proud">Proud</button>
+      <button type="button" class="feeling-btn" data-feeling="Tired">Tired</button>
+      <button type="button" class="feeling-btn" data-feeling="Reflective">Reflective</button>
+      <button type="button" class="feeling-btn" data-feeling="Flat">Flat</button>
+      <button type="button" class="feeling-btn" data-feeling="Grateful">Grateful</button>
+      <button type="button" class="feeling-btn" data-feeling="Fired up">Fired up</button>
+      <button type="button" class="feeling-btn" data-feeling="Not feeling it">Not feeling it</button>
+      <button type="button" class="feeling-btn" data-feeling="Random">Random</button>
+    </div>
+
+    <label for="customFeeling">Optional: add your own</label><br />
+    <input
+      id="customFeeling"
+      type="text"
+      placeholder="quietly proud, more direct, less polished, more human..."
+      style="width:100%; max-width:900px;"
+    />
   </section>
 
-  <!-- POSTS -->
   <section style="margin-top:20px;">
     <h3>Generated Posts</h3>
     <div id="posts"></div>
   </section>
 
-  <!-- SELECTED + IMAGE -->
   <section style="margin-top:30px;">
     <h3>Selected Post</h3>
     <div id="selectedPost" style="white-space: pre-wrap; margin-bottom:16px;"></div>
@@ -100,11 +145,11 @@
 
     <img
       id="generatedImage"
+      alt="Generated image"
       style="display:none; width:100%; max-width:800px; border-radius:10px;"
     >
   </section>
 
   <script src="app.js"></script>
-
 </body>
 </html>

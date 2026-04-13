@@ -9,6 +9,7 @@ let voiceProfile = null;
 let currentQuickType = "";
 let currentCategory = "";
 let selectedPost = "";
+let selectedFeeling = "";
 
 const QUICK_TYPES = {
   Business: {
@@ -31,6 +32,10 @@ const QUICK_TYPES = {
     category: "Founder Reflection",
     idea: "personal",
   },
+  "Something Real": {
+    category: "Something Real",
+    idea: "something real",
+  },
 };
 
 function clearOutputs() {
@@ -40,6 +45,44 @@ function clearOutputs() {
   generatedImage.src = "";
   imageStatus.innerText = "";
   selectedPost = "";
+}
+
+function setupFeelingButtons() {
+  const buttons = document.querySelectorAll(".feeling-btn");
+  const customFeelingInput = document.getElementById("customFeeling");
+
+  buttons.forEach((button) => {
+    button.addEventListener("click", () => {
+      buttons.forEach((btn) => {
+        btn.style.background = "";
+        btn.style.color = "";
+        btn.style.borderColor = "";
+      });
+
+      button.style.background = "#1a73e8";
+      button.style.color = "white";
+      button.style.borderColor = "#1a73e8";
+
+      selectedFeeling = button.dataset.feeling || "";
+      customFeelingInput.value = "";
+    });
+  });
+
+  customFeelingInput.addEventListener("input", () => {
+    if (customFeelingInput.value.trim()) {
+      buttons.forEach((btn) => {
+        btn.style.background = "";
+        btn.style.color = "";
+        btn.style.borderColor = "";
+      });
+      selectedFeeling = "";
+    }
+  });
+}
+
+function getFeelingInput() {
+  const customFeeling = document.getElementById("customFeeling").value.trim();
+  return customFeeling || selectedFeeling || "";
 }
 
 async function buildInitialProfile() {
@@ -99,7 +142,11 @@ async function buildInitialProfile() {
     document.getElementById("voiceInput").value =
       data.profile?.sourceProfile?.voiceSourceText || "";
 
-    intakeStatus.innerText = `Profile ready (${data.profile?.sourceProfile?.voiceSourceLane || "unknown"} voice).`;
+    const weakVoice = data.profile?.sourceProfile?.weakVoiceSource;
+
+    intakeStatus.innerText = weakVoice
+      ? `Profile ready. Voice source is a bit thin — paste more owner writing for deeper results.`
+      : `Profile ready (${data.profile?.sourceProfile?.voiceSourceLane || "unknown"} voice).`;
   } catch (error) {
     console.error(error);
     intakeStatus.innerText = "Error: " + error.message;
@@ -139,6 +186,8 @@ async function quickGenerate(type) {
       document.getElementById("businessSummary").value.trim() ||
       "";
 
+    const ownerFeeling = getFeelingInput();
+
     const res = await fetch("/generate", {
       method: "POST",
       headers: {
@@ -147,6 +196,8 @@ async function quickGenerate(type) {
       body: JSON.stringify({
         mode: "hybrid",
         idea: config.idea,
+        quickType: type,
+        ownerNudge: ownerFeeling,
         category: config.category,
         businessName,
         businessSummary,
@@ -177,20 +228,22 @@ async function quickGenerate(type) {
     }
 
     const posts = data.text.split("\n\n\n").filter(Boolean);
-    renderPostChoices(posts, type);
+    renderPostChoices(posts, type, ownerFeeling);
   } catch (error) {
     console.error(error);
     postsDiv.innerHTML = "Error: " + error.message;
   }
 }
 
-function renderPostChoices(posts, typeLabel) {
+function renderPostChoices(posts, typeLabel, ownerFeeling) {
   postsDiv.innerHTML = "";
 
   const intro = document.createElement("div");
   intro.style.marginBottom = "12px";
   intro.style.fontWeight = "600";
-  intro.innerText = `${typeLabel} posts — choose one to generate its image.`;
+  intro.innerText = ownerFeeling
+    ? `${typeLabel} posts — feeling: ${ownerFeeling} — choose one to generate its image.`
+    : `${typeLabel} posts — choose one to generate its image.`;
   postsDiv.appendChild(intro);
 
   posts.forEach((post) => {
@@ -241,6 +294,7 @@ function renderPostChoices(posts, typeLabel) {
         post,
         quickType: currentQuickType,
         category: currentCategory,
+        ownerFeeling: ownerFeeling || getFeelingInput(),
         initialProfile,
       });
 
@@ -290,7 +344,7 @@ function renderPostChoices(posts, typeLabel) {
   });
 }
 
-function buildImagePrompt({ post, quickType, category, initialProfile }) {
+function buildImagePrompt({ post, quickType, category, ownerFeeling, initialProfile }) {
   const cleanedPost = (post || "").replace(/\n?#\w+(?:\s+#\w+)*/g, "").trim();
 
   const businessName =
@@ -325,6 +379,9 @@ ${quickType}
 INTERNAL CONTENT FRAME:
 ${category}
 
+CURRENT OWNER FEELING:
+${ownerFeeling || "not specified"}
+
 BUSINESS CONTEXT:
 - Business name: ${businessName}
 - Business summary: ${businessSummary}
@@ -352,3 +409,5 @@ GLOBAL RULES:
 - keep the whole collage truthful to the business and the post
 `.trim();
 }
+
+setupFeelingButtons();
