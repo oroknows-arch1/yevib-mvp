@@ -118,7 +118,7 @@ function scoreFounderLink(link) {
   }
 
   if (
-    /reviews|review|testimonial|testimonials|furoshiki|videos|video|start here|new to matcha|faq|collection|collections|shop|product|products|blog|guide|how to/i.test(
+    /reviews|review|testimonial|testimonials|videos|video|start here|faq|collection|collections|shop|product|products|blog|guide|how to/i.test(
       text
     )
   ) {
@@ -126,7 +126,7 @@ function scoreFounderLink(link) {
   }
 
   if (
-    /reviews|review|testimonial|testimonials|furoshiki|videos|video|start-here|new-to-matcha|faq|collection|collections|shop|product|products|blog|guide|how-to/i.test(
+    /reviews|review|testimonial|testimonials|videos|video|start-here|faq|collection|collections|shop|product|products|blog|guide|how-to/i.test(
       href
     )
   ) {
@@ -315,14 +315,6 @@ function scoreFounderBlock(text = "") {
     score -= 10;
   }
 
-  if (
-    /ceremonial grade|organic|ingredients|blend|sourced from|product|powder|grams|flavour|how matcha is made|what is organic matcha|culinary matcha/i.test(
-      lower
-    )
-  ) {
-    score -= 4;
-  }
-
   return score;
 }
 
@@ -475,13 +467,13 @@ async function gatherLaneSources(normalizedUrl) {
         /\/about|\/about-us|\/our-story|\/story|\/mission|\/founder/.test(hrefText);
 
       const hasNegativeSignal =
-        /reviews|review|testimonial|testimonials|furoshiki|videos|video|start here|new to matcha|guide|faq|collection|collections|shop|product|products|how to/i.test(
+        /reviews|review|testimonial|testimonials|videos|video|start here|guide|faq|collection|collections|shop|product|products|how to/i.test(
           titleText
         ) ||
-        /reviews|review|testimonial|testimonials|furoshiki|videos|video|start here|new to matcha|guide|faq|collection|collections|shop|product|products|how to/i.test(
+        /reviews|review|testimonial|testimonials|videos|video|start here|guide|faq|collection|collections|shop|product|products|how to/i.test(
           linkText
         ) ||
-        /reviews|review|testimonial|testimonials|furoshiki|videos|video|start-here|new-to-matcha|guide|faq|collection|collections|shop|product|products|how-to/i.test(
+        /reviews|review|testimonial|testimonials|videos|video|start-here|guide|faq|collection|collections|shop|product|products|how-to/i.test(
           hrefText
         );
 
@@ -833,6 +825,118 @@ function getLensRules({ quickType = "", category = "", weakVoice = false }) {
   }
 
   return { lensTitle, lensRules };
+}
+
+function getFeelingRules(ownerNudge = "") {
+  const feeling = String(ownerNudge || "").trim();
+  const lower = feeling.toLowerCase();
+
+  if (!feeling) {
+    return {
+      feelingLabel: "Not specified",
+      feelingRules: `
+- No specific feeling was provided
+- Keep the emotional temperature grounded and natural
+- Let the lens lead the direction
+`,
+    };
+  }
+
+  if (/focused|clear|locked in|dialled in/.test(lower)) {
+    return {
+      feelingLabel: feeling,
+      feelingRules: `
+- The owner feels focused right now
+- Make the post clearer, steadier, and more intentional
+- Reduce drift and softness
+- Let the writing feel composed and purposeful
+`,
+    };
+  }
+
+  if (/proud|quietly proud|earned/.test(lower)) {
+    return {
+      feelingLabel: feeling,
+      feelingRules: `
+- The owner feels proud right now
+- Let the post carry quiet earned pride
+- Avoid bragging
+- Make the effort and achievement feel real and deserved
+`,
+    };
+  }
+
+  if (/tired|flat|drained|exhausted/.test(lower)) {
+    return {
+      feelingLabel: feeling,
+      feelingRules: `
+- The owner feels tired or flat right now
+- Strip away polish and hype
+- Let the post feel more honest, direct, and effort-aware
+- Do not become negative or dramatic
+- Keep the writing human and restrained
+`,
+    };
+  }
+
+  if (/reflective|thoughtful|processing/.test(lower)) {
+    return {
+      feelingLabel: feeling,
+      feelingRules: `
+- The owner feels reflective right now
+- Slow the post down slightly
+- Let observation and meaning carry more weight
+- Keep it grounded, not poetic for the sake of it
+`,
+    };
+  }
+
+  if (/grateful|thankful/.test(lower)) {
+    return {
+      feelingLabel: feeling,
+      feelingRules: `
+- The owner feels grateful right now
+- Let appreciation and awareness show
+- Keep it sincere, not sentimental
+- Make gratitude feel tied to real people, effort, or support
+`,
+    };
+  }
+
+  if (/fired up|energised|energized|ready|sharp/.test(lower)) {
+    return {
+      feelingLabel: feeling,
+      feelingRules: `
+- The owner feels fired up right now
+- Increase conviction and forward movement
+- Make the tone stronger and more decisive
+- Do not become loud, preachy, or hype-driven
+`,
+    };
+  }
+
+  if (/not feeling it|off|restless|random/.test(lower)) {
+    return {
+      feelingLabel: feeling,
+      feelingRules: `
+- The owner feels off-rhythm or random right now
+- Let the post feel more in-the-moment and human
+- Reduce polish
+- Keep it real, believable, and lightly open-ended if useful
+`,
+    };
+  }
+
+  return {
+    feelingLabel: feeling,
+    feelingRules: `
+- The owner gave this current feeling/state: "${feeling}"
+- Let it shape the emotional temperature, emphasis, and posture of the writing
+- Do not let it replace the owner voice
+- Do not let it overpower the selected lens
+- Make its influence visible but controlled
+`,
+  };
 }
 
 const voiceAgentPrompt = (input) => `
@@ -1220,6 +1324,7 @@ app.post("/generate", async (req, res) => {
     voiceProfile,
     initialProfile,
     quickType,
+    ownerNudge,
   } = req.body;
 
   let extraCategoryRule = "";
@@ -1290,6 +1395,8 @@ app.post("/generate", async (req, res) => {
       weakVoice,
     });
 
+    const { feelingLabel, feelingRules } = getFeelingRules(ownerNudge || "");
+
     const prompt = `
 Create exactly 3 X posts.
 
@@ -1300,6 +1407,12 @@ ${lensTitle}
 
 LENS RULES:
 ${lensRules}
+
+CURRENT OWNER FEELING / STATE:
+${feelingLabel}
+
+FEELING RULES:
+${feelingRules}
 
 LIFE FRAME:
 ${category}
@@ -1335,6 +1448,13 @@ LENS SEPARATION RULE:
 - The difference should be obvious in angle, emphasis, and feeling
 - Do NOT let all outputs collapse into the same safe narrative
 - Change the viewpoint emphasis, not the speaker
+
+FEELING INTEGRATION RULE:
+- Use the current feeling/state to shape the emotional temperature of the post
+- Let it affect posture, emphasis, directness, energy, and openness
+- Do NOT let it replace the owner voice
+- Do NOT let it overpower the selected lens
+- Make its influence noticeable but controlled
 
 3-TIER OUTPUT RULE:
 Post 1 = SUBTLE
