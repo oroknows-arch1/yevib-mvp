@@ -87,11 +87,11 @@ async function buildInitialProfile() {
       }
     }
 
-    document.getElementById("voiceResult").innerText = JSON.stringify(
-      data.profile?.voiceProfile || {},
-      null,
-      2
-    );
+  document.getElementById("voiceResult").innerText = JSON.stringify(
+    data.profile?.founderVoice || {},
+  null,
+  2
+);
 
     intakeStatus.innerText =
       `Initial profile built. Dominant source: ${data.profile?.sourceProfile?.dominantSource || "unknown"}.`;
