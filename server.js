@@ -26,6 +26,12 @@ function normalizeUrl(input) {
   return `https://${trimmed}`;
 }
 
+function clipText(text = "", max = 4000) {
+  const cleaned = String(text).trim();
+  if (cleaned.length <= max) return cleaned;
+  return cleaned.slice(0, max).trim();
+}
+
 function stripHtml(html = "") {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -187,25 +193,33 @@ function extractWebsiteData(html, url) {
 }
 
 async function fetchPageData(url) {
-  const res = await fetch(url, {
-    method: "GET",
-    headers: {
-      "User-Agent": "Mozilla/5.0 YEVIB/1.0",
-      Accept: "text/html,application/xhtml+xml",
-    },
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
 
-  if (!res.ok) {
-    throw new Error(`Failed to fetch ${url} (${res.status})`);
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        "User-Agent": "Mozilla/5.0 YEVIB/1.0",
+        Accept: "text/html,application/xhtml+xml",
+      },
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to fetch ${url} (${res.status})`);
+    }
+
+    const html = await res.text();
+    const extracted = extractWebsiteData(html, url);
+
+    return {
+      ...extracted,
+      rawHtml: html,
+    };
+  } finally {
+    clearTimeout(timeout);
   }
-
-  const html = await res.text();
-  const extracted = extractWebsiteData(html, url);
-
-  return {
-    ...extracted,
-    rawHtml: html,
-  };
 }
 
 function joinUrl(base, slug) {
@@ -395,14 +409,7 @@ async function gatherLaneSources(normalizedUrl) {
     "founder",
   ];
 
-  const productPaths = [
-    "",
-    "shop",
-    "products",
-    "collections",
-    "our-matcha",
-    "faq",
-  ];
+  const productPaths = ["", "shop", "products", "collections", "our-matcha", "faq"];
 
   const allPages = [];
   const attempted = new Set();
@@ -437,9 +444,15 @@ async function gatherLaneSources(normalizedUrl) {
         /\/about|\/about-us|\/our-story|\/story|\/mission|\/founder/.test(hrefText);
 
       const hasNegativeSignal =
-        /furoshiki|videos|video|start here|new to matcha|guide|faq|collection|collections|shop|product|products|how to/i.test(titleText) ||
-        /furoshiki|videos|video|start here|new to matcha|guide|faq|collection|collections|shop|product|products|how to/i.test(linkText) ||
-        /furoshiki|videos|video|start-here|new-to-matcha|guide|faq|collection|collections|shop|product|products|how-to/i.test(hrefText);
+        /furoshiki|videos|video|start here|new to matcha|guide|faq|collection|collections|shop|product|products|how to/i.test(
+          titleText
+        ) ||
+        /furoshiki|videos|video|start here|new to matcha|guide|faq|collection|collections|shop|product|products|how to/i.test(
+          linkText
+        ) ||
+        /furoshiki|videos|video|start-here|new-to-matcha|guide|faq|collection|collections|shop|product|products|how-to/i.test(
+          hrefText
+        );
 
       if (!hasPositiveFounderSignal || hasNegativeSignal) continue;
 
@@ -764,27 +777,27 @@ Rules:
 
 FOUNDER LANE:
 """
-${founderText || "none provided"}
+${clipText(founderText || "none provided", 3000)}
 """
 
 CUSTOMER OUTCOME LANE:
 """
-${customerText || "none provided"}
+${clipText(customerText || "none provided", 3000)}
 """
 
 BRAND / PRODUCT TRUTH LANE:
 """
-${productText || "none provided"}
+${clipText(productText || "none provided", 3000)}
 """
 
 PASTED SOURCE TEXT:
 """
-${pastedSourceText || "none provided"}
+${clipText(pastedSourceText || "none provided", 3000)}
 """
 
 MANUAL BUSINESS CONTEXT:
 """
-${manualBusinessContext || "none provided"}
+${clipText(manualBusinessContext || "none provided", 2000)}
 """
 `;
 
@@ -835,13 +848,13 @@ PROFILE CONTEXT:
 - URL: ${businessUrl || "Not provided"}
 
 PASTED SOURCE TEXT:
-${pastedSourceText || "None provided"}
+${clipText(pastedSourceText || "None provided", 3000)}
 
 MANUAL CONTEXT:
-${manualBusinessContext || "None provided"}
+${clipText(manualBusinessContext || "None provided", 2000)}
 
 MANUAL VOICE INPUT:
-${manualVoiceInput || "None provided"}
+${clipText(manualVoiceInput || "None provided", 3000)}
 `;
 
   if (mode === "express") {
@@ -896,41 +909,37 @@ app.post("/build-profile", async (req, res) => {
     const customerText = laneText(laneGather?.lanes?.customerOutcome || [], "");
     const productText = laneText(laneGather?.lanes?.brandProductTruth || [], "");
 
-    const sourceProfile = await runJsonChat(
-      sourceProfilePrompt({
-        mode,
-        founderText,
-        customerText,
-        productText,
-        pastedSourceText,
-        manualBusinessContext,
-      })
+    const founderSourceInput = clipText(
+      mode === "manual"
+        ? manualBusinessContext || pastedSourceText
+        : mode === "hybrid"
+        ? pastedSourceText || manualBusinessContext || founderText
+        : founderText || pastedSourceText || manualBusinessContext || productText,
+      5000
     );
 
-    const founderVoice = await runJsonChat(
-      voiceAgentPrompt(
-        mode === "manual"
-          ? manualBusinessContext || pastedSourceText
-          : mode === "hybrid"
-          ? pastedSourceText || manualBusinessContext || founderText
-          : founderText || pastedSourceText || manualBusinessContext || productText
-      )
-    );
-
-    const customerOutcome = await runJsonChat(
-      customerOutcomePrompt(customerText || pastedSourceText || "")
-    );
-
-    const brandProductTruth = await runJsonChat(
-      productTruthPrompt(productText || founderText || pastedSourceText || "")
-    );
+    const [sourceProfile, founderVoice, customerOutcome, brandProductTruth] =
+      await Promise.all([
+        runJsonChat(
+          sourceProfilePrompt({
+            mode,
+            founderText,
+            customerText,
+            productText,
+            pastedSourceText,
+            manualBusinessContext,
+          })
+        ),
+        runJsonChat(voiceAgentPrompt(founderSourceInput)),
+        runJsonChat(customerOutcomePrompt(clipText(customerText || pastedSourceText || "", 3000))),
+        runJsonChat(
+          productTruthPrompt(clipText(productText || founderText || pastedSourceText || "", 3000))
+        ),
+      ]);
 
     const profile = {
       businessProfile: {
-        name:
-          sourceProfile?.businessProfile?.name ||
-          brandProductTruth?.productType ||
-          "",
+        name: sourceProfile?.businessProfile?.name || brandProductTruth?.productType || "",
         summary: sourceProfile?.businessProfile?.summary || "",
       },
       contentProfile: {
@@ -962,7 +971,9 @@ app.post("/build-profile", async (req, res) => {
       founderVoice,
       customerOutcome,
       brandProductTruth,
-      rawSiteData: laneGather,
+      debug: {
+        pagesScanned: laneGather?.pages?.length || 0,
+      },
     };
 
     res.json({ profile });
@@ -976,7 +987,7 @@ app.post("/analyze-voice", async (req, res) => {
   const { input } = req.body;
 
   try {
-    const profile = await runJsonChat(voiceAgentPrompt(input));
+    const profile = await runJsonChat(voiceAgentPrompt(clipText(input, 5000)));
     res.json({
       profile,
       result: JSON.stringify(profile, null, 2),
@@ -1068,10 +1079,10 @@ LIFE FRAME:
 ${category}
 
 IDEA:
-${idea || "No idea provided"}
+${clipText(idea || "No idea provided", 300)}
 
 WEEKLY SOURCE MATERIAL:
-${weeklyPosts || "No weekly notes provided"}
+${clipText(weeklyPosts || "No weekly notes provided", 2000)}
 
 VOICE PROFILE:
 ${buildVoiceInstructions(voiceProfile)}
@@ -1196,7 +1207,7 @@ app.post("/generate-image", async (req, res) => {
   try {
     const response = await openai.images.generate({
       model: "gpt-image-1",
-      prompt: imagePrompt,
+      prompt: clipText(imagePrompt, 4000),
       size: "1024x1024",
     });
 

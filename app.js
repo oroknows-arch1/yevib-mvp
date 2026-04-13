@@ -15,7 +15,13 @@ let voiceProfile = null;
 let initialProfile = null;
 
 function toggleWeeklyPosts() {
-  weeklyPostsWrap.style.display = "none";
+  const showFor = [
+    "Founder Reflection",
+    "Standards and Care",
+    "Small Moment Real Value",
+  ];
+
+  weeklyPostsWrap.style.display = showFor.includes(categorySelect.value) ? "block" : "none";
 }
 
 categorySelect.addEventListener("change", toggleWeeklyPosts);
@@ -84,17 +90,20 @@ async function buildInitialProfile() {
       const options = Array.from(categorySelect.options).map((o) => o.value);
       if (options.includes(suggestedCategory)) {
         categorySelect.value = suggestedCategory;
+        toggleWeeklyPosts();
       }
     }
 
-  document.getElementById("voiceResult").innerText = JSON.stringify(
-    data.profile?.founderVoice || {},
-  null,
-  2
-);
+    document.getElementById("voiceResult").innerText = JSON.stringify(
+      data.profile?.founderVoice || {},
+      null,
+      2
+    );
 
     intakeStatus.innerText =
-      `Initial profile built. Dominant source: ${data.profile?.sourceProfile?.dominantSource || "unknown"}.`;
+      `Initial profile built. Dominant source: ${
+        data.profile?.sourceProfile?.dominantSource || "unknown"
+      }. Pages scanned: ${data.profile?.debug?.pagesScanned || 0}.`;
   } catch (error) {
     console.error(error);
     intakeStatus.innerText = "Error building profile: " + error.message;
@@ -169,44 +178,44 @@ async function generatePosts() {
   document.getElementById("imagePrompt").innerText = "";
 
   try {
-   const res = await fetch("/generate", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    mode,
-    idea,
-    category,
-    weeklyPosts,
-    businessUrl,
-    pastedSourceText,
-    manualBusinessContext,
-    businessName,
-    businessSummary,
-    manualVoiceInput,
-    voiceProfile,
-    initialProfile,
-  }),
-});
+    const res = await fetch("/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mode,
+        idea,
+        category,
+        weeklyPosts,
+        businessUrl,
+        pastedSourceText,
+        manualBusinessContext,
+        businessName,
+        businessSummary,
+        manualVoiceInput,
+        voiceProfile,
+        initialProfile,
+      }),
+    });
 
-const contentType = res.headers.get("content-type") || "";
-if (!contentType.includes("application/json")) {
-  const text = await res.text();
-  console.error("Non-JSON response from /generate:", text);
-  postsDiv.innerHTML = "Server error: /generate returned HTML instead of JSON.";
-  return;
-}
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      const text = await res.text();
+      console.error("Non-JSON response from /generate:", text);
+      postsDiv.innerHTML = "Server error: /generate returned HTML instead of JSON.";
+      return;
+    }
 
-const data = await res.json();
+    const data = await res.json();
 
-if (!res.ok) {
-  postsDiv.innerHTML = "Server error: " + (data.error || "Unknown generate error.");
-  return;
-}
+    if (!res.ok) {
+      postsDiv.innerHTML = "Server error: " + (data.error || "Unknown generate error.");
+      return;
+    }
 
-if (!data.text) {
-  postsDiv.innerHTML = "Server error: " + (data.error || "No posts returned.");
-  return;
-}
+    if (!data.text) {
+      postsDiv.innerHTML = "Server error: " + (data.error || "No posts returned.");
+      return;
+    }
 
     const posts = data.text.split("\n\n\n").filter(Boolean);
     postsDiv.innerHTML = "";
@@ -292,14 +301,14 @@ function buildImagePrompt({
     initialProfile?.businessProfile?.summary || businessSummary || "a business brand";
 
   const profileAudience =
-  (initialProfile?.brandProductTruth?.audience || []).join(", ") || "not specified";
+    (initialProfile?.brandProductTruth?.audience || []).join(", ") || "not specified";
 
   const visualDirections =
     (initialProfile?.visualProfile?.visualDirections || []).join(", ") ||
     "modern, grounded, believable";
 
   const offerSummary =
-  (initialProfile?.brandProductTruth?.offers || []).join(", ") || "not specified";
+    (initialProfile?.brandProductTruth?.offers || []).join(", ") || "not specified";
 
   let modeRule = "";
 
