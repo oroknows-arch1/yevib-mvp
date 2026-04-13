@@ -63,6 +63,7 @@
 
     <div id="intakeStatus" style="margin-top: 12px;"></div>
     <div id="ownerKbStatus" style="margin-top: 8px; color:#444;"></div>
+    <div id="sourceChangePrompt" style="margin-top: 8px; color:#b35a00; font-weight:600;"></div>
   </section>
 
   <section style="margin-bottom: 28px;">
@@ -92,6 +93,8 @@
       rows="8"
       style="width:100%; max-width:900px;"
     ></textarea>
+
+    <div id="profilePrompt" style="margin-top: 8px; color:#444;"></div>
   </section>
 
   <section style="margin-bottom: 28px;">
@@ -122,6 +125,8 @@
       style="width:100%; max-width:900px;"
     />
 
+    <div id="feelingPrompt" style="margin-top: 8px; color:#444;"></div>
+
     <br /><br />
 
     <h4 style="margin-bottom:8px;">Choose what type of post you want</h4>
@@ -137,10 +142,13 @@
       <button onclick="quickGenerate('Personal')">Personal</button>
       <button onclick="quickGenerate('Something Real')">Something Real</button>
     </div>
+
+    <div id="generatePrompt" style="margin-top: 8px; color:#444;"></div>
   </section>
 
   <section style="margin-top:20px;">
     <h3>Generated Posts</h3>
+    <div id="postsPrompt" style="margin-bottom: 10px; color:#444;"></div>
     <div id="posts"></div>
   </section>
 

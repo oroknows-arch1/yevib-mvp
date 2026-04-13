@@ -3,6 +3,14 @@ const selectedPostBox = document.getElementById("selectedPost");
 const generatedImage = document.getElementById("generatedImage");
 const imageStatus = document.getElementById("imageStatus");
 
+const intakeStatus = document.getElementById("intakeStatus");
+const ownerKbStatus = document.getElementById("ownerKbStatus");
+const sourceChangePrompt = document.getElementById("sourceChangePrompt");
+const profilePrompt = document.getElementById("profilePrompt");
+const feelingPrompt = document.getElementById("feelingPrompt");
+const generatePrompt = document.getElementById("generatePrompt");
+const postsPrompt = document.getElementById("postsPrompt");
+
 let initialProfile = null;
 let voiceProfile = null;
 
@@ -10,6 +18,9 @@ let currentQuickType = "";
 let currentCategory = "";
 let selectedPost = "";
 let selectedFeeling = "";
+let profileBuilt = false;
+let sourceChangedSinceBuild = false;
+let lastWeakVoice = false;
 
 const QUICK_TYPES = {
   Business: {
@@ -45,6 +56,34 @@ function clearOutputs() {
   generatedImage.src = "";
   imageStatus.innerText = "";
   selectedPost = "";
+  postsPrompt.innerText = "";
+}
+
+function setInitialGuidance() {
+  profilePrompt.innerText = "Build the profile first. If the voice source comes back thin, paste more owner writing and rebuild.";
+  feelingPrompt.innerText = "Choose a feeling before you generate so the post matches where you are right now.";
+  generatePrompt.innerText = "After feeling is set, choose the post type you want.";
+}
+
+function updateSourceChangePrompt() {
+  if (profileBuilt && sourceChangedSinceBuild) {
+    sourceChangePrompt.innerText = "New source text added. Rebuild profile to fully apply it.";
+  } else {
+    sourceChangePrompt.innerText = "";
+  }
+}
+
+function markSourceChanged() {
+  if (!profileBuilt) return;
+  sourceChangedSinceBuild = true;
+  updateSourceChangePrompt();
+}
+
+function setupSourceWatchers() {
+  ["businessUrl", "pastedSourceText", "manualBusinessContext"].forEach((id) => {
+    const el = document.getElementById(id);
+    el.addEventListener("input", markSourceChanged);
+  });
 }
 
 function setupFeelingButtons() {
@@ -65,6 +104,7 @@ function setupFeelingButtons() {
 
       selectedFeeling = button.dataset.feeling || "";
       customFeelingInput.value = "";
+      feelingPrompt.innerText = `Feeling set: ${selectedFeeling}. Now choose the type of post you want.`;
     });
   });
 
@@ -76,6 +116,11 @@ function setupFeelingButtons() {
         btn.style.borderColor = "";
       });
       selectedFeeling = "";
+      feelingPrompt.innerText = "Custom feeling added. Now choose the type of post you want.";
+    } else {
+      if (!getFeelingInput()) {
+        feelingPrompt.innerText = "Choose a feeling before you generate so the post matches where you are right now.";
+      }
     }
   });
 }
@@ -106,11 +151,10 @@ async function buildInitialProfile() {
   const businessUrl = document.getElementById("businessUrl").value.trim();
   const pastedSourceText = document.getElementById("pastedSourceText").value.trim();
   const manualBusinessContext = document.getElementById("manualBusinessContext").value.trim();
-  const intakeStatus = document.getElementById("intakeStatus");
-  const ownerKbStatus = document.getElementById("ownerKbStatus");
 
   clearOutputs();
   ownerKbStatus.innerText = "";
+  postsPrompt.innerText = "";
 
   if (!businessUrl && !pastedSourceText && !manualBusinessContext) {
     intakeStatus.innerText = "Please add at least one source.";
@@ -150,6 +194,9 @@ async function buildInitialProfile() {
 
     initialProfile = data.profile || null;
     voiceProfile = data.profile?.founderVoice || null;
+    profileBuilt = true;
+    sourceChangedSinceBuild = false;
+    updateSourceChangePrompt();
 
     document.getElementById("businessName").value =
       data.profile?.businessProfile?.name || "";
@@ -160,18 +207,27 @@ async function buildInitialProfile() {
     document.getElementById("voiceInput").value =
       data.profile?.sourceProfile?.voiceSourceText || "";
 
-    const weakVoice = data.profile?.sourceProfile?.weakVoiceSource;
+    lastWeakVoice = Boolean(data.profile?.sourceProfile?.weakVoiceSource);
     const kbMeta = data.profile?.ownerKbMeta || {};
 
-    intakeStatus.innerText = weakVoice
-      ? "Profile ready. Voice source is a bit thin — paste more owner writing for deeper results."
+    intakeStatus.innerText = lastWeakVoice
+      ? "Profile ready. Voice source is thin."
       : `Profile ready (${data.profile?.sourceProfile?.voiceSourceLane || "unknown"} voice).`;
+
+    if (lastWeakVoice) {
+      profilePrompt.innerText = "Voice source looks thin. Paste more owner writing and rebuild profile for stronger results.";
+    } else {
+      profilePrompt.innerText = "Profile looks usable. Choose how you're feeling right now, then choose the type of post you want.";
+    }
 
     if (kbMeta.entryCount > 0) {
       ownerKbStatus.innerText = `Owner KB active — ${kbMeta.entryCount} saved choice${kbMeta.entryCount === 1 ? "" : "s"} for this business.`;
     } else {
       ownerKbStatus.innerText = "Owner KB active — no saved choices yet. It will start learning when you choose posts.";
     }
+
+    feelingPrompt.innerText = "Choose a feeling before you generate so the post matches where you are right now.";
+    generatePrompt.innerText = "After feeling is set, choose the type of post you want.";
   } catch (error) {
     console.error(error);
     intakeStatus.innerText = "Error: " + error.message;
@@ -181,6 +237,11 @@ async function buildInitialProfile() {
 async function quickGenerate(type) {
   if (!initialProfile) {
     alert("Build profile first.");
+    return;
+  }
+
+  if (sourceChangedSinceBuild) {
+    alert("New source text was added after the last profile build. Rebuild profile to fully apply it.");
     return;
   }
 
@@ -205,6 +266,7 @@ async function quickGenerate(type) {
   generatedImage.src = "";
   imageStatus.innerText = "";
   postsDiv.innerHTML = "Generating posts...";
+  postsPrompt.innerText = `Generating ${type} posts with feeling: ${ownerFeeling}.`;
 
   try {
     const res = await fetch("/generate", {
@@ -292,6 +354,7 @@ async function saveOwnerChoice({ chosenPost, ownerFeeling }) {
 
 function renderPostChoices(posts, typeLabel, ownerFeeling) {
   postsDiv.innerHTML = "";
+  postsPrompt.innerText = "Choose one of the 3 posts. Your choice will update Owner KB and generate the image.";
 
   const intro = document.createElement("div");
   intro.style.marginBottom = "12px";
@@ -392,6 +455,7 @@ function renderPostChoices(posts, typeLabel, ownerFeeling) {
         generatedImage.src = imgData.imageUrl;
         generatedImage.style.display = "block";
         imageStatus.innerText = "Image ready. Owner KB updated.";
+        ownerKbStatus.innerText = "Owner KB updated from your latest chosen post.";
       } catch (error) {
         console.error(error);
         imageStatus.innerText = "Image generation failed: " + error.message;
@@ -469,3 +533,5 @@ GLOBAL RULES:
 }
 
 setupFeelingButtons();
+setupSourceWatchers();
+setInitialGuidance();
