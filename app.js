@@ -65,7 +65,7 @@ async function buildInitialProfile() {
     }
 
     initialProfile = data.profile || null;
-    voiceProfile = data.profile?.voiceProfile || null;
+    voiceProfile = data.profile?.founderVoice || null;
 
     document.getElementById("businessName").value =
       data.profile?.businessProfile?.name || "";
@@ -292,14 +292,14 @@ function buildImagePrompt({
     initialProfile?.businessProfile?.summary || businessSummary || "a business brand";
 
   const profileAudience =
-    (initialProfile?.businessProfile?.audience || []).join(", ") || "not specified";
+  (initialProfile?.brandProductTruth?.audience || []).join(", ") || "not specified";
 
   const visualDirections =
     (initialProfile?.visualProfile?.visualDirections || []).join(", ") ||
     "modern, grounded, believable";
 
   const offerSummary =
-    (initialProfile?.businessProfile?.offers || []).join(", ") || "not specified";
+  (initialProfile?.brandProductTruth?.offers || []).join(", ") || "not specified";
 
   let modeRule = "";
 
