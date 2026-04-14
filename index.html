@@ -8,35 +8,33 @@
 </head>
 <body>
   <div class="app-shell">
-    <header class="topbar">
-      <div class="brand-block">
-        <div class="brand-mark">YEVIB</div>
-        <div class="brand-copy">
-          <h1>Your Voice Your Brand</h1>
-          <p>Build a profile. Set today’s tone. Generate something you’d actually post.</p>
-        </div>
-      </div>
+    <header class="hero-card">
+      <div class="brand-mark">YEVIB</div>
+      <h1>Your Voice Your Brand</h1>
+      <p class="hero-sub">
+        Tell YEVIB about the business, scan what the brand looks like today, then generate content with more direction and less guesswork.
+      </p>
 
-      <div class="flow-strip">
-        <span>Build</span>
-        <span>Feel</span>
+      <div class="flow-strip" aria-label="App flow">
+        <span>Intake</span>
+        <span>Scan</span>
+        <span>Snapshot</span>
         <span>Generate</span>
-        <span>Choose</span>
         <span>Post</span>
       </div>
     </header>
 
     <main class="screen-stack">
-      <section class="screen-card" id="step1">
+      <section class="screen-card" id="section-intake">
         <div class="screen-head">
           <div class="step-tag">Step 1</div>
-          <h2>Build Profile</h2>
-          <p>Give YEVIB enough real source material to understand the owner behind the business.</p>
+          <h2>Business Intake</h2>
+          <p>Enter the business details and give YEVIB enough source material to understand the brand properly.</p>
         </div>
 
         <div class="form-grid">
-          <div class="field">
-            <label for="generationMode">Mode</label>
+          <div class="field field-full">
+            <label for="generationMode">Build Mode</label>
             <select id="generationMode">
               <option value="express">Express (URL-first)</option>
               <option value="hybrid" selected>Hybrid</option>
@@ -44,8 +42,30 @@
             </select>
           </div>
 
+          <div class="field">
+            <label for="businessName">Business Name</label>
+            <input
+              id="businessName"
+              type="text"
+              placeholder="e.g. Purematcha, YEVIB, OROK"
+            />
+          </div>
+
+          <div class="field">
+            <label for="founderGoal">Founder Goal</label>
+            <select id="founderGoal">
+              <option value="">Select a goal</option>
+              <option value="Improve posting consistency">Improve posting consistency</option>
+              <option value="Clarify brand voice">Clarify brand voice</option>
+              <option value="Create better educational content">Create better educational content</option>
+              <option value="Build more trust">Build more trust</option>
+              <option value="Promote products or services better">Promote products or services better</option>
+              <option value="Show more founder presence">Show more founder presence</option>
+            </select>
+          </div>
+
           <div class="field field-full">
-            <label for="businessUrl">Business URL</label>
+            <label for="businessUrl">Website URL</label>
             <input
               id="businessUrl"
               type="text"
@@ -55,8 +75,7 @@
 
           <div class="field field-full">
             <div class="field-note">
-              Optional: paste real written material from the owner for stronger voice results.
-              This should be owner writing, not customer reviews.
+              Optional: paste real writing from the owner for stronger voice results. This should be owner writing, not customer reviews.
             </div>
           </div>
 
@@ -70,17 +89,17 @@
           </div>
 
           <div class="field field-full">
-            <label for="manualBusinessContext">Manual Context</label>
+            <label for="manualBusinessContext">Manual Business Context</label>
             <textarea
               id="manualBusinessContext"
               rows="4"
-              placeholder="Add business context, corrections, or notes..."
+              placeholder="Add business context, corrections, offers, audience notes, or anything the website may miss..."
             ></textarea>
           </div>
         </div>
 
         <div class="action-row">
-          <button class="primary-btn" onclick="buildInitialProfile()">Build Profile</button>
+          <button class="primary-btn" onclick="buildInitialProfile()">Scan Brand</button>
         </div>
 
         <div id="intakeStatus" class="status-line"></div>
@@ -88,42 +107,82 @@
         <div id="sourceChangePrompt" class="warning-line"></div>
       </section>
 
-      <section class="screen-card" id="step2">
+      <section class="screen-card" id="section-profile">
         <div class="screen-head">
           <div class="step-tag">Step 2</div>
-          <h2>Profile</h2>
-          <p>This is the profile YEVIB built from the source material.</p>
+          <h2>Brand Snapshot</h2>
+          <p>This is YEVIB’s first read on what the brand looks like today.</p>
         </div>
 
-        <div class="form-grid">
-          <div class="field field-full">
-            <label for="businessName">Business Name</label>
-            <input id="businessName" type="text" />
+        <div class="snapshot-grid">
+          <div class="snapshot-card">
+            <h3>Brand Summary</h3>
+            <textarea id="businessSummary" rows="5" placeholder="Brand summary will appear here..."></textarea>
           </div>
 
-          <div class="field field-full">
-            <label for="businessSummary">Business Summary</label>
-            <textarea id="businessSummary" rows="4"></textarea>
+          <div class="snapshot-card">
+            <h3>Founder Goal</h3>
+            <div id="founderGoalDisplay" class="snapshot-display">
+              No goal selected yet.
+            </div>
           </div>
 
+          <div class="snapshot-card">
+            <h3>Voice Summary</h3>
+            <div id="voiceSummaryDisplay" class="snapshot-display">
+              Voice summary will appear here after the scan.
+            </div>
+          </div>
+
+          <div class="snapshot-card">
+            <h3>Offers / Services</h3>
+            <div id="offersDisplay" class="snapshot-display">
+              Offers and services will appear here after the scan.
+            </div>
+          </div>
+
+          <div class="snapshot-card">
+            <h3>Audience</h3>
+            <div id="audienceDisplay" class="snapshot-display">
+              Audience clues will appear here after the scan.
+            </div>
+          </div>
+
+          <div class="snapshot-card">
+            <h3>Content Opportunities</h3>
+            <div id="opportunitiesDisplay" class="snapshot-display">
+              Opportunities will appear here after the scan.
+            </div>
+          </div>
+        </div>
+
+        <div class="form-grid top-section-gap">
           <div class="field field-full">
             <label for="voiceInput">Voice Source</label>
-            <textarea id="voiceInput" rows="8"></textarea>
+            <textarea
+              id="voiceInput"
+              rows="8"
+              placeholder="Voice source used for the brand build will appear here..."
+            ></textarea>
           </div>
         </div>
 
         <div id="profilePrompt" class="subtle-line"></div>
       </section>
 
-      <section class="screen-card" id="step3">
+      <section class="screen-card" id="section-generate">
         <div class="screen-head">
           <div class="step-tag">Step 3</div>
-          <h2>Create Today’s Post</h2>
-          <p>Set today’s feeling first, then choose the type of post you want.</p>
+          <h2>Content Action</h2>
+          <p>Refine the tone if needed, then choose the type of post you want YEVIB to generate from the brand snapshot.</p>
         </div>
 
         <div class="sub-block">
-          <h3>How are you feeling right now?</h3>
+          <h3>Optional: how are you feeling right now?</h3>
+          <p class="sub-block-copy">
+            This is now a refinement layer, not the main starting point. Use it when you want the content to better match today’s tone.
+          </p>
+
           <div id="feelingButtons" class="chip-row">
             <button type="button" class="feeling-btn" data-feeling="Focused">Focused</button>
             <button type="button" class="feeling-btn" data-feeling="Proud">Proud</button>
@@ -149,7 +208,11 @@
         </div>
 
         <div class="sub-block">
-          <h3>Choose the post type</h3>
+          <h3>Choose the content lens</h3>
+          <p class="sub-block-copy">
+            These lenses shape the angle of the post while keeping the same brand voice underneath.
+          </p>
+
           <div class="chip-row">
             <button class="lens-btn" onclick="quickGenerate('Business')">Business</button>
             <button class="lens-btn" onclick="quickGenerate('Family')">Family</button>
@@ -163,22 +226,22 @@
         </div>
       </section>
 
-      <section class="screen-card" id="step4">
+      <section class="screen-card" id="section-posts">
         <div class="screen-head">
           <div class="step-tag">Step 4</div>
-          <h2>Your Post Options</h2>
-          <p>Pick the one that feels most like you right now.</p>
+          <h2>Generated Post Options</h2>
+          <p>Pick the one that feels most like the business and the moment.</p>
         </div>
 
         <div id="postsPrompt" class="subtle-line"></div>
         <div id="posts"></div>
       </section>
 
-      <section class="screen-card" id="step5">
+      <section class="screen-card" id="section-output">
         <div class="screen-head">
           <div class="step-tag">Step 5</div>
           <h2>Selected Post</h2>
-          <p>This is the post you chose for today.</p>
+          <p>This is the post you chose, along with its generated image.</p>
         </div>
 
         <div id="selectedPost" class="selected-post"></div>
