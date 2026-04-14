@@ -11,6 +11,11 @@ const feelingPrompt = document.getElementById("feelingPrompt");
 const generatePrompt = document.getElementById("generatePrompt");
 const postsPrompt = document.getElementById("postsPrompt");
 
+const sectionProfile = document.getElementById("section-profile");
+const sectionGenerate = document.getElementById("section-generate");
+const sectionPosts = document.getElementById("section-posts");
+const sectionOutput = document.getElementById("section-output");
+
 let initialProfile = null;
 let voiceProfile = null;
 
@@ -55,6 +60,24 @@ function scrollToSection(id) {
   el.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+function showSection(el) {
+  if (!el) return;
+  el.style.display = "block";
+}
+
+function hideSection(el) {
+  if (!el) return;
+  el.style.display = "none";
+}
+
+function initUI() {
+  hideSection(sectionProfile);
+  hideSection(sectionGenerate);
+  hideSection(sectionPosts);
+  hideSection(sectionOutput);
+  generatedImage.style.display = "none";
+}
+
 function clearOutputs() {
   postsDiv.innerHTML = "";
   selectedPostBox.innerText = "";
@@ -63,6 +86,8 @@ function clearOutputs() {
   imageStatus.innerText = "";
   selectedPost = "";
   postsPrompt.innerText = "";
+  hideSection(sectionPosts);
+  hideSection(sectionOutput);
 }
 
 function setInitialGuidance() {
@@ -102,30 +127,18 @@ function setupFeelingButtons() {
 
   buttons.forEach((button) => {
     button.addEventListener("click", () => {
-      buttons.forEach((btn) => {
-        btn.style.background = "";
-        btn.style.color = "";
-        btn.style.borderColor = "";
-      });
-
-      button.style.background = "#1a73e8";
-      button.style.color = "white";
-      button.style.borderColor = "#1a73e8";
+      buttons.forEach((btn) => btn.classList.remove("is-active"));
+      button.classList.add("is-active");
 
       selectedFeeling = button.dataset.feeling || "";
       customFeelingInput.value = "";
       feelingPrompt.innerText = `Feeling set: ${selectedFeeling}. Now choose the type of post you want.`;
-      scrollToSection("step3");
     });
   });
 
   customFeelingInput.addEventListener("input", () => {
     if (customFeelingInput.value.trim()) {
-      buttons.forEach((btn) => {
-        btn.style.background = "";
-        btn.style.color = "";
-        btn.style.borderColor = "";
-      });
+      buttons.forEach((btn) => btn.classList.remove("is-active"));
       selectedFeeling = "";
       feelingPrompt.innerText =
         "Custom feeling added. Now choose the type of post you want.";
@@ -248,8 +261,9 @@ async function buildInitialProfile() {
     generatePrompt.innerText =
       "After feeling is set, choose the type of post you want.";
 
-    scrollToSection("step2");
-    setTimeout(() => scrollToSection("step3"), 350);
+    showSection(sectionProfile);
+    showSection(sectionGenerate);
+    scrollToSection("section-generate");
   } catch (error) {
     console.error(error);
     intakeStatus.innerText = "Error: " + error.message;
@@ -291,6 +305,9 @@ async function quickGenerate(type) {
   imageStatus.innerText = "";
   postsDiv.innerHTML = "Generating posts...";
   postsPrompt.innerText = `Generating ${type} posts with feeling: ${ownerFeeling}.`;
+
+  showSection(sectionPosts);
+  hideSection(sectionOutput);
 
   try {
     const res = await fetch("/generate", {
@@ -334,7 +351,7 @@ async function quickGenerate(type) {
 
     const posts = data.text.split("\n\n\n").filter(Boolean);
     renderPostChoices(posts, type, ownerFeeling);
-    scrollToSection("step4");
+    scrollToSection("section-posts");
   } catch (error) {
     console.error(error);
     postsDiv.innerHTML = "Error: " + error.message;
@@ -383,8 +400,7 @@ function renderPostChoices(posts, typeLabel, ownerFeeling) {
     "Choose one of the 3 posts. Your choice will update Owner KB and generate the image.";
 
   const intro = document.createElement("div");
-  intro.style.marginBottom = "12px";
-  intro.style.fontWeight = "600";
+  intro.className = "posts-intro";
   intro.innerText = `${typeLabel} posts — feeling: ${ownerFeeling} — choose one to generate its image.`;
   postsDiv.appendChild(intro);
 
@@ -393,27 +409,27 @@ function renderPostChoices(posts, typeLabel, ownerFeeling) {
     card.className = "post-choice-card";
 
     const postText = document.createElement("div");
+    postText.className = "post-text";
     postText.innerText = post;
     card.appendChild(postText);
 
     const counter = document.createElement("div");
-    counter.style.fontSize = "12px";
-    counter.style.color = "#666";
-    counter.style.marginTop = "8px";
+    counter.className = "post-meta";
     counter.innerText = `Characters: ${post.length}`;
     card.appendChild(counter);
 
     const helper = document.createElement("div");
-    helper.style.fontSize = "12px";
-    helper.style.color = "#444";
-    helper.style.marginTop = "8px";
+    helper.className = "post-helper";
     helper.innerText = "Click to choose this post and generate its image.";
     card.appendChild(helper);
 
+    const actions = document.createElement("div");
+    actions.className = "post-actions";
+
     const copyBtn = document.createElement("button");
     copyBtn.type = "button";
+    copyBtn.className = "secondary-btn";
     copyBtn.innerText = "Copy Post";
-    copyBtn.style.marginTop = "10px";
 
     copyBtn.onclick = async (e) => {
       e.stopPropagation();
@@ -432,22 +448,23 @@ function renderPostChoices(posts, typeLabel, ownerFeeling) {
       }
     };
 
-    card.appendChild(copyBtn);
+    actions.appendChild(copyBtn);
+    card.appendChild(actions);
 
     card.onclick = async () => {
       document.querySelectorAll(".post-choice-card").forEach((el) => {
-        el.style.background = "white";
-        el.style.border = "1px solid #d7e0eb";
+        el.classList.remove("selected");
       });
 
-      card.style.background = "#e8f0fe";
-      card.style.border = "1px solid #8ab4f8";
+      card.classList.add("selected");
 
       selectedPost = post;
       selectedPostBox.innerText = post;
       generatedImage.style.display = "none";
       generatedImage.src = "";
       imageStatus.innerText = "Saving choice and generating image...";
+
+      showSection(sectionOutput);
 
       await saveOwnerChoice({
         chosenPost: post,
@@ -500,7 +517,7 @@ function renderPostChoices(posts, typeLabel, ownerFeeling) {
         imageStatus.innerText = "Post ready. This sounds like you today.";
         ownerKbStatus.innerText = "Owner KB updated from your latest chosen post.";
 
-        scrollToSection("step5");
+        scrollToSection("section-output");
       } catch (error) {
         console.error(error);
         imageStatus.innerText = "Image generation failed: " + error.message;
@@ -586,3 +603,4 @@ GLOBAL RULES:
 setupFeelingButtons();
 setupSourceWatchers();
 setInitialGuidance();
+initUI();
