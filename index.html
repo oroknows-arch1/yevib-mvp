@@ -1,261 +1,866 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>YEVIB</title>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-  <div class="app-shell">
-    <header class="hero-card">
-      <div class="brand-mark">YEVIB</div>
-      <h1>Your Voice Your Brand</h1>
-      <p class="hero-sub">
-        Tell YEVIB about the business, scan what the brand looks like today, then generate content with more direction and less guesswork.
-      </p>
+const postsDiv = document.getElementById("posts");
+const selectedPostBox = document.getElementById("selectedPost");
+const generatedImage = document.getElementById("generatedImage");
+const imageStatus = document.getElementById("imageStatus");
 
-      <div class="flow-strip" aria-label="App flow">
-        <span>Intake</span>
-        <span>Scan</span>
-        <span>Snapshot</span>
-        <span>Generate</span>
-        <span>Post</span>
-      </div>
-    </header>
+const intakeStatus = document.getElementById("intakeStatus");
+const ownerKbStatus = document.getElementById("ownerKbStatus");
+const sourceChangePrompt = document.getElementById("sourceChangePrompt");
+const profilePrompt = document.getElementById("profilePrompt");
+const feelingPrompt = document.getElementById("feelingPrompt");
+const generatePrompt = document.getElementById("generatePrompt");
+const postsPrompt = document.getElementById("postsPrompt");
 
-    <main class="screen-stack">
-      <section class="screen-card" id="section-intake">
-        <div class="screen-head">
-          <div class="step-tag">Step 1</div>
-          <h2>Business Intake</h2>
-          <p>Enter the business details and give YEVIB enough source material to understand the brand properly.</p>
-        </div>
+const founderGoalInput = document.getElementById("founderGoal");
+const founderGoalDisplay = document.getElementById("founderGoalDisplay");
+const voiceSummaryDisplay = document.getElementById("voiceSummaryDisplay");
+const offersDisplay = document.getElementById("offersDisplay");
+const audienceDisplay = document.getElementById("audienceDisplay");
+const opportunitiesDisplay = document.getElementById("opportunitiesDisplay");
+const continueToGenerateBtn = document.getElementById("continueToGenerateBtn");
 
-        <div class="form-grid">
-          <div class="field field-full">
-            <label for="generationMode">Build Mode</label>
-            <select id="generationMode">
-              <option value="express">Express (URL-first)</option>
-              <option value="hybrid" selected>Hybrid</option>
-              <option value="manual">Manual</option>
-            </select>
-          </div>
+let initialProfile = null;
+let voiceProfile = null;
 
-          <div class="field">
-            <label for="businessName">Business Name</label>
-            <input
-              id="businessName"
-              type="text"
-              placeholder="e.g. Purematcha, YEVIB, OROK"
-            />
-          </div>
+let currentQuickType = "";
+let currentCategory = "";
+let selectedPost = "";
+let selectedFeeling = "";
+let selectedFounderGoal = "";
+let profileBuilt = false;
+let sourceChangedSinceBuild = false;
+let lastWeakVoice = false;
 
-          <div class="field">
-            <label for="founderGoal">Founder Goal</label>
-            <select id="founderGoal">
-              <option value="">Select a goal</option>
-              <option value="Improve posting consistency">Improve posting consistency</option>
-              <option value="Clarify brand voice">Clarify brand voice</option>
-              <option value="Create better educational content">Create better educational content</option>
-              <option value="Build more trust">Build more trust</option>
-              <option value="Promote products or services better">Promote products or services better</option>
-              <option value="Show more founder presence">Show more founder presence</option>
-            </select>
-          </div>
+const QUICK_TYPES = {
+  Business: {
+    category: "Product in Real Life",
+    idea: "business",
+  },
+  Family: {
+    category: "Small Moment Real Value",
+    idea: "family",
+  },
+  Educational: {
+    category: "Standards and Care",
+    idea: "educational",
+  },
+  Community: {
+    category: "Quiet Value",
+    idea: "community",
+  },
+  Personal: {
+    category: "Founder Reflection",
+    idea: "personal",
+  },
+  "Something Real": {
+    category: "Something Real",
+    idea: "something real",
+  },
+};
 
-          <div class="field field-full">
-            <label for="businessUrl">Website URL</label>
-            <input
-              id="businessUrl"
-              type="text"
-              placeholder="https://yourbusiness.com"
-            />
-          </div>
+function scrollToSection(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
 
-          <div class="field field-full">
-            <div class="field-note">
-              Optional: paste real writing from the owner for stronger voice results. This should be owner writing, not customer reviews.
-            </div>
-          </div>
+function clearOutputs() {
+  postsDiv.innerHTML = "";
+  selectedPostBox.innerText = "";
+  generatedImage.style.display = "none";
+  generatedImage.src = "";
+  imageStatus.innerText = "";
+  selectedPost = "";
+  postsPrompt.innerText = "";
+}
 
-          <div class="field field-full">
-            <label for="pastedSourceText">Owner Writing / Pasted Text</label>
-            <textarea
-              id="pastedSourceText"
-              rows="8"
-              placeholder="Paste writing from the owner here..."
-            ></textarea>
-          </div>
+function clearSnapshotDisplays() {
+  founderGoalDisplay.innerText = "No goal selected yet.";
+  voiceSummaryDisplay.innerText = "Voice summary will appear here after the scan.";
+  offersDisplay.innerText = "Offers and services will appear here after the scan.";
+  audienceDisplay.innerText = "Audience clues will appear here after the scan.";
+  opportunitiesDisplay.innerText = "Opportunities will appear here after the scan.";
 
-          <div class="field field-full">
-            <label for="manualBusinessContext">Manual Business Context</label>
-            <textarea
-              id="manualBusinessContext"
-              rows="4"
-              placeholder="Add business context, corrections, offers, audience notes, or anything the website may miss..."
-            ></textarea>
-          </div>
-        </div>
+  if (continueToGenerateBtn) {
+    continueToGenerateBtn.style.display = "none";
+  }
+}
 
-        <div class="action-row">
-          <button class="primary-btn" onclick="buildInitialProfile()">Scan Brand</button>
-        </div>
+function setInitialGuidance() {
+  profilePrompt.innerText =
+    "Scan the business first. Review the brand snapshot before moving into content action.";
+  feelingPrompt.innerText =
+    "Optional: choose a feeling if you want today's content to better match your current tone.";
+  generatePrompt.innerText =
+    "After the brand snapshot is ready, choose the content lens you want YEVIB to generate from.";
+}
 
-        <div id="intakeStatus" class="status-line"></div>
-        <div id="ownerKbStatus" class="subtle-line"></div>
-        <div id="sourceChangePrompt" class="warning-line"></div>
-      </section>
+function updateSourceChangePrompt() {
+  if (profileBuilt && sourceChangedSinceBuild) {
+    sourceChangePrompt.innerText =
+      "Source material changed after the last scan. Scan brand again to fully apply the new inputs.";
+  } else {
+    sourceChangePrompt.innerText = "";
+  }
+}
 
-      <section class="screen-card" id="section-profile">
-        <div class="screen-head">
-          <div class="step-tag">Step 2</div>
-          <h2>Brand Snapshot</h2>
-          <p>This is YEVIB’s first read on what the brand looks like today.</p>
-        </div>
+function markSourceChanged() {
+  if (!profileBuilt) return;
+  sourceChangedSinceBuild = true;
+  updateSourceChangePrompt();
+}
 
-        <div class="snapshot-grid">
-          <div class="snapshot-card">
-            <h3>Brand Summary</h3>
-            <textarea id="businessSummary" rows="5" placeholder="Brand summary will appear here..."></textarea>
-          </div>
+function setupSourceWatchers() {
+  ["businessName", "businessUrl", "pastedSourceText", "manualBusinessContext", "founderGoal"].forEach(
+    (id) => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener("input", markSourceChanged);
+      if (el && el.tagName === "SELECT") {
+        el.addEventListener("change", markSourceChanged);
+      }
+    }
+  );
+}
 
-          <div class="snapshot-card">
-            <h3>Founder Goal</h3>
-            <div id="founderGoalDisplay" class="snapshot-display">
-              No goal selected yet.
-            </div>
-          </div>
+function setupContinueButton() {
+  if (!continueToGenerateBtn) return;
 
-          <div class="snapshot-card">
-            <h3>Voice Summary</h3>
-            <div id="voiceSummaryDisplay" class="snapshot-display">
-              Voice summary will appear here after the scan.
-            </div>
-          </div>
+  continueToGenerateBtn.addEventListener("click", () => {
+    scrollToSection("section-generate");
+  });
+}
 
-          <div class="snapshot-card">
-            <h3>Offers / Services</h3>
-            <div id="offersDisplay" class="snapshot-display">
-              Offers and services will appear here after the scan.
-            </div>
-          </div>
+function setupFeelingButtons() {
+  const buttons = document.querySelectorAll(".feeling-btn");
+  const customFeelingInput = document.getElementById("customFeeling");
 
-          <div class="snapshot-card">
-            <h3>Audience</h3>
-            <div id="audienceDisplay" class="snapshot-display">
-              Audience clues will appear here after the scan.
-            </div>
-          </div>
+  buttons.forEach((button) => {
+    button.addEventListener("click", () => {
+      buttons.forEach((btn) => {
+        btn.classList.remove("is-active");
+      });
 
-          <div class="snapshot-card">
-            <h3>Content Opportunities</h3>
-            <div id="opportunitiesDisplay" class="snapshot-display">
-              Opportunities will appear here after the scan.
-            </div>
-          </div>
-        </div>
+      button.classList.add("is-active");
+      selectedFeeling = button.dataset.feeling || "";
+      customFeelingInput.value = "";
 
-        <div class="form-grid top-section-gap">
-          <div class="field field-full">
-            <label for="voiceInput">Voice Source</label>
-            <textarea
-              id="voiceInput"
-              rows="8"
-              placeholder="Voice source used for the brand build will appear here..."
-            ></textarea>
-          </div>
-        </div>
+      feelingPrompt.innerText = `Feeling set: ${selectedFeeling}. Now choose the content lens you want.`;
+      scrollToSection("section-generate");
+    });
+  });
 
-        <div id="profilePrompt" class="subtle-line"></div>
-      </section>
+  customFeelingInput.addEventListener("input", () => {
+    if (customFeelingInput.value.trim()) {
+      buttons.forEach((btn) => {
+        btn.classList.remove("is-active");
+      });
+      selectedFeeling = "";
+      feelingPrompt.innerText =
+        "Custom feeling added. Now choose the content lens you want.";
+    } else if (!getFeelingInput()) {
+      feelingPrompt.innerText =
+        "Optional: choose a feeling if you want today's content to better match your current tone.";
+    }
+  });
+}
 
-      <section class="screen-card" id="section-generate">
-        <div class="screen-head">
-          <div class="step-tag">Step 3</div>
-          <h2>Content Action</h2>
-          <p>Refine the tone if needed, then choose the type of post you want YEVIB to generate from the brand snapshot.</p>
-        </div>
+function getFeelingInput() {
+  const customFeeling = document.getElementById("customFeeling").value.trim();
+  return customFeeling || selectedFeeling || "";
+}
 
-        <div class="sub-block">
-          <h3>Optional: how are you feeling right now?</h3>
-          <p class="sub-block-copy">
-            This is now a refinement layer, not the main starting point. Use it when you want the content to better match today’s tone.
-          </p>
+function getFounderGoal() {
+  return founderGoalInput?.value?.trim() || selectedFounderGoal || "";
+}
 
-          <div id="feelingButtons" class="chip-row">
-            <button type="button" class="feeling-btn" data-feeling="Focused">Focused</button>
-            <button type="button" class="feeling-btn" data-feeling="Proud">Proud</button>
-            <button type="button" class="feeling-btn" data-feeling="Tired">Tired</button>
-            <button type="button" class="feeling-btn" data-feeling="Reflective">Reflective</button>
-            <button type="button" class="feeling-btn" data-feeling="Flat">Flat</button>
-            <button type="button" class="feeling-btn" data-feeling="Grateful">Grateful</button>
-            <button type="button" class="feeling-btn" data-feeling="Fired up">Fired up</button>
-            <button type="button" class="feeling-btn" data-feeling="Not feeling it">Not feeling it</button>
-            <button type="button" class="feeling-btn" data-feeling="Random">Random</button>
-          </div>
+function getCurrentBusinessName() {
+  return (
+    initialProfile?.businessProfile?.name ||
+    document.getElementById("businessName").value.trim() ||
+    "Your Brand"
+  );
+}
 
-          <div class="field top-gap">
-            <label for="customFeeling">Optional: add your own</label>
-            <input
-              id="customFeeling"
-              type="text"
-              placeholder="quietly proud, more direct, less polished, more human..."
-            />
-          </div>
+function getCurrentBusinessSummary() {
+  return (
+    initialProfile?.businessProfile?.summary ||
+    document.getElementById("businessSummary").value.trim() ||
+    ""
+  );
+}
 
-          <div id="feelingPrompt" class="subtle-line"></div>
-        </div>
+function toDisplayList(items = [], fallback = "Not enough information yet.") {
+  if (!Array.isArray(items) || items.length === 0) return fallback;
+  return items.map((item) => `• ${item}`).join("\n");
+}
 
-        <div class="sub-block">
-          <h3>Choose the content lens</h3>
-          <p class="sub-block-copy">
-            These lenses shape the angle of the post while keeping the same brand voice underneath.
-          </p>
+function buildOpportunitiesFromProfile(profile) {
+  const backendOpportunities = profile?.advisorSnapshot?.opportunities || [];
+  if (Array.isArray(backendOpportunities) && backendOpportunities.length > 0) {
+    return backendOpportunities.slice(0, 6);
+  }
 
-          <div class="chip-row">
-            <button class="lens-btn" onclick="quickGenerate('Business')">Business</button>
-            <button class="lens-btn" onclick="quickGenerate('Family')">Family</button>
-            <button class="lens-btn" onclick="quickGenerate('Educational')">Educational</button>
-            <button class="lens-btn" onclick="quickGenerate('Community')">Community</button>
-            <button class="lens-btn" onclick="quickGenerate('Personal')">Personal</button>
-            <button class="lens-btn" onclick="quickGenerate('Something Real')">Something Real</button>
-          </div>
+  const opportunities = [];
+  const category = profile?.contentProfile?.suggestedCategory || "";
+  const idea = profile?.contentProfile?.suggestedIdea || "";
+  const weakVoice = Boolean(profile?.sourceProfile?.weakVoiceSource);
+  const offers = profile?.brandProductTruth?.offers || [];
+  const audience = profile?.brandProductTruth?.audience || [];
 
-          <div id="generatePrompt" class="subtle-line"></div>
-        </div>
-      </section>
+  if (category) {
+    opportunities.push(`Lean harder into ${category} content.`);
+  }
 
-      <section class="screen-card" id="section-posts">
-        <div class="screen-head">
-          <div class="step-tag">Step 4</div>
-          <h2>Generated Post Options</h2>
-          <p>Pick the one that feels most like the business and the moment.</p>
-        </div>
+  if (idea) {
+    opportunities.push(`Use this as an early content direction: ${idea}`);
+  }
 
-        <div id="postsPrompt" class="subtle-line"></div>
-        <div id="posts"></div>
-      </section>
+  if (offers.length > 0) {
+    opportunities.push("Turn offers and services into clearer lived-use content.");
+  }
 
-      <section class="screen-card" id="section-output">
-        <div class="screen-head">
-          <div class="step-tag">Step 5</div>
-          <h2>Selected Post</h2>
-          <p>This is the post you chose, along with its generated image.</p>
-        </div>
+  if (audience.length > 0) {
+    opportunities.push("Speak more directly to the audience the brand already appears to serve.");
+  }
 
-        <div id="selectedPost" class="selected-post"></div>
-        <div id="imageStatus" class="status-line"></div>
+  if (weakVoice) {
+    opportunities.push("Add more owner writing to strengthen founder voice consistency.");
+  }
 
-        <img
-          id="generatedImage"
-          alt="Generated image"
-          class="generated-image"
-        />
-      </section>
-    </main>
-  </div>
+  const founderGoal = getFounderGoal();
+  if (founderGoal) {
+    opportunities.push(`Bias future content toward this founder goal: ${founderGoal}`);
+  }
 
-  <script src="app.js"></script>
-</body>
-</html>
+  return opportunities.slice(0, 5);
+}
+
+function renderBrandSnapshot(profile) {
+  const founderGoal = profile?.founderGoal || getFounderGoal();
+
+  founderGoalDisplay.innerText = founderGoal || "No goal selected yet.";
+
+  voiceSummaryDisplay.innerText =
+    profile?.founderVoice?.voiceSummary || "No voice summary returned yet.";
+
+  offersDisplay.innerText = toDisplayList(
+    profile?.brandProductTruth?.offers || [],
+    "No clear offers or services detected yet."
+  );
+
+  audienceDisplay.innerText = toDisplayList(
+    profile?.brandProductTruth?.audience || [],
+    "No clear audience clues detected yet."
+  );
+
+  opportunitiesDisplay.innerText = toDisplayList(
+    buildOpportunitiesFromProfile(profile),
+    "No clear opportunities detected yet."
+  );
+}
+
+async function buildInitialProfile() {
+  const mode = document.getElementById("generationMode").value;
+  const businessName = document.getElementById("businessName").value.trim();
+  const businessUrl = document.getElementById("businessUrl").value.trim();
+  const pastedSourceText = document.getElementById("pastedSourceText").value.trim();
+  const manualBusinessContext = document.getElementById("manualBusinessContext").value.trim();
+  const founderGoal = getFounderGoal();
+
+  clearOutputs();
+  clearSnapshotDisplays();
+  ownerKbStatus.innerText = "";
+  postsPrompt.innerText = "";
+
+  if (!businessUrl && !pastedSourceText && !manualBusinessContext) {
+    intakeStatus.innerText = "Please add at least one source before scanning.";
+    return;
+  }
+
+  intakeStatus.innerText = "Scanning brand and building snapshot...";
+
+  try {
+    const res = await fetch("/build-profile", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        mode,
+        businessName,
+        founderGoal,
+        businessUrl,
+        pastedSourceText,
+        manualBusinessContext,
+      }),
+    });
+
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      const text = await res.text();
+      console.error("Non-JSON response from /build-profile:", text);
+      intakeStatus.innerText =
+        "Brand scan failed: server returned HTML instead of JSON.";
+      return;
+    }
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      intakeStatus.innerText = data.error || "Brand scan failed.";
+      return;
+    }
+
+    initialProfile = data.profile || null;
+    voiceProfile = data.profile?.founderVoice || null;
+    profileBuilt = true;
+    sourceChangedSinceBuild = false;
+    updateSourceChangePrompt();
+
+    selectedFounderGoal = data.profile?.founderGoal || founderGoal;
+
+    const resolvedBusinessName =
+      businessName || data.profile?.businessProfile?.name || "";
+
+    document.getElementById("businessName").value = resolvedBusinessName;
+
+    document.getElementById("businessSummary").value =
+      data.profile?.businessProfile?.summary || "";
+
+    document.getElementById("voiceInput").value =
+      data.profile?.sourceProfile?.voiceSourceText || "";
+
+    renderBrandSnapshot(data.profile);
+
+    lastWeakVoice = Boolean(data.profile?.sourceProfile?.weakVoiceSource);
+    const kbMeta = data.profile?.ownerKbMeta || {};
+
+    intakeStatus.innerText = lastWeakVoice
+      ? "Brand snapshot ready. Voice source is thin."
+      : "Brand snapshot ready.";
+
+    if (lastWeakVoice) {
+      profilePrompt.innerText =
+        "The scan worked, but the founder voice source is still thin. Review the snapshot first, then add more owner writing and scan again for stronger results if needed.";
+    } else {
+      profilePrompt.innerText =
+        "Review the brand snapshot first. When ready, continue to content action and generate from what YEVIB found.";
+    }
+
+    if (kbMeta.entryCount > 0) {
+      ownerKbStatus.innerText = `Owner KB active — ${kbMeta.entryCount} saved choice${
+        kbMeta.entryCount === 1 ? "" : "s"
+      } for this business.`;
+    } else {
+      ownerKbStatus.innerText =
+        "Owner KB active — no saved choices yet. It will start learning when you choose posts.";
+    }
+
+    feelingPrompt.innerText =
+      "Optional: choose a feeling if you want today's content to better match your current tone.";
+    generatePrompt.innerText =
+      "Choose the content lens you want YEVIB to generate from the brand snapshot.";
+
+    if (continueToGenerateBtn) {
+      continueToGenerateBtn.style.display = "inline-flex";
+    }
+
+    scrollToSection("section-profile");
+  } catch (error) {
+    console.error(error);
+    intakeStatus.innerText = "Error: " + error.message;
+  }
+}
+
+async function quickGenerate(type) {
+  if (!initialProfile) {
+    alert("Scan the brand first.");
+    return;
+  }
+
+  if (sourceChangedSinceBuild) {
+    alert(
+      "Source material changed after the last scan. Scan brand again to fully apply the new inputs."
+    );
+    return;
+  }
+
+  const config = QUICK_TYPES[type];
+  if (!config) {
+    alert("Unknown content lens.");
+    return;
+  }
+
+  const ownerFeeling = getFeelingInput();
+
+  currentQuickType = type;
+  currentCategory = config.category;
+  selectedPost = "";
+
+  selectedPostBox.innerText = "";
+  generatedImage.style.display = "none";
+  generatedImage.src = "";
+  imageStatus.innerText = "";
+  postsDiv.innerHTML = "Generating posts...";
+  postsPrompt.innerText = ownerFeeling
+    ? `Generating ${type} posts with feeling: ${ownerFeeling}.`
+    : `Generating ${type} posts from the brand snapshot.`;
+
+  try {
+    const res = await fetch("/generate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        mode: "hybrid",
+        idea: config.idea,
+        quickType: type,
+        ownerNudge: ownerFeeling,
+        category: config.category,
+        founderGoal: getFounderGoal(),
+        businessName: getCurrentBusinessName(),
+        businessSummary: getCurrentBusinessSummary(),
+        manualVoiceInput: document.getElementById("voiceInput").value.trim(),
+        voiceProfile,
+        initialProfile,
+      }),
+    });
+
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      const text = await res.text();
+      console.error("Non-JSON response from /generate:", text);
+      postsDiv.innerHTML = "Generate failed: server returned HTML instead of JSON.";
+      return;
+    }
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      postsDiv.innerHTML = "Error: " + (data.error || "Generate failed.");
+      return;
+    }
+
+    if (!data.text) {
+      postsDiv.innerHTML = "No posts returned.";
+      return;
+    }
+
+    const posts = data.text.split("\n\n\n").filter(Boolean);
+    renderPostChoices(posts, type, ownerFeeling);
+    scrollToSection("section-posts");
+  } catch (error) {
+    console.error(error);
+    postsDiv.innerHTML = "Error: " + error.message;
+  }
+}
+
+async function saveOwnerChoice({ chosenPost, ownerFeeling }) {
+  try {
+    const res = await fetch("/save-owner-choice", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        businessName: getCurrentBusinessName(),
+        businessSummary: getCurrentBusinessSummary(),
+        founderGoal: getFounderGoal(),
+        quickType: currentQuickType,
+        category: currentCategory,
+        ownerFeeling: ownerFeeling || "",
+        chosenPost,
+        voiceSourceText: document.getElementById("voiceInput").value.trim(),
+        ownerWritingSample: document.getElementById("pastedSourceText").value.trim(),
+        manualBusinessContext: document.getElementById("manualBusinessContext").value.trim(),
+      }),
+    });
+
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      const text = await res.text();
+      console.error("Non-JSON response from /save-owner-choice:", text);
+      return;
+    }
+
+    const data = await res.json();
+    if (!res.ok) {
+      console.error("Owner KB save failed:", data.error || "Unknown error");
+    }
+  } catch (error) {
+    console.error("Owner KB save failed:", error);
+  }
+}
+
+function renderPostChoices(posts, typeLabel, ownerFeeling) {
+  postsDiv.innerHTML = "";
+  postsPrompt.innerText =
+    "Choose one of the 3 posts. Your choice will update Owner KB and generate the image.";
+
+  const intro = document.createElement("div");
+  intro.className = "posts-intro";
+  intro.innerText = ownerFeeling
+    ? `${typeLabel} posts — feeling: ${ownerFeeling} — choose one to generate its image.`
+    : `${typeLabel} posts — choose one to generate its image.`;
+  postsDiv.appendChild(intro);
+
+  posts.forEach((post) => {
+    const card = document.createElement("div");
+    card.className = "post-choice-card";
+
+    const postText = document.createElement("div");
+    postText.className = "post-text";
+    postText.innerText = post;
+    card.appendChild(postText);
+
+    const counter = document.createElement("div");
+    counter.className = "post-meta";
+    counter.innerText = `Characters: ${post.length}`;
+    card.appendChild(counter);
+
+    const helper = document.createElement("div");
+    helper.className = "post-helper";
+    helper.innerText = "Click to choose this post and generate its image.";
+    card.appendChild(helper);
+
+    const actions = document.createElement("div");
+    actions.className = "post-actions";
+
+    const copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "secondary-btn";
+    copyBtn.innerText = "Copy Post";
+
+    copyBtn.onclick = async (e) => {
+      e.stopPropagation();
+      try {
+        await navigator.clipboard.writeText(post);
+        copyBtn.innerText = "Copied";
+        setTimeout(() => {
+          copyBtn.innerText = "Copy Post";
+        }, 1200);
+      } catch (err) {
+        console.error("Copy failed:", err);
+        copyBtn.innerText = "Copy failed";
+        setTimeout(() => {
+          copyBtn.innerText = "Copy Post";
+        }, 1200);
+      }
+    };
+
+    actions.appendChild(copyBtn);
+    card.appendChild(actions);
+
+    card.onclick = async () => {
+      document.querySelectorAll(".post-choice-card").forEach((el) => {
+        el.classList.remove("selected");
+      });
+
+      card.classList.add("selected");
+
+      selectedPost = post;
+      selectedPostBox.innerText = post;
+      generatedImage.style.display = "none";
+      generatedImage.src = "";
+      imageStatus.innerText = "Saving choice and generating image...";
+
+      await saveOwnerChoice({
+        chosenPost: post,
+        ownerFeeling,
+      });
+
+      const imagePrompt = buildImagePrompt({
+        post,
+        quickType: currentQuickType,
+        category: currentCategory,
+        ownerFeeling,
+        initialProfile,
+      });
+
+      try {
+        const imgRes = await fetch("/generate-image", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            imagePrompt,
+          }),
+        });
+
+        const contentType = imgRes.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+          const text = await imgRes.text();
+          console.error("Non-JSON response from /generate-image:", text);
+          imageStatus.innerText =
+            "Image generation failed: server returned HTML instead of JSON.";
+          return;
+        }
+
+        const imgData = await imgRes.json();
+
+        if (!imgRes.ok) {
+          imageStatus.innerText =
+            "Image generation failed: " + (imgData.error || "Unknown error.");
+          return;
+        }
+
+        if (!imgData.imageUrl) {
+          imageStatus.innerText = "Image generation failed: No image returned.";
+          return;
+        }
+
+        generatedImage.src = imgData.imageUrl;
+        generatedImage.style.display = "block";
+        imageStatus.innerText = "Post ready. This sounds like the business today.";
+        ownerKbStatus.innerText = "Owner KB updated from the latest chosen post.";
+
+        scrollToSection("section-output");
+      } catch (error) {
+        console.error(error);
+        imageStatus.innerText = "Image generation failed: " + error.message;
+      }
+    };
+
+    postsDiv.appendChild(card);
+  });
+}
+
+function stripPostHashtags(text = "") {
+  return String(text).replace(/\n?#\w+(?:\s+#\w+)*/g, "").trim();
+}
+
+function extractQuotedSnippets(text = "") {
+  const matches = [...String(text).matchAll(/"([^"]+)"/g)].map((m) => m[1].trim());
+  return matches.filter(Boolean);
+}
+
+function detectLocationCue(text = "") {
+  const locations = [
+    "Kyoto",
+    "Uji",
+    "Japan",
+    "Macarthur",
+    "Sydney",
+    "Melbourne",
+    "Brisbane",
+    "Perth",
+    "Adelaide",
+    "Auckland",
+  ];
+
+  const lower = String(text).toLowerCase();
+  const found = locations.find((loc) => lower.includes(loc.toLowerCase()));
+  return found || "";
+}
+
+function detectRelationshipCue(text = "") {
+  const lower = String(text).toLowerCase();
+
+  if (lower.includes("my wife")) return "wife";
+  if (lower.includes("my husband")) return "husband";
+  if (lower.includes("my son")) return "son";
+  if (lower.includes("my daughter")) return "daughter";
+  if (lower.includes("my family")) return "family";
+  if (lower.includes("my mum")) return "mum";
+  if (lower.includes("my mom")) return "mom";
+  if (lower.includes("my dad")) return "dad";
+
+  return "";
+}
+
+function detectMemoryCue(text = "") {
+  const lower = String(text).toLowerCase();
+
+  if (lower.includes("i remember")) return "memory";
+  if (lower.includes("the first time")) return "first_time";
+  if (lower.includes("last week")) return "last_week";
+  if (lower.includes("this morning")) return "this_morning";
+  if (lower.includes("late afternoon")) return "late_afternoon";
+  if (lower.includes("on weekends")) return "weekend";
+  if (lower.includes("watching her")) return "observed_moment";
+
+  return "";
+}
+
+function detectOriginCue(text = "") {
+  const lower = String(text).toLowerCase();
+
+  if (lower.includes("farm")) return "farm";
+  if (lower.includes("harvest")) return "harvest";
+  if (lower.includes("shade") || lower.includes("shading")) return "shaded cultivation";
+  if (lower.includes("uji")) return "traditional tea region";
+  if (lower.includes("kyoto")) return "japanese origin";
+  if (lower.includes("tradition")) return "tradition";
+  if (lower.includes("ancient")) return "heritage";
+  if (lower.includes("care behind")) return "craft";
+  if (lower.includes("whisk")) return "preparation";
+
+  return "";
+}
+
+function buildStoryPriority({ post, quickType, category, businessName }) {
+  const clean = stripPostHashtags(post);
+  const quotedSnippets = extractQuotedSnippets(clean);
+  const quotedPrimary = quotedSnippets[0] || clean;
+
+  const locationCue = detectLocationCue(clean);
+  const relationshipCue = detectRelationshipCue(clean);
+  const memoryCue = detectMemoryCue(clean);
+  const originCue = detectOriginCue(clean);
+
+  const storyLines = [];
+
+  if (memoryCue === "first_time") {
+    storyLines.push(
+      "- Panel 1 should show the very first discovery moment from the post, not a generic lifestyle shot."
+    );
+  } else if (memoryCue === "memory") {
+    storyLines.push(
+      "- Panel 1 should feel like a remembered real-life moment from the post, as if the scene actually happened."
+    );
+  } else if (memoryCue === "late_afternoon") {
+    storyLines.push(
+      "- Include a late-afternoon work atmosphere if it fits the post."
+    );
+  } else {
+    storyLines.push(
+      "- Panel 1 should show the clearest real-world moment implied by the post."
+    );
+  }
+
+  if (relationshipCue) {
+    storyLines.push(
+      `- Because the post mentions the owner's ${relationshipCue}, at least one panel must include that relational moment or connection.`
+    );
+  }
+
+  if (locationCue) {
+    storyLines.push(
+      `- Because the post mentions ${locationCue}, at least one panel should visually reflect that location or its atmosphere in a believable way.`
+    );
+  }
+
+  if (originCue) {
+    storyLines.push(
+      `- Include one panel that shows the origin/craft side of the story: ${originCue}.`
+    );
+  }
+
+  storyLines.push(
+    "- Do not jump straight to generic product marketing imagery. Start with the human story in the post, then widen outward."
+  );
+  storyLines.push(
+    "- Make the 4 panels feel like one connected narrative, not 4 random brand photos."
+  );
+  storyLines.push(
+    "- If the post contains a memory, discovery, or turning point, make that the emotional anchor of the collage."
+  );
+
+  const narrativeSequence = `
+NARRATIVE SEQUENCE FOR THE 4 PANELS:
+1. Human story moment from the post
+2. Preparation / work / hands-on action related to the post
+3. Origin / source / process / environment behind the thing
+4. Wider meaning or lived result that connects back to the post
+`.trim();
+
+  const postAnchor = `
+POST STORY ANCHOR:
+- Business: ${businessName}
+- Quick type: ${quickType}
+- Internal frame: ${category}
+- Use this sentence as the emotional source: "${quotedPrimary}"
+`.trim();
+
+  return `${postAnchor}
+
+${narrativeSequence}
+
+STORY-SPECIFIC VISUAL RULES:
+${storyLines.join("\n")}`;
+}
+
+function buildImagePrompt({ post, quickType, category, ownerFeeling, initialProfile }) {
+  const cleanedPost = stripPostHashtags(post);
+
+  const businessName =
+    initialProfile?.businessProfile?.name ||
+    document.getElementById("businessName").value.trim() ||
+    "the business";
+
+  const businessSummary =
+    initialProfile?.businessProfile?.summary ||
+    document.getElementById("businessSummary").value.trim() ||
+    "a real business";
+
+  const audience =
+    (initialProfile?.brandProductTruth?.audience || []).join(", ") || "not specified";
+
+  const offers =
+    (initialProfile?.brandProductTruth?.offers || []).join(", ") || "not specified";
+
+  const visualDirections =
+    (initialProfile?.visualProfile?.visualDirections || []).join(", ") ||
+    "grounded, realistic, documentary";
+
+  const storyPriority = buildStoryPriority({
+    post: cleanedPost,
+    quickType,
+    category,
+    businessName,
+  });
+
+  return `
+Create a realistic 4-panel image collage that matches this post exactly and tells the same story.
+
+POST TO VISUALIZE:
+"${cleanedPost}"
+
+${storyPriority}
+
+CURRENT OWNER FEELING:
+${ownerFeeling || "not specified"}
+
+BUSINESS CONTEXT:
+- Business name: ${businessName}
+- Business summary: ${businessSummary}
+- Audience: ${audience}
+- Offers/services: ${offers}
+- Visual direction hints: ${visualDirections}
+
+GLOBAL RULES:
+- documentary realism
+- grounded and believable
+- modern real-life business context
+- natural lighting
+- no fantasy
+- no stock-photo feel
+- each panel must show a different but related real-world moment
+- each panel must contain distinct people or a distinct group
+- no duplicate people across panels unless the post clearly requires a recurring main person
+- if the post strongly implies one recurring founder or one recurring personal memory, it is allowed to keep that same person across some panels
+- otherwise avoid visual cloning of the same subject across the collage
+- show realistic people, places, tasks, interactions, tools, workflow, ingredients, craft, or environments relevant to the post
+- if a specific place is mentioned in the post, reflect it visually
+- if a specific relationship is mentioned in the post, reflect it visually
+- if a process, craft, farm, workshop, source region, or origin story is mentioned, reflect it visually
+- the collage should feel like visual proof of the post, not generic inspiration
+- plain unbranded clothing only
+- no logos
+- no text
+- no symbols
+- no fake brand marks
+- no lettering on clothing
+- no pseudo-branding
+- no invented company names on signage, vehicles, garments, packaging, or walls
+- keep the whole collage truthful to the business and the post
+`.trim();
+}
+
+setupFeelingButtons();
+setupSourceWatchers();
+setupContinueButton();
+clearSnapshotDisplays();
+setInitialGuidance();
