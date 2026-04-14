@@ -11,6 +11,13 @@ const feelingPrompt = document.getElementById("feelingPrompt");
 const generatePrompt = document.getElementById("generatePrompt");
 const postsPrompt = document.getElementById("postsPrompt");
 
+const founderGoalInput = document.getElementById("founderGoal");
+const founderGoalDisplay = document.getElementById("founderGoalDisplay");
+const voiceSummaryDisplay = document.getElementById("voiceSummaryDisplay");
+const offersDisplay = document.getElementById("offersDisplay");
+const audienceDisplay = document.getElementById("audienceDisplay");
+const opportunitiesDisplay = document.getElementById("opportunitiesDisplay");
+
 let initialProfile = null;
 let voiceProfile = null;
 
@@ -18,6 +25,7 @@ let currentQuickType = "";
 let currentCategory = "";
 let selectedPost = "";
 let selectedFeeling = "";
+let selectedFounderGoal = "";
 let profileBuilt = false;
 let sourceChangedSinceBuild = false;
 let lastWeakVoice = false;
@@ -65,19 +73,27 @@ function clearOutputs() {
   postsPrompt.innerText = "";
 }
 
+function clearSnapshotDisplays() {
+  founderGoalDisplay.innerText = "No goal selected yet.";
+  voiceSummaryDisplay.innerText = "Voice summary will appear here after the scan.";
+  offersDisplay.innerText = "Offers and services will appear here after the scan.";
+  audienceDisplay.innerText = "Audience clues will appear here after the scan.";
+  opportunitiesDisplay.innerText = "Opportunities will appear here after the scan.";
+}
+
 function setInitialGuidance() {
   profilePrompt.innerText =
-    "Build the profile first. If the voice source comes back thin, paste more owner writing and rebuild.";
+    "Scan the business first. If the voice source comes back thin, paste more owner writing and scan again.";
   feelingPrompt.innerText =
-    "Choose a feeling before you generate so the post matches where you are right now.";
+    "Optional: choose a feeling if you want today's content to better match your current tone.";
   generatePrompt.innerText =
-    "After feeling is set, choose the type of post you want.";
+    "After the brand snapshot is ready, choose the content lens you want YEVIB to generate from.";
 }
 
 function updateSourceChangePrompt() {
   if (profileBuilt && sourceChangedSinceBuild) {
     sourceChangePrompt.innerText =
-      "New source text added. Rebuild profile to fully apply it.";
+      "Source material changed after the last scan. Scan brand again to fully apply the new inputs.";
   } else {
     sourceChangePrompt.innerText = "";
   }
@@ -90,10 +106,15 @@ function markSourceChanged() {
 }
 
 function setupSourceWatchers() {
-  ["businessUrl", "pastedSourceText", "manualBusinessContext"].forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener("input", markSourceChanged);
-  });
+  ["businessName", "businessUrl", "pastedSourceText", "manualBusinessContext", "founderGoal"].forEach(
+    (id) => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener("input", markSourceChanged);
+      if (el && el.tagName === "SELECT") {
+        el.addEventListener("change", markSourceChanged);
+      }
+    }
+  );
 }
 
 function setupFeelingButtons() {
@@ -103,18 +124,14 @@ function setupFeelingButtons() {
   buttons.forEach((button) => {
     button.addEventListener("click", () => {
       buttons.forEach((btn) => {
-        btn.style.background = "";
-        btn.style.color = "";
-        btn.style.borderColor = "";
+        btn.classList.remove("is-active");
       });
 
-      button.style.background = "#1a73e8";
-      button.style.color = "white";
-      button.style.borderColor = "#1a73e8";
-
+      button.classList.add("is-active");
       selectedFeeling = button.dataset.feeling || "";
       customFeelingInput.value = "";
-      feelingPrompt.innerText = `Feeling set: ${selectedFeeling}. Now choose the type of post you want.`;
+
+      feelingPrompt.innerText = `Feeling set: ${selectedFeeling}. Now choose the content lens you want.`;
       scrollToSection("section-generate");
     });
   });
@@ -122,16 +139,14 @@ function setupFeelingButtons() {
   customFeelingInput.addEventListener("input", () => {
     if (customFeelingInput.value.trim()) {
       buttons.forEach((btn) => {
-        btn.style.background = "";
-        btn.style.color = "";
-        btn.style.borderColor = "";
+        btn.classList.remove("is-active");
       });
       selectedFeeling = "";
       feelingPrompt.innerText =
-        "Custom feeling added. Now choose the type of post you want.";
+        "Custom feeling added. Now choose the content lens you want.";
     } else if (!getFeelingInput()) {
       feelingPrompt.innerText =
-        "Choose a feeling before you generate so the post matches where you are right now.";
+        "Optional: choose a feeling if you want today's content to better match your current tone.";
     }
   });
 }
@@ -139,6 +154,10 @@ function setupFeelingButtons() {
 function getFeelingInput() {
   const customFeeling = document.getElementById("customFeeling").value.trim();
   return customFeeling || selectedFeeling || "";
+}
+
+function getFounderGoal() {
+  return founderGoalInput?.value?.trim() || selectedFounderGoal || "";
 }
 
 function getCurrentBusinessName() {
@@ -157,22 +176,90 @@ function getCurrentBusinessSummary() {
   );
 }
 
+function toDisplayList(items = [], fallback = "Not enough information yet.") {
+  if (!Array.isArray(items) || items.length === 0) return fallback;
+  return items.map((item) => `• ${item}`).join("\n");
+}
+
+function buildOpportunitiesFromProfile(profile) {
+  const opportunities = [];
+  const category = profile?.contentProfile?.suggestedCategory || "";
+  const idea = profile?.contentProfile?.suggestedIdea || "";
+  const weakVoice = Boolean(profile?.sourceProfile?.weakVoiceSource);
+  const offers = profile?.brandProductTruth?.offers || [];
+  const audience = profile?.brandProductTruth?.audience || [];
+
+  if (category) {
+    opportunities.push(`Lean harder into ${category} content.`);
+  }
+
+  if (idea) {
+    opportunities.push(`Use this as an early content direction: ${idea}`);
+  }
+
+  if (offers.length > 0) {
+    opportunities.push("Turn offers and services into clearer lived-use content.");
+  }
+
+  if (audience.length > 0) {
+    opportunities.push("Speak more directly to the audience the brand already appears to serve.");
+  }
+
+  if (weakVoice) {
+    opportunities.push("Add more owner writing to strengthen founder voice consistency.");
+  }
+
+  const founderGoal = getFounderGoal();
+  if (founderGoal) {
+    opportunities.push(`Bias future content toward this founder goal: ${founderGoal}`);
+  }
+
+  return opportunities.slice(0, 5);
+}
+
+function renderBrandSnapshot(profile) {
+  const founderGoal = getFounderGoal();
+
+  founderGoalDisplay.innerText = founderGoal || "No goal selected yet.";
+
+  voiceSummaryDisplay.innerText =
+    profile?.founderVoice?.voiceSummary || "No voice summary returned yet.";
+
+  offersDisplay.innerText = toDisplayList(
+    profile?.brandProductTruth?.offers || [],
+    "No clear offers or services detected yet."
+  );
+
+  audienceDisplay.innerText = toDisplayList(
+    profile?.brandProductTruth?.audience || [],
+    "No clear audience clues detected yet."
+  );
+
+  opportunitiesDisplay.innerText = toDisplayList(
+    buildOpportunitiesFromProfile(profile),
+    "No clear opportunities detected yet."
+  );
+}
+
 async function buildInitialProfile() {
   const mode = document.getElementById("generationMode").value;
+  const businessName = document.getElementById("businessName").value.trim();
   const businessUrl = document.getElementById("businessUrl").value.trim();
   const pastedSourceText = document.getElementById("pastedSourceText").value.trim();
   const manualBusinessContext = document.getElementById("manualBusinessContext").value.trim();
+  const founderGoal = getFounderGoal();
 
   clearOutputs();
+  clearSnapshotDisplays();
   ownerKbStatus.innerText = "";
   postsPrompt.innerText = "";
 
   if (!businessUrl && !pastedSourceText && !manualBusinessContext) {
-    intakeStatus.innerText = "Please add at least one source.";
+    intakeStatus.innerText = "Please add at least one source before scanning.";
     return;
   }
 
-  intakeStatus.innerText = "Building profile...";
+  intakeStatus.innerText = "Scanning brand and building snapshot...";
 
   try {
     const res = await fetch("/build-profile", {
@@ -182,6 +269,8 @@ async function buildInitialProfile() {
       },
       body: JSON.stringify({
         mode,
+        businessName,
+        founderGoal,
         businessUrl,
         pastedSourceText,
         manualBusinessContext,
@@ -193,14 +282,14 @@ async function buildInitialProfile() {
       const text = await res.text();
       console.error("Non-JSON response from /build-profile:", text);
       intakeStatus.innerText =
-        "Profile build failed: server returned HTML instead of JSON.";
+        "Brand scan failed: server returned HTML instead of JSON.";
       return;
     }
 
     const data = await res.json();
 
     if (!res.ok) {
-      intakeStatus.innerText = data.error || "Profile build failed.";
+      intakeStatus.innerText = data.error || "Brand scan failed.";
       return;
     }
 
@@ -210,8 +299,12 @@ async function buildInitialProfile() {
     sourceChangedSinceBuild = false;
     updateSourceChangePrompt();
 
-    document.getElementById("businessName").value =
-      data.profile?.businessProfile?.name || "";
+    selectedFounderGoal = founderGoal;
+
+    const resolvedBusinessName =
+      businessName || data.profile?.businessProfile?.name || "";
+
+    document.getElementById("businessName").value = resolvedBusinessName;
 
     document.getElementById("businessSummary").value =
       data.profile?.businessProfile?.summary || "";
@@ -219,19 +312,21 @@ async function buildInitialProfile() {
     document.getElementById("voiceInput").value =
       data.profile?.sourceProfile?.voiceSourceText || "";
 
+    renderBrandSnapshot(data.profile);
+
     lastWeakVoice = Boolean(data.profile?.sourceProfile?.weakVoiceSource);
     const kbMeta = data.profile?.ownerKbMeta || {};
 
     intakeStatus.innerText = lastWeakVoice
-      ? "Profile ready. Voice source is thin."
-      : `Profile ready (${data.profile?.sourceProfile?.voiceSourceLane || "unknown"} voice).`;
+      ? "Brand snapshot ready. Voice source is thin."
+      : "Brand snapshot ready.";
 
     if (lastWeakVoice) {
       profilePrompt.innerText =
-        "Voice source looks thin. Paste more owner writing and rebuild profile for stronger results.";
+        "The scan worked, but the founder voice source is still thin. Paste more owner writing and scan again for stronger results.";
     } else {
       profilePrompt.innerText =
-        "Profile looks usable. Choose how you're feeling right now, then choose the type of post you want.";
+        "Brand snapshot looks usable. You can now refine the tone if needed and generate posts from the snapshot.";
     }
 
     if (kbMeta.entryCount > 0) {
@@ -244,11 +339,11 @@ async function buildInitialProfile() {
     }
 
     feelingPrompt.innerText =
-      "Choose a feeling before you generate so the post matches where you are right now.";
+      "Optional: choose a feeling if you want today's content to better match your current tone.";
     generatePrompt.innerText =
-      "After feeling is set, choose the type of post you want.";
+      "Choose the content lens you want YEVIB to generate from the brand snapshot.";
 
-    scrollToSection("step2");
+    scrollToSection("section-profile");
     setTimeout(() => scrollToSection("section-generate"), 350);
   } catch (error) {
     console.error(error);
@@ -258,28 +353,24 @@ async function buildInitialProfile() {
 
 async function quickGenerate(type) {
   if (!initialProfile) {
-    alert("Build profile first.");
+    alert("Scan the brand first.");
     return;
   }
 
   if (sourceChangedSinceBuild) {
     alert(
-      "New source text was added after the last profile build. Rebuild profile to fully apply it."
+      "Source material changed after the last scan. Scan brand again to fully apply the new inputs."
     );
     return;
   }
 
   const config = QUICK_TYPES[type];
   if (!config) {
-    alert("Unknown quick type.");
+    alert("Unknown content lens.");
     return;
   }
 
   const ownerFeeling = getFeelingInput();
-  if (!ownerFeeling) {
-    alert("Choose how you're feeling right now first, or type your own.");
-    return;
-  }
 
   currentQuickType = type;
   currentCategory = config.category;
@@ -290,7 +381,9 @@ async function quickGenerate(type) {
   generatedImage.src = "";
   imageStatus.innerText = "";
   postsDiv.innerHTML = "Generating posts...";
-  postsPrompt.innerText = `Generating ${type} posts with feeling: ${ownerFeeling}.`;
+  postsPrompt.innerText = ownerFeeling
+    ? `Generating ${type} posts with feeling: ${ownerFeeling}.`
+    : `Generating ${type} posts from the brand snapshot.`;
 
   try {
     const res = await fetch("/generate", {
@@ -304,6 +397,7 @@ async function quickGenerate(type) {
         quickType: type,
         ownerNudge: ownerFeeling,
         category: config.category,
+        founderGoal: getFounderGoal(),
         businessName: getCurrentBusinessName(),
         businessSummary: getCurrentBusinessSummary(),
         manualVoiceInput: document.getElementById("voiceInput").value.trim(),
@@ -351,6 +445,7 @@ async function saveOwnerChoice({ chosenPost, ownerFeeling }) {
       body: JSON.stringify({
         businessName: getCurrentBusinessName(),
         businessSummary: getCurrentBusinessSummary(),
+        founderGoal: getFounderGoal(),
         quickType: currentQuickType,
         category: currentCategory,
         ownerFeeling: ownerFeeling || "",
@@ -383,9 +478,10 @@ function renderPostChoices(posts, typeLabel, ownerFeeling) {
     "Choose one of the 3 posts. Your choice will update Owner KB and generate the image.";
 
   const intro = document.createElement("div");
-  intro.style.marginBottom = "12px";
-  intro.style.fontWeight = "600";
-  intro.innerText = `${typeLabel} posts — feeling: ${ownerFeeling} — choose one to generate its image.`;
+  intro.className = "posts-intro";
+  intro.innerText = ownerFeeling
+    ? `${typeLabel} posts — feeling: ${ownerFeeling} — choose one to generate its image.`
+    : `${typeLabel} posts — choose one to generate its image.`;
   postsDiv.appendChild(intro);
 
   posts.forEach((post) => {
@@ -393,27 +489,27 @@ function renderPostChoices(posts, typeLabel, ownerFeeling) {
     card.className = "post-choice-card";
 
     const postText = document.createElement("div");
+    postText.className = "post-text";
     postText.innerText = post;
     card.appendChild(postText);
 
     const counter = document.createElement("div");
-    counter.style.fontSize = "12px";
-    counter.style.color = "#666";
-    counter.style.marginTop = "8px";
+    counter.className = "post-meta";
     counter.innerText = `Characters: ${post.length}`;
     card.appendChild(counter);
 
     const helper = document.createElement("div");
-    helper.style.fontSize = "12px";
-    helper.style.color = "#444";
-    helper.style.marginTop = "8px";
+    helper.className = "post-helper";
     helper.innerText = "Click to choose this post and generate its image.";
     card.appendChild(helper);
 
+    const actions = document.createElement("div");
+    actions.className = "post-actions";
+
     const copyBtn = document.createElement("button");
     copyBtn.type = "button";
+    copyBtn.className = "secondary-btn";
     copyBtn.innerText = "Copy Post";
-    copyBtn.style.marginTop = "10px";
 
     copyBtn.onclick = async (e) => {
       e.stopPropagation();
@@ -432,16 +528,15 @@ function renderPostChoices(posts, typeLabel, ownerFeeling) {
       }
     };
 
-    card.appendChild(copyBtn);
+    actions.appendChild(copyBtn);
+    card.appendChild(actions);
 
     card.onclick = async () => {
       document.querySelectorAll(".post-choice-card").forEach((el) => {
-        el.style.background = "white";
-        el.style.border = "1px solid #d7e0eb";
+        el.classList.remove("selected");
       });
 
-      card.style.background = "#e8f0fe";
-      card.style.border = "1px solid #8ab4f8";
+      card.classList.add("selected");
 
       selectedPost = post;
       selectedPostBox.innerText = post;
@@ -497,8 +592,8 @@ function renderPostChoices(posts, typeLabel, ownerFeeling) {
 
         generatedImage.src = imgData.imageUrl;
         generatedImage.style.display = "block";
-        imageStatus.innerText = "Post ready. This sounds like you today.";
-        ownerKbStatus.innerText = "Owner KB updated from your latest chosen post.";
+        imageStatus.innerText = "Post ready. This sounds like the business today.";
+        ownerKbStatus.innerText = "Owner KB updated from the latest chosen post.";
 
         scrollToSection("section-output");
       } catch (error) {
@@ -745,4 +840,5 @@ GLOBAL RULES:
 
 setupFeelingButtons();
 setupSourceWatchers();
+clearSnapshotDisplays();
 setInitialGuidance();
