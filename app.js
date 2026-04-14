@@ -71,9 +71,8 @@ function setInitialGuidance() {
   feelingPrompt.innerText =
     "Choose a feeling before you generate so the post matches where you are right now.";
   generatePrompt.innerText =
-  "After feeling is set, choose the type of post you want.";
+    "After feeling is set, choose the type of post you want.";
 }
-document.getElementById("step2").scrollIntoView({ behavior: "smooth" });
 
 function updateSourceChangePrompt() {
   if (profileBuilt && sourceChangedSinceBuild) {
@@ -116,7 +115,7 @@ function setupFeelingButtons() {
       selectedFeeling = button.dataset.feeling || "";
       customFeelingInput.value = "";
       feelingPrompt.innerText = `Feeling set: ${selectedFeeling}. Now choose the type of post you want.`;
-      scrollToSection("section-generate");
+      scrollToSection("step3");
     });
   });
 
@@ -249,8 +248,8 @@ async function buildInitialProfile() {
     generatePrompt.innerText =
       "After feeling is set, choose the type of post you want.";
 
-    scrollToSection("section-profile");
-    setTimeout(() => scrollToSection("section-generate"), 350);
+    scrollToSection("step2");
+    setTimeout(() => scrollToSection("step3"), 350);
   } catch (error) {
     console.error(error);
     intakeStatus.innerText = "Error: " + error.message;
@@ -335,7 +334,7 @@ async function quickGenerate(type) {
 
     const posts = data.text.split("\n\n\n").filter(Boolean);
     renderPostChoices(posts, type, ownerFeeling);
-    scrollToSection("section-posts");
+    scrollToSection("step4");
   } catch (error) {
     console.error(error);
     postsDiv.innerHTML = "Error: " + error.message;
@@ -501,8 +500,7 @@ function renderPostChoices(posts, typeLabel, ownerFeeling) {
         imageStatus.innerText = "Post ready. This sounds like you today.";
         ownerKbStatus.innerText = "Owner KB updated from your latest chosen post.";
 
-        document.getElementById("step5").scrollIntoView({ behavior: "smooth" });
-        scrollToSection("section-output");
+        scrollToSection("step5");
       } catch (error) {
         console.error(error);
         imageStatus.innerText = "Image generation failed: " + error.message;
