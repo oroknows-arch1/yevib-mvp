@@ -1299,7 +1299,11 @@ LANGUAGE SEPARATION RULE:
 - Use clearly different opening styles across the 3 posts
 - Vary sentence length and rhythm more aggressively
 - At least one post should open with a direct statement
-- At least one post should open with a lived moment or scene
+-SCENE RULE (STRICT):
+- At least one post MUST begin with a real-world moment
+- This means a specific situation, time, or action (e.g. “I remember…”, “Last week…”, “Woke up…”, “Sat there…”)
+- Do NOT begin that post with an abstract idea or reflection
+- The reader should be able to picture the moment immediately
 - At least one post should open with an insight, decision, or truth
 - Avoid repeating the same emotional posture across all 3 posts
 - Avoid repeating the same nouns, same transitions, and same cadence too closely
