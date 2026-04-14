@@ -845,44 +845,245 @@ ${(profile.dontRules || []).map((r) => `- ${r}`).join("\n")}
 `;
 }
 
-function getHashtags(category, idea, businessName) {
-  const cleanName = (businessName || "Brand")
-    .replace(/[^a-zA-Z0-9 ]/g, " ")
-    .trim();
+const voiceAgentPrompt = (input) => `
+You are a Brand Voice Agent.
 
-  const brandTag =
-    "#" +
-    (cleanName
-      ? cleanName
-          .split(/\s+/)
-          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-          .join("")
-      : "YourBrand");
+Analyse the writing sample and return ONLY valid JSON.
 
-  const categoryMap = {
-    "Daily Relief": "#DailyRelief",
-    "Everyday Ritual": "#EverydayRitual",
-    "Founder Reflection": "#FounderReflection",
-    "Product in Real Life": "#RealLifeUse",
-    "Quiet Value": "#QuietValue",
-    "Standards and Care": "#StandardsAndCare",
-    "Busy Day Ease": "#BusyDayEase",
-    "Small Moment Real Value": "#SmallMomentRealValue",
-    "Something Real": "#SomethingReal",
-  };
+Use this exact structure:
+{
+  "tone": ["trait 1", "trait 2", "trait 3"],
+  "style": ["pattern 1", "pattern 2", "pattern 3"],
+  "vocabulary": ["pattern 1", "pattern 2", "pattern 3"],
+  "positioning": "short brand positioning summary",
+  "structure": "short explanation of how the content is structured",
+  "voiceSummary": "short paragraph summary",
+  "doRules": ["rule 1", "rule 2", "rule 3"],
+  "dontRules": ["rule 1", "rule 2", "rule 3"]
+}
 
-  const topicTag =
-    "#" +
-    ((idea || "Small Business")
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, " ")
-      .trim()
-      .split(/\s+/)
-      .slice(0, 3)
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join("") || "SmallBusiness");
+Rules:
+- Return JSON only
+- No markdown
+- No code fences
+- Keep it grounded
+- Do not exaggerate
+- If the input sounds like a customer testimonial, do NOT preserve the testimonial perspective
+- Convert the underlying brand traits into neutral brand voice guidance
+- Never write the voice summary from the perspective of a customer praising the business
+- Focus on beliefs, standards, purpose, care, reliability, and reflection style
+- Avoid loyalty/review phrasing like "we've used them for years", "highly recommend", "second to none", "value for money"
 
-  return `${brandTag} ${categoryMap[category] || "#BrandContent"} ${topicTag}`;
+INPUT:
+"""
+${input}
+"""
+`;
+
+const customerOutcomePrompt = (input) => `
+You are a Customer Outcome Agent.
+
+Return ONLY valid JSON in this structure:
+{
+  "lifeMoments": ["moment 1", "moment 2", "moment 3"],
+  "microProblems": ["problem 1", "problem 2", "problem 3"],
+  "valueOutcomes": ["outcome 1", "outcome 2", "outcome 3"],
+  "repeatBenefits": ["benefit 1", "benefit 2", "benefit 3"]
+}
+
+Rules:
+- Return JSON only
+- No markdown
+- No code fences
+- Use customer-experience language only
+- Focus on what people notice in real life
+
+INPUT:
+"""
+${input}
+"""
+`;
+
+const productTruthPrompt = (input) => `
+You are a Brand and Product Truth Agent.
+
+Return ONLY valid JSON in this structure:
+{
+  "productType": "",
+  "origin": "",
+  "facts": ["fact 1", "fact 2", "fact 3"],
+  "offers": ["offer 1", "offer 2"],
+  "audience": ["audience 1", "audience 2"]
+}
+
+Rules:
+- Return JSON only
+- No markdown
+- No code fences
+- Focus on factual business and product truth
+- Do not invent facts
+- Keep it grounded in actual product/business information
+
+INPUT:
+"""
+${input}
+"""
+`;
+
+const sourceProfilePrompt = ({
+  mode,
+  founderText,
+  customerText,
+  productText,
+  pastedSourceText,
+  manualBusinessContext,
+}) => `
+You are a Source Intake Agent.
+
+Read the lane-separated source material and return ONLY valid JSON.
+
+Use this exact structure:
+{
+  "businessProfile": {
+    "name": "business or brand name",
+    "summary": "plain English summary of what the business/person/brand appears to do"
+  },
+  "contentProfile": {
+    "suggestedCategory": "one of: Daily Relief, Everyday Ritual, Founder Reflection, Product in Real Life, Quiet Value, Standards and Care, Busy Day Ease, Small Moment Real Value, Something Real",
+    "suggestedIdea": "strong first content angle"
+  },
+  "visualProfile": {
+    "visualDirections": ["direction 1", "direction 2", "direction 3"],
+    "avoidRules": ["avoid 1", "avoid 2"]
+  },
+  "sourceProfile": {
+    "dominantSource": "url or pasted_text or manual_context or mixed"
+  }
+}
+
+Rules:
+- Return JSON only
+- No markdown
+- No code fences
+- If mode is express and URL is present, use founder lane for voice direction, customer lane for outcomes, product lane for facts
+- If mode is manual, let manual context and pasted writing lead
+- If mode is hybrid, blend intelligently
+- Suggested category must be a lived-use frame
+- Do not mistake testimonial language for founder voice
+- If founder lane is weak, infer business tone from business summary and product truth instead
+
+FOUNDER LANE:
+"""
+${clipText(founderText || "none provided", 3000)}
+"""
+
+CUSTOMER OUTCOME LANE:
+"""
+${clipText(customerText || "none provided", 3000)}
+"""
+
+BRAND / PRODUCT TRUTH LANE:
+"""
+${clipText(productText || "none provided", 3000)}
+"""
+
+PASTED SOURCE TEXT:
+"""
+${clipText(pastedSourceText || "none provided", 3000)}
+"""
+
+MANUAL BUSINESS CONTEXT:
+"""
+${clipText(manualBusinessContext || "none provided", 2000)}
+"""
+`;
+
+async function runJsonChat(prompt) {
+  const response = await openai.chat.completions.create({
+    model: "gpt-4.1-mini",
+    response_format: { type: "json_object" },
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const raw = response.choices?.[0]?.message?.content || "{}";
+  return JSON.parse(raw);
+}
+
+function buildGenerationContext({
+  mode,
+  initialProfile,
+  businessName,
+  businessSummary,
+  businessUrl,
+  pastedSourceText,
+  manualBusinessContext,
+  manualVoiceInput,
+  ownerKbContext,
+}) {
+  const profileName = initialProfile?.businessProfile?.name || businessName || "Unknown";
+  const profileSummary =
+    initialProfile?.businessProfile?.summary || businessSummary || "Not provided";
+  const profileOffers =
+    (initialProfile?.brandProductTruth?.offers || []).join(", ") || "Not provided";
+  const profileAudience =
+    (initialProfile?.brandProductTruth?.audience || []).join(", ") || "Not provided";
+  const customerMoments =
+    (initialProfile?.customerOutcome?.lifeMoments || []).join(", ") || "Not provided";
+  const customerOutcomes =
+    (initialProfile?.customerOutcome?.valueOutcomes || []).join(", ") || "Not provided";
+  const founderBeliefs =
+    (initialProfile?.founderVoice?.doRules || []).join(", ") || "Not provided";
+
+  const base = `
+PROFILE CONTEXT:
+- Business name: ${profileName}
+- Business summary: ${profileSummary}
+- Offers/services: ${profileOffers}
+- Audience: ${profileAudience}
+- Customer life moments: ${customerMoments}
+- Customer outcomes: ${customerOutcomes}
+- Founder priorities: ${founderBeliefs}
+- URL: ${businessUrl || "Not provided"}
+
+${ownerKbContext || ""}
+
+PASTED SOURCE TEXT:
+${clipText(pastedSourceText || "None provided", 3000)}
+
+MANUAL CONTEXT:
+${clipText(manualBusinessContext || "None provided", 2000)}
+
+MANUAL VOICE INPUT:
+${clipText(manualVoiceInput || "None provided", 3000)}
+`;
+
+  if (mode === "express") {
+    return `
+MODE: EXPRESS
+Use founder voice lane as the tone anchor.
+Use customer outcome lane for real-life effects.
+Use brand/product truth lane for factual grounding.
+Only use manual or pasted inputs as fallback or refinement.
+${base}
+`;
+  }
+
+  if (mode === "manual") {
+    return `
+MODE: MANUAL
+Use manual and pasted inputs as primary truth.
+Use profile/URL context only as fallback.
+${base}
+`;
+  }
+
+  return `
+MODE: HYBRID
+Use the profile as the base.
+Blend in pasted and manual inputs where useful.
+If there is conflict, prefer the user's manual wording and corrections.
+${base}
+`;
 }
 
 function getLensRules({ quickType = "", category = "", weakVoice = false }) {
@@ -1130,8 +1331,7 @@ function getVariationRules(category = "") {
   const quietOnlyRule =
     category === "Quiet Value"
       ? `- "quiet" language is allowed here, but do not use it in more than one post opener in the batch`
-      : `- Do NOT use the word "quiet"
-- Do NOT use opener words like calm, subtle, gentle, steady, small`;
+      : `- Do NOT use any of these words anywhere in the posts: quiet, calm, gentle, subtle, steady, small`;
 
   return `
 LANGUAGE SEPARATION RULE:
@@ -1631,7 +1831,7 @@ app.post("/generate", async (req, res) => {
 `;
   } else if (category === "Everyday Ritual") {
     extraCategoryRule = `
-- Focus on routine, rhythm, repeat use, or a small daily practice
+- Focus on routine, rhythm, repeat use, or a daily practice
 - Make it feel lived-in and natural
 - Do NOT use any of these words: quiet, calm, gentle, subtle, steady, small
 `;
@@ -1668,7 +1868,7 @@ app.post("/generate", async (req, res) => {
 `;
   } else if (category === "Small Moment Real Value") {
     extraCategoryRule = `
-- Focus on a small ordinary moment that reveals real value
+- Focus on an ordinary moment that reveals real value
 - Keep it human and believable
 - Do NOT use any of these words: quiet, calm, gentle, subtle, steady, small
 `;
