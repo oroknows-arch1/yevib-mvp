@@ -7,15 +7,17 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="page-shell">
-    <header class="hero">
-      <div class="hero-badge">YEVIB</div>
-      <h1>Your Voice Your Brand</h1>
-      <p class="hero-subtitle">
-        Turn real business context into posts that feel like the person behind it.
-      </p>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-block">
+        <div class="brand-mark">YEVIB</div>
+        <div class="brand-copy">
+          <h1>Your Voice Your Brand</h1>
+          <p>Build a profile. Set today’s tone. Generate something you’d actually post.</p>
+        </div>
+      </div>
 
-      <div class="flow-bar">
+      <div class="flow-strip">
         <span>Build</span>
         <span>Feel</span>
         <span>Generate</span>
@@ -24,16 +26,15 @@
       </div>
     </header>
 
-    <main class="app-stack">
-      <section class="app-section" id="section-intake">
-        <div class="section-top">
-          <div>
-            <div class="section-kicker">Step 1</div>
-            <h2>Source Intake</h2>
-          </div>
+    <main class="screen-stack">
+      <section class="screen-card" id="section-intake">
+        <div class="screen-head">
+          <div class="step-tag">Step 1</div>
+          <h2>Build Profile</h2>
+          <p>Give YEVIB enough real source material to understand the owner behind the business.</p>
         </div>
 
-        <div class="field-grid">
+        <div class="form-grid">
           <div class="field">
             <label for="generationMode">Mode</label>
             <select id="generationMode">
@@ -53,10 +54,9 @@
           </div>
 
           <div class="field field-full">
-            <div class="helper-text">
-              Optional: paste extra written material from the owner for stronger voice results.
-              This should be real writing from the business owner, not customer reviews.
-              Examples: about page text, founder story, captions, notes, product copy, brand thoughts, mission statement.
+            <div class="field-note">
+              Optional: paste real written material from the owner for stronger voice results.
+              This should be owner writing, not customer reviews.
             </div>
           </div>
 
@@ -74,7 +74,7 @@
             <textarea
               id="manualBusinessContext"
               rows="4"
-              placeholder="Add any business context, corrections, or notes..."
+              placeholder="Add business context, corrections, or notes..."
             ></textarea>
           </div>
         </div>
@@ -88,15 +88,14 @@
         <div id="sourceChangePrompt" class="warning-line"></div>
       </section>
 
-      <section class="app-section" id="section-profile">
-        <div class="section-top">
-          <div>
-            <div class="section-kicker">Step 2</div>
-            <h2>Profile</h2>
-          </div>
+      <section class="screen-card" id="section-profile">
+        <div class="screen-head">
+          <div class="step-tag">Step 2</div>
+          <h2>Profile</h2>
+          <p>This is the profile YEVIB built from the source material.</p>
         </div>
 
-        <div class="field-grid">
+        <div class="form-grid">
           <div class="field field-full">
             <label for="businessName">Business Name</label>
             <input id="businessName" type="text" />
@@ -116,21 +115,16 @@
         <div id="profilePrompt" class="subtle-line"></div>
       </section>
 
-      <section class="app-section" id="section-generate">
-        <div class="section-top">
-          <div>
-            <div class="section-kicker">Step 3</div>
-            <h2>Create Today’s Post</h2>
-          </div>
+      <section class="screen-card" id="section-generate">
+        <div class="screen-head">
+          <div class="step-tag">Step 3</div>
+          <h2>Create Today’s Post</h2>
+          <p>Set today’s feeling first, then choose the type of post you want.</p>
         </div>
 
-        <div class="subsection">
+        <div class="sub-block">
           <h3>How are you feeling right now?</h3>
-          <p class="helper-text">
-            Start here first. This helps YEVIB shape today’s post around your real mindset.
-          </p>
-
-          <div id="feelingButtons" class="button-group">
+          <div id="feelingButtons" class="chip-row">
             <button type="button" class="feeling-btn" data-feeling="Focused">Focused</button>
             <button type="button" class="feeling-btn" data-feeling="Proud">Proud</button>
             <button type="button" class="feeling-btn" data-feeling="Tired">Tired</button>
@@ -142,7 +136,7 @@
             <button type="button" class="feeling-btn" data-feeling="Random">Random</button>
           </div>
 
-          <div class="field field-full top-gap">
+          <div class="field top-gap">
             <label for="customFeeling">Optional: add your own</label>
             <input
               id="customFeeling"
@@ -154,11 +148,9 @@
           <div id="feelingPrompt" class="subtle-line"></div>
         </div>
 
-        <div class="subsection">
-          <h3>Choose what type of post you want</h3>
-          <p class="helper-text">Same owner voice, different lens.</p>
-
-          <div class="button-group">
+        <div class="sub-block">
+          <h3>Choose the post type</h3>
+          <div class="chip-row">
             <button class="lens-btn" onclick="quickGenerate('Business')">Business</button>
             <button class="lens-btn" onclick="quickGenerate('Family')">Family</button>
             <button class="lens-btn" onclick="quickGenerate('Educational')">Educational</button>
@@ -171,28 +163,22 @@
         </div>
       </section>
 
-      <section class="app-section" id="section-posts">
-        <div class="section-top">
-          <div>
-            <div class="section-kicker">Step 4</div>
-            <h2>Your Post Options (Today)</h2>
-          </div>
+      <section class="screen-card" id="section-posts">
+        <div class="screen-head">
+          <div class="step-tag">Step 4</div>
+          <h2>Your Post Options</h2>
+          <p>Pick the one that feels most like you right now.</p>
         </div>
-
-        <p class="helper-text">
-          Pick the one that feels most like you right now.
-        </p>
 
         <div id="postsPrompt" class="subtle-line"></div>
         <div id="posts"></div>
       </section>
 
-      <section class="app-section" id="section-output">
-        <div class="section-top">
-          <div>
-            <div class="section-kicker">Step 5</div>
-            <h2>Selected Post</h2>
-          </div>
+      <section class="screen-card" id="section-output">
+        <div class="screen-head">
+          <div class="step-tag">Step 5</div>
+          <h2>Selected Post</h2>
+          <p>This is the post you chose for today.</p>
         </div>
 
         <div id="selectedPost" class="selected-post"></div>
