@@ -4,6 +4,7 @@ const express = require("express");
 const cors = require("cors");
 const OpenAI = require("openai");
 const path = require("path");
+const fs = require("fs");
 
 const app = express();
 app.use(cors());
@@ -15,6 +16,17 @@ const openai = new OpenAI({
 });
 
 const maxChars = 500;
+const OWNER_KB_PATH = path.join(__dirname, "owner-kb.json");
+
+const QUIET_FAMILY_WORDS = ["quiet", "calm", "gentle", "subtle", "steady", "small"];
+const NON_QUIET_REPLACEMENTS = {
+  quiet: "real",
+  calm: "clear",
+  gentle: "measured",
+  subtle: "real",
+  steady: "reliable",
+  small: "real",
+};
 
 function normalizeUrl(input) {
   if (!input) return "";
@@ -30,6 +42,182 @@ function clipText(text = "", max = 4000) {
   const cleaned = String(text).trim();
   if (cleaned.length <= max) return cleaned;
   return cleaned.slice(0, max).trim();
+}
+
+function ensureOwnerKbFile() {
+  if (!fs.existsSync(OWNER_KB_PATH)) {
+    fs.writeFileSync(
+      OWNER_KB_PATH,
+      JSON.stringify({ businesses: {} }, null, 2),
+      "utf8"
+    );
+  }
+}
+
+function readOwnerKb() {
+  ensureOwnerKbFile();
+  try {
+    const raw = fs.readFileSync(OWNER_KB_PATH, "utf8");
+    const parsed = JSON.parse(raw);
+    if (!parsed.businesses || typeof parsed.businesses !== "object") {
+      return { businesses: {} };
+    }
+    return parsed;
+  } catch {
+    return { businesses: {} };
+  }
+}
+
+function writeOwnerKb(data) {
+  ensureOwnerKbFile();
+  fs.writeFileSync(OWNER_KB_PATH, JSON.stringify(data, null, 2), "utf8");
+}
+
+function businessKey(name = "") {
+  return String(name)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "") || "unknown_business";
+}
+
+function getBusinessKbMeta(name = "") {
+  const kb = readOwnerKb();
+  const key = businessKey(name);
+  const business = kb.businesses[key];
+
+  if (!business) {
+    return {
+      entryCount: 0,
+      lastFeeling: "",
+      lastQuickType: "",
+    };
+  }
+
+  const entries = Array.isArray(business.entries) ? business.entries : [];
+  const lastEntry = entries[entries.length - 1] || null;
+
+  return {
+    entryCount: entries.length,
+    lastFeeling: lastEntry?.ownerFeeling || "",
+    lastQuickType: lastEntry?.quickType || "",
+  };
+}
+
+function saveOwnerChoiceToKb({
+  businessName,
+  businessSummary,
+  quickType,
+  category,
+  ownerFeeling,
+  chosenPost,
+  voiceSourceText,
+  ownerWritingSample,
+  manualBusinessContext,
+}) {
+  const cleanBusinessName = clipText(businessName || "Unknown Business", 200);
+  const key = businessKey(cleanBusinessName);
+
+  const kb = readOwnerKb();
+
+  if (!kb.businesses[key]) {
+    kb.businesses[key] = {
+      businessName: cleanBusinessName,
+      businessSummary: clipText(businessSummary || "", 500),
+      entries: [],
+    };
+  }
+
+  kb.businesses[key].businessSummary = clipText(businessSummary || "", 500);
+
+  kb.businesses[key].entries.push({
+    timestamp: new Date().toISOString(),
+    quickType: clipText(quickType || "", 80),
+    category: clipText(category || "", 80),
+    ownerFeeling: clipText(ownerFeeling || "", 120),
+    chosenPost: clipText(chosenPost || "", 1200),
+    voiceSourceText: clipText(voiceSourceText || "", 3000),
+    ownerWritingSample: clipText(ownerWritingSample || "", 3000),
+    manualBusinessContext: clipText(manualBusinessContext || "", 2000),
+  });
+
+  kb.businesses[key].entries = kb.businesses[key].entries.slice(-100);
+
+  writeOwnerKb(kb);
+
+  return {
+    entryCount: kb.businesses[key].entries.length,
+  };
+}
+
+function summarizeOwnerKbForPrompt(businessName = "") {
+  const kb = readOwnerKb();
+  const key = businessKey(businessName);
+  const business = kb.businesses[key];
+
+  if (!business || !Array.isArray(business.entries) || business.entries.length === 0) {
+    return `
+OWNER KNOWLEDGE BASE:
+- No saved owner choices yet
+- Use current inputs and current feeling as the main guide
+`.trim();
+  }
+
+  const entries = business.entries.slice(-12);
+  const lensCounts = {};
+  const feelingCounts = {};
+  let totalLength = 0;
+
+  for (const entry of entries) {
+    const qt = entry.quickType || "Unknown";
+    const feeling = entry.ownerFeeling || "Not specified";
+
+    lensCounts[qt] = (lensCounts[qt] || 0) + 1;
+    feelingCounts[feeling] = (feelingCounts[feeling] || 0) + 1;
+    totalLength += (entry.chosenPost || "").length;
+  }
+
+  const topLenses = Object.entries(lensCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([name, count]) => `${name} (${count})`)
+    .join(", ");
+
+  const topFeelings = Object.entries(feelingCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([name, count]) => `${name} (${count})`)
+    .join(", ");
+
+  const avgLength = Math.round(totalLength / entries.length);
+  const preferredLengthBand =
+    avgLength < 240 ? "shorter" : avgLength < 360 ? "medium" : "longer";
+
+  const recentPostSnippets = entries
+    .slice(-3)
+    .map((entry, i) => `Recent chosen post ${i + 1}: ${clipText(entry.chosenPost || "", 220)}`)
+    .join("\n");
+
+  const ownerWritingSnippets = entries
+    .map((entry) => entry.ownerWritingSample)
+    .filter(Boolean)
+    .slice(-2)
+    .map((text, i) => `Owner writing sample ${i + 1}: ${clipText(text, 220)}`)
+    .join("\n");
+
+  return `
+OWNER KNOWLEDGE BASE:
+- Saved choices for this business: ${entries.length}
+- Most used lenses recently: ${topLenses || "none yet"}
+- Most common feelings recently: ${topFeelings || "none yet"}
+- Preferred chosen-post length trend: ${preferredLengthBand}
+${recentPostSnippets ? `- Recent chosen post patterns:\n${recentPostSnippets}` : ""}
+${ownerWritingSnippets ? `- Owner-written text remembered:\n${ownerWritingSnippets}` : ""}
+
+OWNER KB RULE:
+- Learn from these patterns, but do NOT trap the owner inside their usual pattern
+- If today's feeling or current lens points somewhere different, respect that
+- Current state can override baseline tone, but not owner identity
+`.trim();
 }
 
 function stripHtml(html = "") {
@@ -657,47 +845,6 @@ ${(profile.dontRules || []).map((r) => `- ${r}`).join("\n")}
 `;
 }
 
-function cleanPost(post = "") {
-  let text = post.trim();
-  text = text.replace(/\n?#\w+(?:\s+#\w+)*/g, "").trim();
-
-  if (text.length > maxChars) {
-    text = text.slice(0, maxChars).trim();
-  }
-
-  const sentenceMatches = text.match(/[^.!?]+[.!?]+/g);
-  if (sentenceMatches && sentenceMatches.length > 0) {
-    let rebuilt = "";
-
-    for (const sentence of sentenceMatches) {
-      const candidate = (rebuilt + " " + sentence.trim()).trim();
-      if (candidate.length <= maxChars) rebuilt = candidate;
-      else break;
-    }
-
-    if (rebuilt.length > 0) text = rebuilt.trim();
-  }
-
-  if (!/[.!?]$/.test(text)) {
-    text += ".";
-  }
-
-  return text;
-}
-
-function soundsTooGeneric(text = "") {
-  const badPhrases = [
-    "embrace the journey",
-    "unlock your potential",
-    "step into your power",
-    "transform your life",
-    "foundation for tomorrow",
-  ];
-
-  const lower = text.toLowerCase();
-  return badPhrases.some((p) => lower.includes(p));
-}
-
 function getHashtags(category, idea, businessName) {
   const cleanName = (businessName || "Brand")
     .replace(/[^a-zA-Z0-9 ]/g, " ")
@@ -758,6 +905,8 @@ function getLensRules({ quickType = "", category = "", weakVoice = false }) {
 - Highlight judgment, consistency, positioning, or operational care
 - Do NOT slip into customer review language
 - Do NOT write like a brochure
+- Do NOT use the word "quiet"
+- Avoid opener words like calm, subtle, gentle, steady, small
 `;
   } else if (qt === "family") {
     lensTitle = "Family";
@@ -767,6 +916,9 @@ function getLensRules({ quickType = "", category = "", weakVoice = false }) {
 - Make the owner feel like a real person carrying both business and life
 - Let warmth show, but keep it grounded and believable
 - The business should feel connected to the owner's life, not separate from it
+- Avoid heavy operational positioning language
+- Do NOT use the word "quiet"
+- Avoid opener words like calm, subtle, gentle, steady, small
 `;
   } else if (qt === "educational") {
     lensTitle = "Educational";
@@ -777,6 +929,9 @@ function getLensRules({ quickType = "", category = "", weakVoice = false }) {
 - The post should leave the reader understanding something better than before
 - Do not become dry or textbook-like
 - Do not lose the human voice
+- Open more clearly and directly
+- Do NOT use the word "quiet"
+- Avoid opener words like calm, subtle, gentle, steady, small
 `;
   } else if (qt === "community") {
     lensTitle = "Community";
@@ -786,6 +941,9 @@ function getLensRules({ quickType = "", category = "", weakVoice = false }) {
 - Make it feel like the owner sees more than just transactions
 - Show connection, trust, and shared momentum
 - The business should feel part of a bigger human ecosystem
+- Avoid over-focusing on product specs
+- Do NOT use the word "quiet"
+- Avoid opener words like calm, subtle, gentle, steady, small
 `;
   } else if (qt === "personal") {
     lensTitle = "Personal";
@@ -795,6 +953,9 @@ function getLensRules({ quickType = "", category = "", weakVoice = false }) {
 - Make it clearly feel like the owner speaking from inside the work
 - Show the owner as a real person with thought, effort, and perspective
 - Let personality and self-awareness show more here than in other lenses
+- Avoid sounding like a general brand narrator
+- Do NOT use the word "quiet"
+- Avoid opener words like calm, subtle, gentle, steady, small
 `;
   } else if (qt === "something real") {
     lensTitle = "Something Real";
@@ -803,9 +964,35 @@ function getLensRules({ quickType = "", category = "", weakVoice = false }) {
 - Focus on an honest, human, less-polished moment
 - This is for days where the owner feels off-rhythm, tired, reflective, restless, or simply real
 - Make the post feel truthful, not dramatic
-- It can be quieter, less strategic, and more in-the-moment
+- It can be quieter in honesty, but do NOT use the word "quiet"
 - Still keep it brand-safe and believable
 - Do not force optimism or polish
+- Avoid opener words like calm, subtle, gentle, steady, small
+`;
+  } else if (category === "Quiet Value") {
+    lensTitle = "Quiet Value";
+    lensRules = `
+- Keep the owner voice constant
+- Focus on subtle benefits people notice without needing a hard sell
+- Soft, reflective, understated language is allowed here
+- The word "quiet" is allowed in this lens if it genuinely fits
+- Calm, subtle, gentle, and steady wording can be used here when natural
+`;
+  }
+
+  if (category === "Quiet Value" && !/The word "quiet" is allowed/.test(lensRules)) {
+    lensTitle = "Quiet Value";
+    lensRules += `
+- This is the one lens where quiet-value language can live naturally
+- The word "quiet" is allowed here if it genuinely fits
+- Calm, subtle, gentle, and steady wording can be used here when natural
+`;
+  }
+
+  if (category !== "Quiet Value" && !/Do NOT use the word "quiet"/.test(lensRules)) {
+    lensRules += `
+- Do NOT use the word "quiet"
+- Avoid opener words like calm, subtle, gentle, steady, small
 `;
   }
 
@@ -859,7 +1046,7 @@ function getFeelingRules(ownerNudge = "") {
       feelingLabel: feeling,
       feelingRules: `
 - The owner feels proud right now
-- Let the post carry quiet earned pride
+- Let the post carry earned pride
 - Avoid bragging
 - Make the effort and achievement feel real and deserved
 `,
@@ -939,246 +1126,347 @@ function getFeelingRules(ownerNudge = "") {
   };
 }
 
-const voiceAgentPrompt = (input) => `
-You are a Brand Voice Agent.
-
-Analyse the writing sample and return ONLY valid JSON.
-
-Use this exact structure:
-{
-  "tone": ["trait 1", "trait 2", "trait 3"],
-  "style": ["pattern 1", "pattern 2", "pattern 3"],
-  "vocabulary": ["pattern 1", "pattern 2", "pattern 3"],
-  "positioning": "short brand positioning summary",
-  "structure": "short explanation of how the content is structured",
-  "voiceSummary": "short paragraph summary",
-  "doRules": ["rule 1", "rule 2", "rule 3"],
-  "dontRules": ["rule 1", "rule 2", "rule 3"]
-}
-
-Rules:
-- Return JSON only
-- No markdown
-- No code fences
-- Keep it grounded
-- Do not exaggerate
-- If the input sounds like a customer testimonial, do NOT preserve the testimonial perspective
-- Convert the underlying brand traits into neutral brand voice guidance
-- Never write the voice summary from the perspective of a customer praising the business
-- Focus on beliefs, standards, purpose, care, reliability, and reflection style
-- Avoid loyalty/review phrasing like "we've used them for years", "highly recommend", "second to none", "value for money"
-
-INPUT:
-"""
-${input}
-"""
-`;
-
-const customerOutcomePrompt = (input) => `
-You are a Customer Outcome Agent.
-
-Return ONLY valid JSON in this structure:
-{
-  "lifeMoments": ["moment 1", "moment 2", "moment 3"],
-  "microProblems": ["problem 1", "problem 2", "problem 3"],
-  "valueOutcomes": ["outcome 1", "outcome 2", "outcome 3"],
-  "repeatBenefits": ["benefit 1", "benefit 2", "benefit 3"]
-}
-
-Rules:
-- Return JSON only
-- No markdown
-- No code fences
-- Use customer-experience language only
-- Focus on what people notice in real life
-
-INPUT:
-"""
-${input}
-"""
-`;
-
-const productTruthPrompt = (input) => `
-You are a Brand and Product Truth Agent.
-
-Return ONLY valid JSON in this structure:
-{
-  "productType": "",
-  "origin": "",
-  "facts": ["fact 1", "fact 2", "fact 3"],
-  "offers": ["offer 1", "offer 2"],
-  "audience": ["audience 1", "audience 2"]
-}
-
-Rules:
-- Return JSON only
-- No markdown
-- No code fences
-- Focus on factual business and product truth
-- Do not invent facts
-- Keep it grounded in actual product/business information
-
-INPUT:
-"""
-${input}
-"""
-`;
-
-const sourceProfilePrompt = ({
-  mode,
-  founderText,
-  customerText,
-  productText,
-  pastedSourceText,
-  manualBusinessContext,
-}) => `
-You are a Source Intake Agent.
-
-Read the lane-separated source material and return ONLY valid JSON.
-
-Use this exact structure:
-{
-  "businessProfile": {
-    "name": "business or brand name",
-    "summary": "plain English summary of what the business/person/brand appears to do"
-  },
-  "contentProfile": {
-    "suggestedCategory": "one of: Daily Relief, Everyday Ritual, Founder Reflection, Product in Real Life, Quiet Value, Standards and Care, Busy Day Ease, Small Moment Real Value, Something Real",
-    "suggestedIdea": "strong first content angle"
-  },
-  "visualProfile": {
-    "visualDirections": ["direction 1", "direction 2", "direction 3"],
-    "avoidRules": ["avoid 1", "avoid 2"]
-  },
-  "sourceProfile": {
-    "dominantSource": "url or pasted_text or manual_context or mixed"
-  }
-}
-
-Rules:
-- Return JSON only
-- No markdown
-- No code fences
-- If mode is express and URL is present, use founder lane for voice direction, customer lane for outcomes, product lane for facts
-- If mode is manual, let manual context and pasted writing lead
-- If mode is hybrid, blend intelligently
-- Suggested category must be a lived-use frame
-- Do not mistake testimonial language for founder voice
-- If founder lane is weak, infer business tone from business summary and product truth instead
-
-FOUNDER LANE:
-"""
-${clipText(founderText || "none provided", 3000)}
-"""
-
-CUSTOMER OUTCOME LANE:
-"""
-${clipText(customerText || "none provided", 3000)}
-"""
-
-BRAND / PRODUCT TRUTH LANE:
-"""
-${clipText(productText || "none provided", 3000)}
-"""
-
-PASTED SOURCE TEXT:
-"""
-${clipText(pastedSourceText || "none provided", 3000)}
-"""
-
-MANUAL BUSINESS CONTEXT:
-"""
-${clipText(manualBusinessContext || "none provided", 2000)}
-"""
-`;
-
-async function runJsonChat(prompt) {
-  const response = await openai.chat.completions.create({
-    model: "gpt-4.1-mini",
-    response_format: { type: "json_object" },
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const raw = response.choices?.[0]?.message?.content || "{}";
-  return JSON.parse(raw);
-}
-
-function buildGenerationContext({
-  mode,
-  initialProfile,
-  businessName,
-  businessSummary,
-  businessUrl,
-  pastedSourceText,
-  manualBusinessContext,
-  manualVoiceInput,
-}) {
-  const profileName = initialProfile?.businessProfile?.name || businessName || "Unknown";
-  const profileSummary =
-    initialProfile?.businessProfile?.summary || businessSummary || "Not provided";
-  const profileOffers =
-    (initialProfile?.brandProductTruth?.offers || []).join(", ") || "Not provided";
-  const profileAudience =
-    (initialProfile?.brandProductTruth?.audience || []).join(", ") || "Not provided";
-  const customerMoments =
-    (initialProfile?.customerOutcome?.lifeMoments || []).join(", ") || "Not provided";
-  const customerOutcomes =
-    (initialProfile?.customerOutcome?.valueOutcomes || []).join(", ") || "Not provided";
-  const founderBeliefs =
-    (initialProfile?.founderVoice?.doRules || []).join(", ") || "Not provided";
-
-  const base = `
-PROFILE CONTEXT:
-- Business name: ${profileName}
-- Business summary: ${profileSummary}
-- Offers/services: ${profileOffers}
-- Audience: ${profileAudience}
-- Customer life moments: ${customerMoments}
-- Customer outcomes: ${customerOutcomes}
-- Founder priorities: ${founderBeliefs}
-- URL: ${businessUrl || "Not provided"}
-
-PASTED SOURCE TEXT:
-${clipText(pastedSourceText || "None provided", 3000)}
-
-MANUAL CONTEXT:
-${clipText(manualBusinessContext || "None provided", 2000)}
-
-MANUAL VOICE INPUT:
-${clipText(manualVoiceInput || "None provided", 3000)}
-`;
-
-  if (mode === "express") {
-    return `
-MODE: EXPRESS
-Use founder voice lane as the tone anchor.
-Use customer outcome lane for real-life effects.
-Use brand/product truth lane for factual grounding.
-Only use manual or pasted inputs as fallback or refinement.
-${base}
-`;
-  }
-
-  if (mode === "manual") {
-    return `
-MODE: MANUAL
-Use manual and pasted inputs as primary truth.
-Use profile/URL context only as fallback.
-${base}
-`;
-  }
+function getVariationRules(category = "") {
+  const quietOnlyRule =
+    category === "Quiet Value"
+      ? `- "quiet" language is allowed here, but do not use it in more than one post opener in the batch`
+      : `- Do NOT use the word "quiet"
+- Do NOT use opener words like calm, subtle, gentle, steady, small`;
 
   return `
-MODE: HYBRID
-Use the profile as the base.
-Blend in pasted and manual inputs where useful.
-If there is conflict, prefer the user's manual wording and corrections.
-${base}
+LANGUAGE SEPARATION RULE:
+- The 3 posts must not sound like rewrites of each other
+- Use clearly different opening styles across the 3 posts
+- Vary sentence length and rhythm more aggressively
+- At least one post should open with a direct statement
+- At least one post should open with a lived moment or scene
+- At least one post should open with an insight, decision, or truth
+- Avoid repeating the same emotional posture across all 3 posts
+- Avoid repeating the same nouns, same transitions, and same cadence too closely
+- If one post is softer and reflective, another should be clearer and firmer
+- Do not let all 3 default into the same calm, polished phrasing family
+${quietOnlyRule}
+`.trim();
+}
+
+function getFirstSentence(text = "") {
+  const cleaned = String(text).trim();
+  const match = cleaned.match(/^.*?[.!?](\s|$)/);
+  return match ? match[0].trim() : cleaned;
+}
+
+function normalizeForOpenerCheck(text = "") {
+  return String(text)
+    .toLowerCase()
+    .replace(/[#@][\w-]+/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function openerFamilyTokens(sentence = "") {
+  const normalized = normalizeForOpenerCheck(sentence);
+  const tokens = normalized.split(" ").filter(Boolean);
+  return tokens.slice(0, 6);
+}
+
+function repeatedOpenerGuard(posts = [], category = "") {
+  if (!Array.isArray(posts) || posts.length < 2) return { failed: false, reason: "" };
+
+  const softWords = new Set(QUIET_FAMILY_WORDS);
+  const allowQuiet = category === "Quiet Value";
+
+  const normalizedOpeners = posts.map((post) => normalizeForOpenerCheck(getFirstSentence(post)));
+  const openerTokens = normalizedOpeners.map((opener) => openerFamilyTokens(opener));
+
+  let softCount = 0;
+  let quietCount = 0;
+
+  for (const tokens of openerTokens) {
+    if (tokens.some((t) => softWords.has(t))) {
+      softCount += 1;
+    }
+    if (tokens.includes("quiet")) {
+      quietCount += 1;
+    }
+  }
+
+  if (!allowQuiet && quietCount >= 1) {
+    return {
+      failed: true,
+      reason: `The word "quiet" appeared outside Quiet Value.`,
+    };
+  }
+
+  if (allowQuiet && quietCount >= 2) {
+    return {
+      failed: true,
+      reason: `The word "quiet" appeared in too many Quiet Value openers.`,
+    };
+  }
+
+  if (!allowQuiet && softCount >= 2) {
+    return {
+      failed: true,
+      reason:
+        "Too many posts use soft reflective opener words like calm/small/steady/subtle/gentle.",
+    };
+  }
+
+  const firstWordCounts = {};
+  for (const tokens of openerTokens) {
+    const first = tokens[0];
+    if (!first) continue;
+    firstWordCounts[first] = (firstWordCounts[first] || 0) + 1;
+  }
+
+  if (Object.values(firstWordCounts).some((count) => count >= 2)) {
+    return {
+      failed: true,
+      reason: "Too many posts start with the same first word.",
+    };
+  }
+
+  for (let i = 0; i < openerTokens.length; i += 1) {
+    for (let j = i + 1; j < openerTokens.length; j += 1) {
+      const a = openerTokens[i];
+      const b = openerTokens[j];
+      const shared = a.filter((token) => b.includes(token));
+      if (shared.length >= 3) {
+        return {
+          failed: true,
+          reason: "Opening lines are too lexically similar.",
+        };
+      }
+    }
+  }
+
+  return { failed: false, reason: "" };
+}
+
+function containsQuietFamily(text = "") {
+  const normalized = ` ${normalizeForOpenerCheck(text)} `;
+  return QUIET_FAMILY_WORDS.some((word) => normalized.includes(` ${word} `));
+}
+
+function containsHardQuietViolation(post = "", category = "") {
+  if (category === "Quiet Value") return false;
+  return containsQuietFamily(post);
+}
+
+function sanitizeQuietFamilyOutsideQuietValue(text = "", category = "") {
+  if (category === "Quiet Value") return text;
+
+  let result = String(text);
+
+  for (const [word, replacement] of Object.entries(NON_QUIET_REPLACEMENTS)) {
+    const regex = new RegExp(`\\b${word}\\b`, "gi");
+    result = result.replace(regex, (match) => {
+      if (match[0] === match[0].toUpperCase()) {
+        return replacement.charAt(0).toUpperCase() + replacement.slice(1);
+      }
+      return replacement;
+    });
+  }
+
+  result = result.replace(/\s+/g, " ").replace(/\s([,.!?;:])/g, "$1").trim();
+  return result;
+}
+
+function hardQuietGuard(posts = [], category = "") {
+  if (category === "Quiet Value") {
+    const quietCount = posts.filter((p) => /\bquiet\b/i.test(p)).length;
+    if (quietCount > 1) {
+      return {
+        failed: true,
+        reason: `Too many Quiet Value posts still use "quiet".`,
+      };
+    }
+    return { failed: false, reason: "" };
+  }
+
+  for (const post of posts) {
+    if (containsHardQuietViolation(post, category)) {
+      return {
+        failed: true,
+        reason: `Restricted quiet-family language appeared outside Quiet Value.`,
+      };
+    }
+  }
+
+  return { failed: false, reason: "" };
+}
+
+function cleanPost(post = "") {
+  let text = post.trim();
+  text = text.replace(/\n?#\w+(?:\s+#\w+)*/g, "").trim();
+
+  if (text.length > maxChars) {
+    text = text.slice(0, maxChars).trim();
+  }
+
+  const sentenceMatches = text.match(/[^.!?]+[.!?]+/g);
+  if (sentenceMatches && sentenceMatches.length > 0) {
+    let rebuilt = "";
+
+    for (const sentence of sentenceMatches) {
+      const candidate = (rebuilt + " " + sentence.trim()).trim();
+      if (candidate.length <= maxChars) rebuilt = candidate;
+      else break;
+    }
+
+    if (rebuilt.length > 0) text = rebuilt.trim();
+  }
+
+  if (!/[.!?]$/.test(text)) {
+    text += ".";
+  }
+
+  return text;
+}
+
+function soundsTooGeneric(text = "") {
+  const badPhrases = [
+    "embrace the journey",
+    "unlock your potential",
+    "step into your power",
+    "transform your life",
+    "foundation for tomorrow",
+  ];
+
+  const lower = text.toLowerCase();
+  return badPhrases.some((p) => lower.includes(p));
+}
+
+async function generatePostsWithRetry(promptBase, category) {
+  let retryReason = "";
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const retryBlock =
+      attempt === 0
+        ? ""
+        : `
+
+RETRY CORRECTION:
+The previous batch failed output enforcement.
+Reason: ${retryReason}
+
+You must correct this now:
+- make each first sentence clearly distinct in structure and wording
+- do not reuse the same opener word family
+- ${
+            category === "Quiet Value"
+              ? `the word "quiet" may appear in at most one post in the batch`
+              : `do not use any of these words anywhere in the posts: quiet, calm, gentle, subtle, steady, small`
+          }
+- one opener should be direct
+- one opener should be scene-based
+- one opener should be insight/decision/truth-based
 `;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [{ role: "user", content: `${promptBase}${retryBlock}` }],
+    });
+
+    const rawText = response.choices?.[0]?.message?.content || "";
+
+    let posts = rawText
+      .split("---")
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    if (posts.length !== 3) {
+      posts = rawText
+        .split(/\n\s*\n/)
+        .map((p) => p.trim())
+        .filter(Boolean)
+        .slice(0, 3);
+    }
+
+    if (posts.length < 3) {
+      retryReason = "Model did not return 3 usable posts.";
+      continue;
+    }
+
+    const openerCheck = repeatedOpenerGuard(posts, category);
+    if (openerCheck.failed) {
+      retryReason = openerCheck.reason;
+      continue;
+    }
+
+    const quietCheck = hardQuietGuard(posts, category);
+    if (quietCheck.failed) {
+      retryReason = quietCheck.reason;
+      continue;
+    }
+
+    return posts;
+  }
+
+  return [];
+}
+
+function enforceFinalQuietRules(posts = [], category = "") {
+  if (category === "Quiet Value") {
+    let quietSeen = false;
+    return posts.map((post) => {
+      if (!/\bquiet\b/i.test(post)) return post;
+      if (!quietSeen) {
+        quietSeen = true;
+        return post;
+      }
+      return sanitizeQuietFamilyOutsideQuietValue(post, "Not Quiet Value");
+    });
+  }
+
+  return posts.map((post) => sanitizeQuietFamilyOutsideQuietValue(post, category));
 }
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
+});
+
+app.post("/save-owner-choice", async (req, res) => {
+  try {
+    const {
+      businessName,
+      businessSummary,
+      quickType,
+      category,
+      ownerFeeling,
+      chosenPost,
+      voiceSourceText,
+      ownerWritingSample,
+      manualBusinessContext,
+    } = req.body || {};
+
+    if (!businessName || !chosenPost) {
+      return res.status(400).json({
+        error: "businessName and chosenPost are required.",
+      });
+    }
+
+    const result = saveOwnerChoiceToKb({
+      businessName,
+      businessSummary,
+      quickType,
+      category,
+      ownerFeeling,
+      chosenPost,
+      voiceSourceText,
+      ownerWritingSample,
+      manualBusinessContext,
+    });
+
+    res.json({
+      ok: true,
+      entryCount: result.entryCount,
+    });
+  } catch (err) {
+    console.error("SAVE OWNER CHOICE ERROR:", err);
+    res.status(500).json({ error: err.message || "Failed to save owner choice." });
+  }
 });
 
 app.post("/build-profile", async (req, res) => {
@@ -1242,9 +1530,14 @@ app.post("/build-profile", async (req, res) => {
       voiceAgentPrompt(clipText(safeVoiceSourceText || founderSourceInput || "", 5000))
     );
 
+    const finalBusinessName =
+      sourceProfile?.businessProfile?.name ||
+      brandProductTruth?.productType ||
+      "Unknown Business";
+
     const profile = {
       businessProfile: {
-        name: sourceProfile?.businessProfile?.name || brandProductTruth?.productType || "",
+        name: finalBusinessName,
         summary: sourceProfile?.businessProfile?.summary || "",
       },
       contentProfile: {
@@ -1282,6 +1575,7 @@ app.post("/build-profile", async (req, res) => {
       founderVoice: safeFounderVoice,
       customerOutcome,
       brandProductTruth,
+      ownerKbMeta: getBusinessKbMeta(finalBusinessName),
       debug: {
         pagesScanned: laneGather?.pages?.length || 0,
       },
@@ -1332,51 +1626,66 @@ app.post("/generate", async (req, res) => {
   if (category === "Daily Relief") {
     extraCategoryRule = `
 - Focus on stress reduced, friction removed, or the day feeling easier
-- Use a real-life moment where the business quietly helps
+- Use a real-life moment where the business helps
+- Do NOT use any of these words: quiet, calm, gentle, subtle, steady, small
 `;
   } else if (category === "Everyday Ritual") {
     extraCategoryRule = `
 - Focus on routine, rhythm, repeat use, or a small daily practice
 - Make it feel lived-in and natural
+- Do NOT use any of these words: quiet, calm, gentle, subtle, steady, small
 `;
   } else if (category === "Founder Reflection") {
     extraCategoryRule = `
 - Focus on what the founder notices, values, or cares about
 - Make it feel personal but grounded
+- Do NOT use any of these words: quiet, calm, gentle, subtle, steady, small
 `;
   } else if (category === "Product in Real Life") {
     extraCategoryRule = `
 - Focus on where the product or service actually shows up in life
 - Prioritise use and effect over features
+- Do NOT use any of these words: quiet, calm, gentle, subtle, steady, small
 `;
   } else if (category === "Quiet Value") {
     extraCategoryRule = `
 - Focus on subtle benefits people notice without needing a hard sell
 - Keep it understated and real
+- This is the one lane where the word "quiet" may be used if it genuinely fits
+- Do not overuse quiet-family wording across all 3 posts
 `;
   } else if (category === "Standards and Care") {
     extraCategoryRule = `
 - Focus on why doing it properly matters
 - Show care, detail, standards, or long-term thinking
+- Do NOT use any of these words: quiet, calm, gentle, subtle, steady, small
 `;
   } else if (category === "Busy Day Ease") {
     extraCategoryRule = `
 - Focus on pressure, rush, chaos, or a full day becoming easier
 - Keep the life moment clear
+- Do NOT use any of these words: quiet, calm, gentle, subtle, steady, small
 `;
   } else if (category === "Small Moment Real Value") {
     extraCategoryRule = `
 - Focus on a small ordinary moment that reveals real value
-- Keep it human, simple, and believable
+- Keep it human and believable
+- Do NOT use any of these words: quiet, calm, gentle, subtle, steady, small
 `;
   } else if (category === "Something Real") {
     extraCategoryRule = `
 - Focus on something more human, less polished, and more honest
 - Let the post feel like it came from a real day, not a campaign plan
+- Do NOT use any of these words: quiet, calm, gentle, subtle, steady, small
 `;
   }
 
   try {
+    const finalBusinessName =
+      initialProfile?.businessProfile?.name || businessName || "Your Brand";
+
+    const ownerKbContext = summarizeOwnerKbForPrompt(finalBusinessName);
+
     const generationContext = buildGenerationContext({
       mode,
       initialProfile,
@@ -1386,6 +1695,7 @@ app.post("/generate", async (req, res) => {
       pastedSourceText,
       manualBusinessContext,
       manualVoiceInput,
+      ownerKbContext,
     });
 
     const weakVoice = Boolean(initialProfile?.sourceProfile?.weakVoiceSource);
@@ -1396,6 +1706,7 @@ app.post("/generate", async (req, res) => {
     });
 
     const { feelingLabel, feelingRules } = getFeelingRules(ownerNudge || "");
+    const variationRules = getVariationRules(category);
 
     const prompt = `
 Create exactly 3 X posts.
@@ -1413,6 +1724,8 @@ ${feelingLabel}
 
 FEELING RULES:
 ${feelingRules}
+
+${variationRules}
 
 LIFE FRAME:
 ${category}
@@ -1455,6 +1768,11 @@ FEELING INTEGRATION RULE:
 - Do NOT let it replace the owner voice
 - Do NOT let it overpower the selected lens
 - Make its influence noticeable but controlled
+
+OWNER KB RULE:
+- Use learned owner patterns where useful
+- But if today's feeling or current lens points in a different direction, follow the current moment
+- Baseline memory should support the owner, not trap them
 
 3-TIER OUTPUT RULE:
 Post 1 = SUBTLE
@@ -1517,6 +1835,7 @@ AVOID:
 - empty hype
 - obvious ad language
 - repeated sentence structures across all 3 posts
+- repeating the same opener structure across all 3 posts
 - review-style phrasing like "we've used them for years"
 - praise framing like "would not go anywhere else"
 - recommendation framing like "highly recommend"
@@ -1524,25 +1843,7 @@ AVOID:
 ${extraCategoryRule}
 `;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    const rawText = response.choices?.[0]?.message?.content || "";
-
-    let posts = rawText
-      .split("---")
-      .map((p) => p.trim())
-      .filter(Boolean);
-
-    if (posts.length !== 3) {
-      posts = rawText
-        .split(/\n\s*\n/)
-        .map((p) => p.trim())
-        .filter(Boolean)
-        .slice(0, 3);
-    }
+    let posts = await generatePostsWithRetry(prompt, category);
 
     if (posts.length < 3) {
       return res.status(500).json({
@@ -1553,8 +1854,14 @@ ${extraCategoryRule}
     const filteredGeneric = posts.filter((p) => !soundsTooGeneric(p));
     if (filteredGeneric.length === 3) posts = filteredGeneric;
 
-    const finalBusinessName =
-      initialProfile?.businessProfile?.name || businessName || "Your Brand";
+    posts = enforceFinalQuietRules(posts, category);
+
+    const finalQuietCheck = hardQuietGuard(posts, category);
+    if (finalQuietCheck.failed) {
+      return res.status(500).json({
+        error: "Hard quiet suppression failed after enforcement.",
+      });
+    }
 
     const finalPosts = posts.map((post) => {
       let cleaned = cleanPost(post);
@@ -1613,5 +1920,6 @@ NON-NEGOTIABLE IMAGE SAFETY RULES:
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
+  ensureOwnerKbFile();
   console.log(`Server running on port ${PORT}`);
 });
