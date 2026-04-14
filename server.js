@@ -1741,7 +1741,45 @@ app.post("/analyze-voice", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+function getHashtags(category, idea, businessName) {
+  const cleanName = (businessName || "Brand")
+    .replace(/[^a-zA-Z0-9 ]/g, " ")
+    .trim();
 
+  const brandTag =
+    "#" +
+    (cleanName
+      ? cleanName
+          .split(/\s+/)
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join("")
+      : "YourBrand");
+
+  const categoryMap = {
+    "Daily Relief": "#DailyRelief",
+    "Everyday Ritual": "#EverydayRitual",
+    "Founder Reflection": "#FounderReflection",
+    "Product in Real Life": "#RealLifeUse",
+    "Quiet Value": "#QuietValue",
+    "Standards and Care": "#StandardsAndCare",
+    "Busy Day Ease": "#BusyDayEase",
+    "Small Moment Real Value": "#SmallMomentRealValue",
+    "Something Real": "#SomethingReal",
+  };
+
+  const topicTag =
+    "#" +
+    ((idea || "Business")
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .trim()
+      .split(/\s+/)
+      .slice(0, 3)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join("") || "Business");
+
+  return `${brandTag} ${categoryMap[category] || "#BrandContent"} ${topicTag}`;
+}
 app.post("/generate", async (req, res) => {
   const {
     mode,
