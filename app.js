@@ -17,6 +17,7 @@ const voiceSummaryDisplay = document.getElementById("voiceSummaryDisplay");
 const offersDisplay = document.getElementById("offersDisplay");
 const audienceDisplay = document.getElementById("audienceDisplay");
 const opportunitiesDisplay = document.getElementById("opportunitiesDisplay");
+const continueToGenerateBtn = document.getElementById("continueToGenerateBtn");
 
 let initialProfile = null;
 let voiceProfile = null;
@@ -57,10 +58,22 @@ const QUICK_TYPES = {
   },
 };
 
-function scrollToSection(id) {
+function scrollToSection(id, behavior = "smooth") {
   const el = document.getElementById(id);
   if (!el) return;
-  el.scrollIntoView({ behavior: "smooth", block: "start" });
+  el.scrollIntoView({ behavior, block: "start" });
+}
+
+function forceSnapshotStop() {
+  requestAnimationFrame(() => {
+    scrollToSection("section-profile", "auto");
+    setTimeout(() => {
+      scrollToSection("section-profile", "smooth");
+    }, 120);
+    setTimeout(() => {
+      scrollToSection("section-profile", "auto");
+    }, 320);
+  });
 }
 
 function clearOutputs() {
@@ -79,11 +92,15 @@ function clearSnapshotDisplays() {
   offersDisplay.innerText = "Offers and services will appear here after the scan.";
   audienceDisplay.innerText = "Audience clues will appear here after the scan.";
   opportunitiesDisplay.innerText = "Opportunities will appear here after the scan.";
+
+  if (continueToGenerateBtn) {
+    continueToGenerateBtn.style.display = "none";
+  }
 }
 
 function setInitialGuidance() {
   profilePrompt.innerText =
-    "Scan the business first. If the voice source comes back thin, paste more owner writing and scan again.";
+    "Scan the business first. Review the brand snapshot before moving into content action.";
   feelingPrompt.innerText =
     "Optional: choose a feeling if you want today's content to better match your current tone.";
   generatePrompt.innerText =
@@ -115,6 +132,14 @@ function setupSourceWatchers() {
       }
     }
   );
+}
+
+function setupContinueButton() {
+  if (!continueToGenerateBtn) return;
+
+  continueToGenerateBtn.addEventListener("click", () => {
+    scrollToSection("section-generate");
+  });
 }
 
 function setupFeelingButtons() {
@@ -182,6 +207,11 @@ function toDisplayList(items = [], fallback = "Not enough information yet.") {
 }
 
 function buildOpportunitiesFromProfile(profile) {
+  const backendOpportunities = profile?.advisorSnapshot?.opportunities || [];
+  if (Array.isArray(backendOpportunities) && backendOpportunities.length > 0) {
+    return backendOpportunities.slice(0, 6);
+  }
+
   const opportunities = [];
   const category = profile?.contentProfile?.suggestedCategory || "";
   const idea = profile?.contentProfile?.suggestedIdea || "";
@@ -218,7 +248,7 @@ function buildOpportunitiesFromProfile(profile) {
 }
 
 function renderBrandSnapshot(profile) {
-  const founderGoal = getFounderGoal();
+  const founderGoal = profile?.founderGoal || getFounderGoal();
 
   founderGoalDisplay.innerText = founderGoal || "No goal selected yet.";
 
@@ -299,7 +329,7 @@ async function buildInitialProfile() {
     sourceChangedSinceBuild = false;
     updateSourceChangePrompt();
 
-    selectedFounderGoal = founderGoal;
+    selectedFounderGoal = data.profile?.founderGoal || founderGoal;
 
     const resolvedBusinessName =
       businessName || data.profile?.businessProfile?.name || "";
@@ -323,10 +353,10 @@ async function buildInitialProfile() {
 
     if (lastWeakVoice) {
       profilePrompt.innerText =
-        "The scan worked, but the founder voice source is still thin. Paste more owner writing and scan again for stronger results.";
+        "The scan worked, but the founder voice source is still thin. Review the snapshot first, then add more owner writing and scan again for stronger results if needed.";
     } else {
       profilePrompt.innerText =
-        "Brand snapshot looks usable. You can now refine the tone if needed and generate posts from the snapshot.";
+        "Review the brand snapshot first. When ready, continue to content action and generate from what YEVIB found.";
     }
 
     if (kbMeta.entryCount > 0) {
@@ -343,8 +373,11 @@ async function buildInitialProfile() {
     generatePrompt.innerText =
       "Choose the content lens you want YEVIB to generate from the brand snapshot.";
 
-    scrollToSection("section-profile");
-    setTimeout(() => scrollToSection("section-generate"), 350);
+    if (continueToGenerateBtn) {
+      continueToGenerateBtn.style.display = "inline-flex";
+    }
+
+    forceSnapshotStop();
   } catch (error) {
     console.error(error);
     intakeStatus.innerText = "Error: " + error.message;
@@ -840,5 +873,6 @@ GLOBAL RULES:
 
 setupFeelingButtons();
 setupSourceWatchers();
+setupContinueButton();
 clearSnapshotDisplays();
 setInitialGuidance();
