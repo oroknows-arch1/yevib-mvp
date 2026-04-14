@@ -1,173 +1,211 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>YEVIB</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <div class="page-shell">
+    <header class="hero">
+      <div class="hero-badge">YEVIB</div>
+      <h1>Your Voice Your Brand</h1>
+      <p class="hero-subtitle">
+        Turn real business context into posts that feel like the person behind it.
+      </p>
 
-  <h1>YEVIB</h1>
-  <h2>Your Voice Your Brand</h2>
-<div style="margin-bottom:20px; font-size:14px; color:#444;">
-  <strong>Today’s Flow:</strong> Build → Feel → Generate → Choose → Post
-</div>
-  <section style="margin-bottom: 28px;">
-    <h3>Step 1: Source Intake</h3>
+      <div class="flow-bar">
+        <span>Build</span>
+        <span>Feel</span>
+        <span>Generate</span>
+        <span>Choose</span>
+        <span>Post</span>
+      </div>
+    </header>
 
-    <label for="generationMode">Mode:</label>
-    <select id="generationMode">
-      <option value="express">Express (URL-first)</option>
-      <option value="hybrid" selected>Hybrid</option>
-      <option value="manual">Manual</option>
-    </select>
+    <main class="app-stack">
+      <section class="app-section" id="section-intake">
+        <div class="section-top">
+          <div>
+            <div class="section-kicker">Step 1</div>
+            <h2>Source Intake</h2>
+          </div>
+        </div>
 
-    <br /><br />
+        <div class="field-grid">
+          <div class="field">
+            <label for="generationMode">Mode</label>
+            <select id="generationMode">
+              <option value="express">Express (URL-first)</option>
+              <option value="hybrid" selected>Hybrid</option>
+              <option value="manual">Manual</option>
+            </select>
+          </div>
 
-    <label for="businessUrl">Business URL:</label>
-    <input
-      id="businessUrl"
-      type="text"
-      placeholder="https://yourbusiness.com"
-      style="width:100%; max-width:900px;"
-    />
+          <div class="field field-full">
+            <label for="businessUrl">Business URL</label>
+            <input
+              id="businessUrl"
+              type="text"
+              placeholder="https://yourbusiness.com"
+            />
+          </div>
 
-    <br /><br />
+          <div class="field field-full">
+            <div class="helper-text">
+              Optional: paste extra written material from the owner for stronger voice results.
+              This should be real writing from the business owner, not customer reviews.
+              Examples: about page text, founder story, captions, notes, product copy, brand thoughts, mission statement.
+            </div>
+          </div>
 
-    <div style="max-width:900px; font-size:14px; color:#444; line-height:1.5;">
-      Optional: paste extra written material from the owner for stronger voice results.
-      This should be real writing from the business owner, not customer reviews.
-      Examples: About page text, founder story, captions, notes, product copy, brand thoughts, mission statement.
-    </div>
+          <div class="field field-full">
+            <label for="pastedSourceText">Owner Writing / Pasted Text</label>
+            <textarea
+              id="pastedSourceText"
+              rows="8"
+              placeholder="Paste writing from the owner here..."
+            ></textarea>
+          </div>
 
-    <br />
+          <div class="field field-full">
+            <label for="manualBusinessContext">Manual Context</label>
+            <textarea
+              id="manualBusinessContext"
+              rows="4"
+              placeholder="Add any business context, corrections, or notes..."
+            ></textarea>
+          </div>
+        </div>
 
-    <label for="pastedSourceText">Owner Writing / Pasted Text:</label><br />
-    <textarea
-      id="pastedSourceText"
-      rows="8"
-      style="width:100%; max-width:900px;"
-      placeholder="Paste writing from the owner here..."
-    ></textarea>
+        <div class="action-row">
+          <button class="primary-btn" onclick="buildInitialProfile()">Build Profile</button>
+        </div>
 
-    <br /><br />
+        <div id="intakeStatus" class="status-line"></div>
+        <div id="ownerKbStatus" class="subtle-line"></div>
+        <div id="sourceChangePrompt" class="warning-line"></div>
+      </section>
 
-    <label for="manualBusinessContext">Manual Context:</label><br />
-    <textarea
-      id="manualBusinessContext"
-      rows="4"
-      style="width:100%; max-width:900px;"
-      placeholder="Add any business context, corrections, or notes..."
-    ></textarea>
+      <section class="app-section" id="section-profile">
+        <div class="section-top">
+          <div>
+            <div class="section-kicker">Step 2</div>
+            <h2>Profile</h2>
+          </div>
+        </div>
 
-    <br /><br />
-    <button onclick="buildInitialProfile()">Build Profile</button>
+        <div class="field-grid">
+          <div class="field field-full">
+            <label for="businessName">Business Name</label>
+            <input id="businessName" type="text" />
+          </div>
 
-    <div id="intakeStatus" style="margin-top: 12px;"></div>
-    <div id="ownerKbStatus" style="margin-top: 8px; color:#444;"></div>
-    <div id="sourceChangePrompt" style="margin-top: 8px; color:#b35a00; font-weight:600;"></div>
-  </section>
+          <div class="field field-full">
+            <label for="businessSummary">Business Summary</label>
+            <textarea id="businessSummary" rows="4"></textarea>
+          </div>
 
-  <section style="margin-bottom: 28px;">
-    <h3>Profile</h3>
+          <div class="field field-full">
+            <label for="voiceInput">Voice Source</label>
+            <textarea id="voiceInput" rows="8"></textarea>
+          </div>
+        </div>
 
-    <label for="businessName">Business Name:</label>
-    <input
-      id="businessName"
-      type="text"
-      style="width:100%; max-width:900px;"
-    />
+        <div id="profilePrompt" class="subtle-line"></div>
+      </section>
 
-    <br /><br />
+      <section class="app-section" id="section-generate">
+        <div class="section-top">
+          <div>
+            <div class="section-kicker">Step 3</div>
+            <h2>Create Today’s Post</h2>
+          </div>
+        </div>
 
-    <label for="businessSummary">Business Summary:</label><br />
-    <textarea
-      id="businessSummary"
-      rows="4"
-      style="width:100%; max-width:900px;"
-    ></textarea>
+        <div class="subsection">
+          <h3>How are you feeling right now?</h3>
+          <p class="helper-text">
+            Start here first. This helps YEVIB shape today’s post around your real mindset.
+          </p>
 
-    <br /><br />
+          <div id="feelingButtons" class="button-group">
+            <button type="button" class="feeling-btn" data-feeling="Focused">Focused</button>
+            <button type="button" class="feeling-btn" data-feeling="Proud">Proud</button>
+            <button type="button" class="feeling-btn" data-feeling="Tired">Tired</button>
+            <button type="button" class="feeling-btn" data-feeling="Reflective">Reflective</button>
+            <button type="button" class="feeling-btn" data-feeling="Flat">Flat</button>
+            <button type="button" class="feeling-btn" data-feeling="Grateful">Grateful</button>
+            <button type="button" class="feeling-btn" data-feeling="Fired up">Fired up</button>
+            <button type="button" class="feeling-btn" data-feeling="Not feeling it">Not feeling it</button>
+            <button type="button" class="feeling-btn" data-feeling="Random">Random</button>
+          </div>
 
-    <label for="voiceInput">Voice Source:</label><br />
-    <textarea
-      id="voiceInput"
-      rows="8"
-      style="width:100%; max-width:900px;"
-    ></textarea>
+          <div class="field field-full top-gap">
+            <label for="customFeeling">Optional: add your own</label>
+            <input
+              id="customFeeling"
+              type="text"
+              placeholder="quietly proud, more direct, less polished, more human..."
+            />
+          </div>
 
-    <div id="profilePrompt" style="margin-top: 8px; color:#444;"></div>
-  </section>
+          <div id="feelingPrompt" class="subtle-line"></div>
+        </div>
 
-  <section style="margin-bottom: 28px;">
-    <h3>Create Today’s Post</h3>
+        <div class="subsection">
+          <h3>Choose what type of post you want</h3>
+          <p class="helper-text">Same owner voice, different lens.</p>
 
-    <h4 style="margin-bottom:8px;">How are you feeling right now?</h4>
-    <div style="max-width:900px; font-size:14px; color:#444; margin-bottom:10px;">
-      Start here first. This helps YEVIB shape today’s post around your real mindset.
-    </div>
+          <div class="button-group">
+            <button class="lens-btn" onclick="quickGenerate('Business')">Business</button>
+            <button class="lens-btn" onclick="quickGenerate('Family')">Family</button>
+            <button class="lens-btn" onclick="quickGenerate('Educational')">Educational</button>
+            <button class="lens-btn" onclick="quickGenerate('Community')">Community</button>
+            <button class="lens-btn" onclick="quickGenerate('Personal')">Personal</button>
+            <button class="lens-btn" onclick="quickGenerate('Something Real')">Something Real</button>
+          </div>
 
-    <div id="feelingButtons" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
-      <button type="button" class="feeling-btn" data-feeling="Focused">Focused</button>
-      <button type="button" class="feeling-btn" data-feeling="Proud">Proud</button>
-      <button type="button" class="feeling-btn" data-feeling="Tired">Tired</button>
-      <button type="button" class="feeling-btn" data-feeling="Reflective">Reflective</button>
-      <button type="button" class="feeling-btn" data-feeling="Flat">Flat</button>
-      <button type="button" class="feeling-btn" data-feeling="Grateful">Grateful</button>
-      <button type="button" class="feeling-btn" data-feeling="Fired up">Fired up</button>
-      <button type="button" class="feeling-btn" data-feeling="Not feeling it">Not feeling it</button>
-      <button type="button" class="feeling-btn" data-feeling="Random">Random</button>
-    </div>
+          <div id="generatePrompt" class="subtle-line"></div>
+        </div>
+      </section>
 
-    <label for="customFeeling">Optional: add your own</label><br />
-    <input
-      id="customFeeling"
-      type="text"
-      placeholder="quietly proud, more direct, less polished, more human..."
-      style="width:100%; max-width:900px;"
-    />
+      <section class="app-section" id="section-posts">
+        <div class="section-top">
+          <div>
+            <div class="section-kicker">Step 4</div>
+            <h2>Your Post Options (Today)</h2>
+          </div>
+        </div>
 
-    <div id="feelingPrompt" style="margin-top: 8px; color:#444;"></div>
+        <p class="helper-text">
+          Pick the one that feels most like you right now.
+        </p>
 
-    <br /><br />
+        <div id="postsPrompt" class="subtle-line"></div>
+        <div id="posts"></div>
+      </section>
 
-    <h4 style="margin-bottom:8px;">Choose what type of post you want</h4>
-    <div style="max-width:900px; font-size:14px; color:#444; margin-bottom:10px;">
-      Same owner voice, different lens.
-    </div>
+      <section class="app-section" id="section-output">
+        <div class="section-top">
+          <div>
+            <div class="section-kicker">Step 5</div>
+            <h2>Selected Post</h2>
+          </div>
+        </div>
 
-    <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:18px;">
-      <button onclick="quickGenerate('Business')">Business</button>
-      <button onclick="quickGenerate('Family')">Family</button>
-      <button onclick="quickGenerate('Educational')">Educational</button>
-      <button onclick="quickGenerate('Community')">Community</button>
-      <button onclick="quickGenerate('Personal')">Personal</button>
-      <button onclick="quickGenerate('Something Real')">Something Real</button>
-    </div>
+        <div id="selectedPost" class="selected-post"></div>
+        <div id="imageStatus" class="status-line"></div>
 
-    <div id="generatePrompt" style="margin-top: 8px; color:#444;"></div>
-  </section>
-
-  <section style="margin-top:20px;">
-  <h3>Your Post Options (Today)</h3>
-  <div style="margin-bottom: 8px; color:#444;">
-    Pick the one that feels most like you right now.
+        <img
+          id="generatedImage"
+          alt="Generated image"
+          class="generated-image"
+        />
+      </section>
+    </main>
   </div>
-  <div id="postsPrompt" style="margin-bottom: 10px; color:#444;"></div>
-  <div id="posts"></div>
-</section>
-  <section style="margin-top:30px;">
-    <h3>Selected Post</h3>
-    <div id="selectedPost" style="white-space: pre-wrap; margin-bottom:16px;"></div>
-
-    <div id="imageStatus" style="margin-bottom:12px;"></div>
-
-    <img
-      id="generatedImage"
-      alt="Generated image"
-      style="display:none; width:100%; max-width:800px; border-radius:10px;"
-    >
-  </section>
 
   <script src="app.js"></script>
 </body>

@@ -49,6 +49,12 @@ const QUICK_TYPES = {
   },
 };
 
+function scrollToSection(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function clearOutputs() {
   postsDiv.innerHTML = "";
   selectedPostBox.innerText = "";
@@ -109,6 +115,7 @@ function setupFeelingButtons() {
       selectedFeeling = button.dataset.feeling || "";
       customFeelingInput.value = "";
       feelingPrompt.innerText = `Feeling set: ${selectedFeeling}. Now choose the type of post you want.`;
+      scrollToSection("section-generate");
     });
   });
 
@@ -240,6 +247,9 @@ async function buildInitialProfile() {
       "Choose a feeling before you generate so the post matches where you are right now.";
     generatePrompt.innerText =
       "After feeling is set, choose the type of post you want.";
+
+    scrollToSection("section-profile");
+    setTimeout(() => scrollToSection("section-generate"), 350);
   } catch (error) {
     console.error(error);
     intakeStatus.innerText = "Error: " + error.message;
@@ -324,6 +334,7 @@ async function quickGenerate(type) {
 
     const posts = data.text.split("\n\n\n").filter(Boolean);
     renderPostChoices(posts, type, ownerFeeling);
+    scrollToSection("section-posts");
   } catch (error) {
     console.error(error);
     postsDiv.innerHTML = "Error: " + error.message;
@@ -380,13 +391,6 @@ function renderPostChoices(posts, typeLabel, ownerFeeling) {
   posts.forEach((post) => {
     const card = document.createElement("div");
     card.className = "post-choice-card";
-    card.style.border = "1px solid #ccc";
-    card.style.padding = "12px";
-    card.style.marginTop = "10px";
-    card.style.cursor = "pointer";
-    card.style.whiteSpace = "pre-wrap";
-    card.style.background = "white";
-    card.style.borderRadius = "10px";
 
     const postText = document.createElement("div");
     postText.innerText = post;
@@ -405,33 +409,35 @@ function renderPostChoices(posts, typeLabel, ownerFeeling) {
     helper.style.marginTop = "8px";
     helper.innerText = "Click to choose this post and generate its image.";
     card.appendChild(helper);
-const copyBtn = document.createElement("button");
-copyBtn.type = "button";
-copyBtn.innerText = "Copy Post";
-copyBtn.style.marginTop = "10px";
 
-copyBtn.onclick = async (e) => {
-  e.stopPropagation();
-  try {
-    await navigator.clipboard.writeText(post);
-    copyBtn.innerText = "Copied";
-    setTimeout(() => {
-      copyBtn.innerText = "Copy Post";
-    }, 1200);
-  } catch (err) {
-    console.error("Copy failed:", err);
-    copyBtn.innerText = "Copy failed";
-    setTimeout(() => {
-      copyBtn.innerText = "Copy Post";
-    }, 1200);
-  }
-};
+    const copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.innerText = "Copy Post";
+    copyBtn.style.marginTop = "10px";
 
-card.appendChild(copyBtn);
+    copyBtn.onclick = async (e) => {
+      e.stopPropagation();
+      try {
+        await navigator.clipboard.writeText(post);
+        copyBtn.innerText = "Copied";
+        setTimeout(() => {
+          copyBtn.innerText = "Copy Post";
+        }, 1200);
+      } catch (err) {
+        console.error("Copy failed:", err);
+        copyBtn.innerText = "Copy failed";
+        setTimeout(() => {
+          copyBtn.innerText = "Copy Post";
+        }, 1200);
+      }
+    };
+
+    card.appendChild(copyBtn);
+
     card.onclick = async () => {
       document.querySelectorAll(".post-choice-card").forEach((el) => {
         el.style.background = "white";
-        el.style.border = "1px solid #ccc";
+        el.style.border = "1px solid #d7e0eb";
       });
 
       card.style.background = "#e8f0fe";
@@ -493,6 +499,7 @@ card.appendChild(copyBtn);
         generatedImage.style.display = "block";
         imageStatus.innerText = "Post ready. This sounds like you today.";
         ownerKbStatus.innerText = "Owner KB updated from your latest chosen post.";
+        scrollToSection("section-output");
       } catch (error) {
         console.error(error);
         imageStatus.innerText = "Image generation failed: " + error.message;
