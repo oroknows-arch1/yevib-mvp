@@ -14,6 +14,35 @@ app.use(express.static(__dirname));
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+const PORT = process.env.PORT || 3000;
+const maxChars = 500;
+const OWNER_KB_PATH = path.join(__dirname, "owner-kb.json");
+
+const QUIET_FAMILY_WORDS = ["quiet", "calm", "gentle", "subtle", "steady", "small"];
+const NON_QUIET_REPLACEMENTS = {
+  quiet: "real",
+  calm: "clear",
+  gentle: "measured",
+  subtle: "real",
+  steady: "reliable",
+  small: "real",
+};
+
+function clipText(text = "", max = 4000) {
+  const cleaned = String(text || "").trim();
+  if (cleaned.length <= max) return cleaned;
+  return cleaned.slice(0, max).trim();
+}
+
+function normalizeUrl(input) {
+  if (!input) return "";
+  const trimmed = String(input).trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
+  return `https://${trimmed}`;
+}
+
 async function runJsonChat(prompt) {
   const response = await openai.chat.completions.create({
     model: "gpt-4.1-mini",
@@ -29,34 +58,6 @@ async function runJsonChat(prompt) {
     console.error("JSON PARSE ERROR:", raw);
     throw new Error("Invalid JSON returned from model.");
   }
-}
-const maxChars = 500;
-const OWNER_KB_PATH = path.join(__dirname, "owner-kb.json");
-
-const QUIET_FAMILY_WORDS = ["quiet", "calm", "gentle", "subtle", "steady", "small"];
-const NON_QUIET_REPLACEMENTS = {
-  quiet: "real",
-  calm: "clear",
-  gentle: "measured",
-  subtle: "real",
-  steady: "reliable",
-  small: "real",
-};
-
-function normalizeUrl(input) {
-  if (!input) return "";
-  const trimmed = input.trim();
-  if (!trimmed) return "";
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    return trimmed;
-  }
-  return `https://${trimmed}`;
-}
-
-function clipText(text = "", max = 4000) {
-  const cleaned = String(text).trim();
-  if (cleaned.length <= max) return cleaned;
-  return cleaned.slice(0, max).trim();
 }
 
 function ensureOwnerKbFile() {
@@ -89,7 +90,7 @@ function writeOwnerKb(data) {
 }
 
 function businessKey(name = "") {
-  return String(name)
+  return String(name || "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "") || "unknown_business";
@@ -109,12 +110,12 @@ function getBusinessKbMeta(name = "") {
   }
 
   const entries = Array.isArray(business.entries) ? business.entries : [];
-  const lastEntry = entries[entries.length - 1] || null;
+  const lastEntry = entries[entries.length - 1] || {};
 
   return {
     entryCount: entries.length,
-    lastFeeling: lastEntry?.ownerFeeling || "",
-    lastQuickType: lastEntry?.quickType || "",
+    lastFeeling: lastEntry.ownerFeeling || "",
+    lastQuickType: lastEntry.quickType || "",
   };
 }
 
@@ -129,10 +130,9 @@ function saveOwnerChoiceToKb({
   ownerWritingSample,
   manualBusinessContext,
 }) {
+  const kb = readOwnerKb();
   const cleanBusinessName = clipText(businessName || "Unknown Business", 200);
   const key = businessKey(cleanBusinessName);
-
-  const kb = readOwnerKb();
 
   if (!kb.businesses[key]) {
     kb.businesses[key] = {
@@ -146,22 +146,19 @@ function saveOwnerChoiceToKb({
 
   kb.businesses[key].entries.push({
     timestamp: new Date().toISOString(),
-    quickType: clipText(quickType || "", 80),
-    category: clipText(category || "", 80),
+    quickType: clipText(quickType || "", 100),
+    category: clipText(category || "", 100),
     ownerFeeling: clipText(ownerFeeling || "", 120),
-    chosenPost: clipText(chosenPost || "", 1200),
-    voiceSourceText: clipText(voiceSourceText || "", 3000),
-    ownerWritingSample: clipText(ownerWritingSample || "", 3000),
-    manualBusinessContext: clipText(manualBusinessContext || "", 2000),
+    chosenPost: clipText(chosenPost || "", 1500),
+    voiceSourceText: clipText(voiceSourceText || "", 3500),
+    ownerWritingSample: clipText(ownerWritingSample || "", 3500),
+    manualBusinessContext: clipText(manualBusinessContext || "", 2500),
   });
 
   kb.businesses[key].entries = kb.businesses[key].entries.slice(-100);
-
   writeOwnerKb(kb);
 
-  return {
-    entryCount: kb.businesses[key].entries.length,
-  };
+  return { entryCount: kb.businesses[key].entries.length };
 }
 
 function summarizeOwnerKbForPrompt(businessName = "") {
@@ -185,7 +182,6 @@ OWNER KNOWLEDGE BASE:
   for (const entry of entries) {
     const qt = entry.quickType || "Unknown";
     const feeling = entry.ownerFeeling || "Not specified";
-
     lensCounts[qt] = (lensCounts[qt] || 0) + 1;
     feelingCounts[feeling] = (feelingCounts[feeling] || 0) + 1;
     totalLength += (entry.chosenPost || "").length;
@@ -236,7 +232,7 @@ OWNER KB RULE:
 }
 
 function stripHtml(html = "") {
-  return html
+  return String(html || "")
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
@@ -251,15 +247,15 @@ function stripHtml(html = "") {
 }
 
 function getTagContent(html, regex) {
-  const match = html.match(regex);
+  const match = String(html || "").match(regex);
   return match?.[1]?.trim() || "";
 }
 
 function extractLinks(html = "", baseUrl = "") {
   const links = [];
   const anchorRegex = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
-
   let match;
+
   while ((match = anchorRegex.exec(html)) !== null) {
     const rawHref = (match[1] || "").trim();
     const rawText = stripHtml(match[2] || "").trim();
@@ -281,17 +277,14 @@ function extractLinks(html = "", baseUrl = "") {
       continue;
     }
 
-    links.push({
-      text: rawText,
-      href: absoluteUrl,
-    });
+    links.push({ text: rawText, href: absoluteUrl });
   }
 
   return links;
 }
 
 function looksLikeTestimonial(text = "") {
-  const lower = String(text).toLowerCase();
+  const lower = String(text || "").toLowerCase();
 
   return (
     /our company has been using|we have been using|we've been using|would not go anywhere else|value for money|communication is great|second to none|tried a few of the bigger companies|before .* we tried|highly recommend|couldn't be happier|customer service/i.test(
@@ -311,11 +304,9 @@ function scoreFounderLink(link) {
   if (/about us|about|our story|story|mission|founder|who we are|why we started/.test(text)) {
     score += 8;
   }
-
   if (/\/about|\/about-us|\/our-story|\/story|\/mission|\/founder/.test(href)) {
     score += 6;
   }
-
   if (/\/pages\//.test(href)) {
     score += 1;
   }
@@ -336,13 +327,8 @@ function scoreFounderLink(link) {
     score -= 10;
   }
 
-  if (/contact|cart|login|account/.test(text)) {
-    score -= 4;
-  }
-
-  if (/contact|cart|login|account/.test(href)) {
-    score -= 4;
-  }
+  if (/contact|cart|login|account/.test(text)) score -= 4;
+  if (/contact|cart|login|account/.test(href)) score -= 4;
 
   return score;
 }
@@ -369,32 +355,23 @@ function pickFounderLinks(links = []) {
 function extractWebsiteData(html, url) {
   const title =
     getTagContent(html, /<title>([\s\S]*?)<\/title>/i) ||
-    getTagContent(
-      html,
-      /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i
-    ) ||
+    getTagContent(html, /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) ||
     "";
 
   const metaDescription =
-    getTagContent(
-      html,
-      /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i
-    ) ||
-    getTagContent(
-      html,
-      /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i
-    ) ||
+    getTagContent(html, /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
+    getTagContent(html, /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i) ||
     "";
 
-  const h1Matches = [...html.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/gi)]
+  const h1Matches = [...String(html).matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/gi)]
     .map((m) => stripHtml(m[1]))
     .filter(Boolean);
 
-  const h2Matches = [...html.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/gi)]
+  const h2Matches = [...String(html).matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/gi)]
     .map((m) => stripHtml(m[1]))
     .filter(Boolean);
 
-  const pMatches = [...html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)]
+  const pMatches = [...String(html).matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)]
     .map((m) => stripHtml(m[1]))
     .filter((text) => text && text.length > 60);
 
@@ -439,8 +416,8 @@ async function fetchPageData(url) {
 }
 
 function joinUrl(base, slug) {
-  const cleanBase = base.replace(/\/+$/, "");
-  const cleanSlug = slug.replace(/^\/+/, "");
+  const cleanBase = String(base).replace(/\/+$/, "");
+  const cleanSlug = String(slug).replace(/^\/+/, "");
   return `${cleanBase}/${cleanSlug}`;
 }
 
@@ -456,7 +433,7 @@ function qualityParagraphs(paragraphs = []) {
 }
 
 function cleanBlock(text = "") {
-  return text.replace(/\s+/g, " ").trim();
+  return String(text || "").replace(/\s+/g, " ").trim();
 }
 
 function dedupeBlocks(blocks = []) {
@@ -475,7 +452,7 @@ function dedupeBlocks(blocks = []) {
 }
 
 function scoreFounderBlock(text = "") {
-  const lower = text.toLowerCase();
+  const lower = String(text).toLowerCase();
   let score = 0;
 
   if (text.length >= 120) score += 1;
@@ -497,10 +474,7 @@ function scoreFounderBlock(text = "") {
   }
 
   if (/\bwe\b|\bour\b/.test(lower)) score += 1;
-
-  if (looksLikeTestimonial(lower)) {
-    score -= 12;
-  }
+  if (looksLikeTestimonial(lower)) score -= 12;
 
   if (
     /i bought|i tried|my husband|highly recommend|worth the price|shipping|5 stars|review/i.test(
@@ -522,7 +496,7 @@ function scoreFounderBlock(text = "") {
 }
 
 function scoreCustomerBlock(text = "") {
-  const lower = text.toLowerCase();
+  const lower = String(text).toLowerCase();
   let score = 0;
 
   if (text.length >= 100) score += 1;
@@ -535,9 +509,7 @@ function scoreCustomerBlock(text = "") {
     score += 6;
   }
 
-  if (looksLikeTestimonial(lower)) {
-    score += 5;
-  }
+  if (looksLikeTestimonial(lower)) score += 5;
 
   if (
     /our mission|we started|we believe|our story|founder|our goal|our vision|why we started/i.test(
@@ -551,7 +523,7 @@ function scoreCustomerBlock(text = "") {
 }
 
 function scoreProductBlock(text = "") {
-  const lower = text.toLowerCase();
+  const lower = String(text).toLowerCase();
   let score = 0;
 
   if (text.length >= 80) score += 1;
@@ -564,9 +536,7 @@ function scoreProductBlock(text = "") {
     score += 4;
   }
 
-  if (
-    /i bought|highly recommend|my husband|worth the price|review|5 stars/i.test(lower)
-  ) {
+  if (/i bought|highly recommend|my husband|worth the price|review|5 stars/i.test(lower)) {
     score -= 3;
   }
 
@@ -584,17 +554,11 @@ function classifyBlock(text = "") {
   const founderScore = scoreFounderBlock(cleaned);
   const customerScore = scoreCustomerBlock(cleaned);
   const productScore = scoreProductBlock(cleaned);
-
   const best = Math.max(founderScore, customerScore, productScore);
 
   if (best < 1) return null;
-
-  if (best === founderScore) {
-    return { lane: "founderVoice", text: cleaned, score: founderScore };
-  }
-  if (best === customerScore) {
-    return { lane: "customerOutcome", text: cleaned, score: customerScore };
-  }
+  if (best === founderScore) return { lane: "founderVoice", text: cleaned, score: founderScore };
+  if (best === customerScore) return { lane: "customerOutcome", text: cleaned, score: customerScore };
   return { lane: "brandProductTruth", text: cleaned, score: productScore };
 }
 
@@ -632,7 +596,6 @@ async function gatherLaneSources(normalizedUrl) {
   ];
 
   const productPaths = ["", "shop", "products", "collections", "services", "faq"];
-
   const allPages = [];
   const attempted = new Set();
 
@@ -643,10 +606,7 @@ async function gatherLaneSources(normalizedUrl) {
     attempted.add(normalizedUrl);
   } catch {}
 
-  const homepageLinks = homepage?.rawHtml
-    ? extractLinks(homepage.rawHtml, normalizedUrl)
-    : [];
-
+  const homepageLinks = homepage?.rawHtml ? extractLinks(homepage.rawHtml, normalizedUrl) : [];
   const menuFounderLinks = pickFounderLinks(homepageLinks);
 
   for (const link of menuFounderLinks) {
@@ -655,7 +615,6 @@ async function gatherLaneSources(normalizedUrl) {
 
     try {
       const page = await fetchPageData(link.href);
-
       const titleText = `${page.title || ""} ${(page.headings || []).join(" | ")}`.toLowerCase();
       const linkText = (link.text || "").toLowerCase();
       const hrefText = (link.href || "").toLowerCase();
@@ -813,7 +772,6 @@ function isWeakVoiceSource(text = "") {
     );
 
   if (genericProductSignals && !founderSignals) return true;
-
   return false;
 }
 
@@ -860,44 +818,234 @@ ${(profile.dontRules || []).map((r) => `- ${r}`).join("\n")}
 `;
 }
 
-function getHashtags(category, idea, businessName) {
-  const cleanName = (businessName || "Brand")
-    .replace(/[^a-zA-Z0-9 ]/g, " ")
-    .trim();
+const voiceAgentPrompt = (input) => `
+You are a Brand Voice Agent.
 
-  const brandTag =
-    "#" +
-    (cleanName
-      ? cleanName
-          .split(/\s+/)
-          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-          .join("")
-      : "YourBrand");
+Analyse the writing sample and return ONLY valid JSON.
 
-  const categoryMap = {
-    "Daily Relief": "#DailyRelief",
-    "Everyday Ritual": "#EverydayRitual",
-    "Founder Reflection": "#FounderReflection",
-    "Product in Real Life": "#RealLifeUse",
-    "Quiet Value": "#QuietValue",
-    "Standards and Care": "#StandardsAndCare",
-    "Busy Day Ease": "#BusyDayEase",
-    "Small Moment Real Value": "#SmallMomentRealValue",
-    "Something Real": "#SomethingReal",
-  };
+Use this exact structure:
+{
+  "tone": ["trait 1", "trait 2", "trait 3"],
+  "style": ["pattern 1", "pattern 2", "pattern 3"],
+  "vocabulary": ["pattern 1", "pattern 2", "pattern 3"],
+  "positioning": "short brand positioning summary",
+  "structure": "short explanation of how the content is structured",
+  "voiceSummary": "short paragraph summary",
+  "doRules": ["rule 1", "rule 2", "rule 3"],
+  "dontRules": ["rule 1", "rule 2", "rule 3"]
+}
 
-  const topicTag =
-    "#" +
-    ((idea || "Business")
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, " ")
-      .trim()
-      .split(/\s+/)
-      .slice(0, 3)
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join("") || "Business");
+Rules:
+- Return JSON only
+- No markdown
+- No code fences
+- Keep it grounded
+- Do not exaggerate
+- If the input sounds like a customer testimonial, do NOT preserve the testimonial perspective
+- Convert the underlying brand traits into neutral brand voice guidance
+- Never write the voice summary from the perspective of a customer praising the business
+- Focus on beliefs, standards, purpose, care, reliability, and reflection style
+- Avoid loyalty/review phrasing like "we've used them for years", "highly recommend", "second to none", "value for money"
 
-  return `${brandTag} ${categoryMap[category] || "#BrandContent"} ${topicTag}`;
+INPUT:
+"""
+${clipText(input || "", 5000)}
+"""
+`;
+
+const customerOutcomePrompt = (input) => `
+You are a Customer Outcome Agent.
+
+Return ONLY valid JSON in this structure:
+{
+  "lifeMoments": ["moment 1", "moment 2", "moment 3"],
+  "microProblems": ["problem 1", "problem 2", "problem 3"],
+  "valueOutcomes": ["outcome 1", "outcome 2", "outcome 3"],
+  "repeatBenefits": ["benefit 1", "benefit 2", "benefit 3"]
+}
+
+Rules:
+- Return JSON only
+- No markdown
+- No code fences
+- Use customer-experience language only
+- Focus on what people notice in real life
+
+INPUT:
+"""
+${clipText(input || "", 3000)}
+"""
+`;
+
+const productTruthPrompt = (input) => `
+You are a Brand and Product Truth Agent.
+
+Return ONLY valid JSON in this structure:
+{
+  "productType": "",
+  "origin": "",
+  "facts": ["fact 1", "fact 2", "fact 3"],
+  "offers": ["offer 1", "offer 2"],
+  "audience": ["audience 1", "audience 2"]
+}
+
+Rules:
+- Return JSON only
+- No markdown
+- No code fences
+- Focus on factual business and product truth
+- Do not invent facts
+- Keep it grounded in actual product/business information
+
+INPUT:
+"""
+${clipText(input || "", 3000)}
+"""
+`;
+
+const sourceProfilePrompt = ({
+  mode,
+  founderText,
+  customerText,
+  productText,
+  pastedSourceText,
+  manualBusinessContext,
+}) => `
+You are a Source Intake Agent.
+
+Read the lane-separated source material and return ONLY valid JSON.
+
+Use this exact structure:
+{
+  "businessProfile": {
+    "name": "business or brand name",
+    "summary": "plain English summary of what the business/person/brand appears to do"
+  },
+  "contentProfile": {
+    "suggestedCategory": "one of: Daily Relief, Everyday Ritual, Founder Reflection, Product in Real Life, Quiet Value, Standards and Care, Busy Day Ease, Small Moment Real Value, Something Real",
+    "suggestedIdea": "strong first content angle"
+  },
+  "visualProfile": {
+    "visualDirections": ["direction 1", "direction 2", "direction 3"],
+    "avoidRules": ["avoid 1", "avoid 2"]
+  },
+  "sourceProfile": {
+    "dominantSource": "url or pasted_text or manual_context or mixed"
+  }
+}
+
+Rules:
+- Return JSON only
+- No markdown
+- No code fences
+- If mode is express and URL is present, use founder lane for voice direction, customer lane for outcomes, product lane for facts
+- If mode is manual, let manual context and pasted writing lead
+- If mode is hybrid, blend intelligently
+- Suggested category must be a lived-use frame
+- Do not mistake testimonial language for founder voice
+- If founder lane is weak, infer business tone from business summary and product truth instead
+
+FOUNDER LANE:
+"""
+${clipText(founderText || "none provided", 3000)}
+"""
+
+CUSTOMER OUTCOME LANE:
+"""
+${clipText(customerText || "none provided", 3000)}
+"""
+
+BRAND / PRODUCT TRUTH LANE:
+"""
+${clipText(productText || "none provided", 3000)}
+"""
+
+PASTED SOURCE TEXT:
+"""
+${clipText(pastedSourceText || "none provided", 3000)}
+"""
+
+MANUAL BUSINESS CONTEXT:
+"""
+${clipText(manualBusinessContext || "none provided", 2000)}
+"""
+`;
+
+function buildGenerationContext({
+  mode,
+  initialProfile,
+  businessName,
+  businessSummary,
+  businessUrl,
+  pastedSourceText,
+  manualBusinessContext,
+  manualVoiceInput,
+  ownerKbContext,
+}) {
+  const profileName = initialProfile?.businessProfile?.name || businessName || "Unknown";
+  const profileSummary =
+    initialProfile?.businessProfile?.summary || businessSummary || "Not provided";
+  const profileOffers =
+    (initialProfile?.brandProductTruth?.offers || []).join(", ") || "Not provided";
+  const profileAudience =
+    (initialProfile?.brandProductTruth?.audience || []).join(", ") || "Not provided";
+  const customerMoments =
+    (initialProfile?.customerOutcome?.lifeMoments || []).join(", ") || "Not provided";
+  const customerOutcomes =
+    (initialProfile?.customerOutcome?.valueOutcomes || []).join(", ") || "Not provided";
+  const founderBeliefs =
+    (initialProfile?.founderVoice?.doRules || []).join(", ") || "Not provided";
+
+  const base = `
+PROFILE CONTEXT:
+- Business name: ${profileName}
+- Business summary: ${profileSummary}
+- Offers/services: ${profileOffers}
+- Audience: ${profileAudience}
+- Customer life moments: ${customerMoments}
+- Customer outcomes: ${customerOutcomes}
+- Founder priorities: ${founderBeliefs}
+- URL: ${businessUrl || "Not provided"}
+
+${ownerKbContext || ""}
+
+PASTED SOURCE TEXT:
+${clipText(pastedSourceText || "None provided", 3000)}
+
+MANUAL CONTEXT:
+${clipText(manualBusinessContext || "None provided", 2000)}
+
+MANUAL VOICE INPUT:
+${clipText(manualVoiceInput || "None provided", 3000)}
+`;
+
+  if (mode === "express") {
+    return `
+MODE: EXPRESS
+Use founder voice lane as the tone anchor.
+Use customer outcome lane for real-life effects.
+Use brand/product truth lane for factual grounding.
+Only use manual or pasted inputs as fallback or refinement.
+${base}
+`;
+  }
+
+  if (mode === "manual") {
+    return `
+MODE: MANUAL
+Use manual and pasted inputs as primary truth.
+Use profile/URL context only as fallback.
+${base}
+`;
+  }
+
+  return `
+MODE: HYBRID
+Use the profile as the base.
+Blend in pasted and manual inputs where useful.
+If there is conflict, prefer the user's manual wording and corrections.
+${base}
+`;
 }
 
 function getLensRules({ quickType = "", category = "", weakVoice = false }) {
@@ -1195,26 +1343,16 @@ function repeatedOpenerGuard(posts = [], category = "") {
   let quietCount = 0;
 
   for (const tokens of openerTokens) {
-    if (tokens.some((t) => softWords.has(t))) {
-      softCount += 1;
-    }
-    if (tokens.includes("quiet")) {
-      quietCount += 1;
-    }
+    if (tokens.some((t) => softWords.has(t))) softCount += 1;
+    if (tokens.includes("quiet")) quietCount += 1;
   }
 
   if (!allowQuiet && quietCount >= 1) {
-    return {
-      failed: true,
-      reason: `The word "quiet" appeared outside Quiet Value.`,
-    };
+    return { failed: true, reason: `The word "quiet" appeared outside Quiet Value.` };
   }
 
   if (allowQuiet && quietCount >= 2) {
-    return {
-      failed: true,
-      reason: `The word "quiet" appeared in too many Quiet Value openers.`,
-    };
+    return { failed: true, reason: `The word "quiet" appeared in too many Quiet Value openers.` };
   }
 
   if (!allowQuiet && softCount >= 2) {
@@ -1233,10 +1371,7 @@ function repeatedOpenerGuard(posts = [], category = "") {
   }
 
   if (Object.values(firstWordCounts).some((count) => count >= 2)) {
-    return {
-      failed: true,
-      reason: "Too many posts start with the same first word.",
-    };
+    return { failed: true, reason: "Too many posts start with the same first word." };
   }
 
   for (let i = 0; i < openerTokens.length; i += 1) {
@@ -1245,10 +1380,7 @@ function repeatedOpenerGuard(posts = [], category = "") {
       const b = openerTokens[j];
       const shared = a.filter((token) => b.includes(token));
       if (shared.length >= 3) {
-        return {
-          failed: true,
-          reason: "Opening lines are too lexically similar.",
-        };
+        return { failed: true, reason: "Opening lines are too lexically similar." };
       }
     }
   }
@@ -1289,10 +1421,7 @@ function hardQuietGuard(posts = [], category = "") {
   if (category === "Quiet Value") {
     const quietCount = posts.filter((p) => /\bquiet\b/i.test(p)).length;
     if (quietCount > 1) {
-      return {
-        failed: true,
-        reason: `Too many Quiet Value posts still use "quiet".`,
-      };
+      return { failed: true, reason: `Too many Quiet Value posts still use "quiet".` };
     }
     return { failed: false, reason: "" };
   }
@@ -1310,7 +1439,7 @@ function hardQuietGuard(posts = [], category = "") {
 }
 
 function cleanPost(post = "") {
-  let text = post.trim();
+  let text = String(post || "").trim();
   text = text.replace(/\n?#\w+(?:\s+#\w+)*/g, "").trim();
 
   if (text.length > maxChars) {
@@ -1346,7 +1475,7 @@ function soundsTooGeneric(text = "") {
     "foundation for tomorrow",
   ];
 
-  const lower = text.toLowerCase();
+  const lower = String(text).toLowerCase();
   return badPhrases.some((p) => lower.includes(p));
 }
 
@@ -1509,24 +1638,22 @@ app.post("/build-profile", async (req, res) => {
       5000
     );
 
-    const [sourceProfile, founderVoice, customerOutcome, brandProductTruth] =
-      await Promise.all([
-        runJsonChat(
-          sourceProfilePrompt({
-            mode,
-            founderText,
-            customerText,
-            productText,
-            pastedSourceText,
-            manualBusinessContext,
-          })
-        ),
-        runJsonChat(voiceAgentPrompt(founderSourceInput)),
-        runJsonChat(customerOutcomePrompt(clipText(customerText || pastedSourceText || "", 3000))),
-        runJsonChat(
-          productTruthPrompt(clipText(productText || founderText || pastedSourceText || "", 3000))
-        ),
-      ]);
+    const [sourceProfile, customerOutcome, brandProductTruth] = await Promise.all([
+      runJsonChat(
+        sourceProfilePrompt({
+          mode,
+          founderText,
+          customerText,
+          productText,
+          pastedSourceText,
+          manualBusinessContext,
+        })
+      ),
+      runJsonChat(customerOutcomePrompt(clipText(customerText || pastedSourceText || "", 3000))),
+      runJsonChat(
+        productTruthPrompt(clipText(productText || founderText || pastedSourceText || "", 3000))
+      ),
+    ]);
 
     const safeVoiceSourceText = chooseVoiceSourceText({
       mode,
@@ -1697,7 +1824,6 @@ app.post("/generate", async (req, res) => {
       initialProfile?.businessProfile?.name || businessName || "Your Brand";
 
     const ownerKbContext = summarizeOwnerKbForPrompt(finalBusinessName);
-
     const generationContext = buildGenerationContext({
       mode,
       initialProfile,
@@ -1930,7 +2056,6 @@ NON-NEGOTIABLE IMAGE SAFETY RULES:
   }
 });
 
-const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   ensureOwnerKbFile();
   console.log(`Server running on port ${PORT}`);
