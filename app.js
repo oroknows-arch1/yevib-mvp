@@ -405,7 +405,29 @@ function renderPostChoices(posts, typeLabel, ownerFeeling) {
     helper.style.marginTop = "8px";
     helper.innerText = "Click to choose this post and generate its image.";
     card.appendChild(helper);
+const copyBtn = document.createElement("button");
+copyBtn.type = "button";
+copyBtn.innerText = "Copy Post";
+copyBtn.style.marginTop = "10px";
 
+copyBtn.onclick = async (e) => {
+  e.stopPropagation();
+  try {
+    await navigator.clipboard.writeText(post);
+    copyBtn.innerText = "Copied";
+    setTimeout(() => {
+      copyBtn.innerText = "Copy Post";
+    }, 1200);
+  } catch (err) {
+    console.error("Copy failed:", err);
+    copyBtn.innerText = "Copy failed";
+    setTimeout(() => {
+      copyBtn.innerText = "Copy Post";
+    }, 1200);
+  }
+};
+
+card.appendChild(copyBtn);
     card.onclick = async () => {
       document.querySelectorAll(".post-choice-card").forEach((el) => {
         el.style.background = "white";
@@ -469,7 +491,7 @@ function renderPostChoices(posts, typeLabel, ownerFeeling) {
 
         generatedImage.src = imgData.imageUrl;
         generatedImage.style.display = "block";
-        imageStatus.innerText = "Image ready. Owner KB updated.";
+        imageStatus.innerText = "Post ready. This sounds like you today.";
         ownerKbStatus.innerText = "Owner KB updated from your latest chosen post.";
       } catch (error) {
         console.error(error);
