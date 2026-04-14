@@ -71,8 +71,9 @@ function setInitialGuidance() {
   feelingPrompt.innerText =
     "Choose a feeling before you generate so the post matches where you are right now.";
   generatePrompt.innerText =
-    "After feeling is set, choose the type of post you want.";
+  "After feeling is set, choose the type of post you want.";
 }
+document.getElementById("step2").scrollIntoView({ behavior: "smooth" });
 
 function updateSourceChangePrompt() {
   if (profileBuilt && sourceChangedSinceBuild) {
@@ -499,6 +500,8 @@ function renderPostChoices(posts, typeLabel, ownerFeeling) {
         generatedImage.style.display = "block";
         imageStatus.innerText = "Post ready. This sounds like you today.";
         ownerKbStatus.innerText = "Owner KB updated from your latest chosen post.";
+
+        document.getElementById("step5").scrollIntoView({ behavior: "smooth" });
         scrollToSection("section-output");
       } catch (error) {
         console.error(error);
