@@ -11,11 +11,6 @@ const feelingPrompt = document.getElementById("feelingPrompt");
 const generatePrompt = document.getElementById("generatePrompt");
 const postsPrompt = document.getElementById("postsPrompt");
 
-const sectionProfile = document.getElementById("section-profile");
-const sectionGenerate = document.getElementById("section-generate");
-const sectionPosts = document.getElementById("section-posts");
-const sectionOutput = document.getElementById("section-output");
-
 let initialProfile = null;
 let voiceProfile = null;
 
@@ -60,24 +55,6 @@ function scrollToSection(id) {
   el.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function showSection(el) {
-  if (!el) return;
-  el.style.display = "block";
-}
-
-function hideSection(el) {
-  if (!el) return;
-  el.style.display = "none";
-}
-
-function initUI() {
-  hideSection(sectionProfile);
-  hideSection(sectionGenerate);
-  hideSection(sectionPosts);
-  hideSection(sectionOutput);
-  generatedImage.style.display = "none";
-}
-
 function clearOutputs() {
   postsDiv.innerHTML = "";
   selectedPostBox.innerText = "";
@@ -86,8 +63,6 @@ function clearOutputs() {
   imageStatus.innerText = "";
   selectedPost = "";
   postsPrompt.innerText = "";
-  hideSection(sectionPosts);
-  hideSection(sectionOutput);
 }
 
 function setInitialGuidance() {
@@ -127,18 +102,30 @@ function setupFeelingButtons() {
 
   buttons.forEach((button) => {
     button.addEventListener("click", () => {
-      buttons.forEach((btn) => btn.classList.remove("is-active"));
-      button.classList.add("is-active");
+      buttons.forEach((btn) => {
+        btn.style.background = "";
+        btn.style.color = "";
+        btn.style.borderColor = "";
+      });
+
+      button.style.background = "#1a73e8";
+      button.style.color = "white";
+      button.style.borderColor = "#1a73e8";
 
       selectedFeeling = button.dataset.feeling || "";
       customFeelingInput.value = "";
       feelingPrompt.innerText = `Feeling set: ${selectedFeeling}. Now choose the type of post you want.`;
+      scrollToSection("section-generate");
     });
   });
 
   customFeelingInput.addEventListener("input", () => {
     if (customFeelingInput.value.trim()) {
-      buttons.forEach((btn) => btn.classList.remove("is-active"));
+      buttons.forEach((btn) => {
+        btn.style.background = "";
+        btn.style.color = "";
+        btn.style.borderColor = "";
+      });
       selectedFeeling = "";
       feelingPrompt.innerText =
         "Custom feeling added. Now choose the type of post you want.";
@@ -261,9 +248,8 @@ async function buildInitialProfile() {
     generatePrompt.innerText =
       "After feeling is set, choose the type of post you want.";
 
-    showSection(sectionProfile);
-    showSection(sectionGenerate);
-    scrollToSection("section-generate");
+    scrollToSection("step2");
+    setTimeout(() => scrollToSection("section-generate"), 350);
   } catch (error) {
     console.error(error);
     intakeStatus.innerText = "Error: " + error.message;
@@ -305,9 +291,6 @@ async function quickGenerate(type) {
   imageStatus.innerText = "";
   postsDiv.innerHTML = "Generating posts...";
   postsPrompt.innerText = `Generating ${type} posts with feeling: ${ownerFeeling}.`;
-
-  showSection(sectionPosts);
-  hideSection(sectionOutput);
 
   try {
     const res = await fetch("/generate", {
@@ -400,7 +383,8 @@ function renderPostChoices(posts, typeLabel, ownerFeeling) {
     "Choose one of the 3 posts. Your choice will update Owner KB and generate the image.";
 
   const intro = document.createElement("div");
-  intro.className = "posts-intro";
+  intro.style.marginBottom = "12px";
+  intro.style.fontWeight = "600";
   intro.innerText = `${typeLabel} posts — feeling: ${ownerFeeling} — choose one to generate its image.`;
   postsDiv.appendChild(intro);
 
@@ -409,27 +393,27 @@ function renderPostChoices(posts, typeLabel, ownerFeeling) {
     card.className = "post-choice-card";
 
     const postText = document.createElement("div");
-    postText.className = "post-text";
     postText.innerText = post;
     card.appendChild(postText);
 
     const counter = document.createElement("div");
-    counter.className = "post-meta";
+    counter.style.fontSize = "12px";
+    counter.style.color = "#666";
+    counter.style.marginTop = "8px";
     counter.innerText = `Characters: ${post.length}`;
     card.appendChild(counter);
 
     const helper = document.createElement("div");
-    helper.className = "post-helper";
+    helper.style.fontSize = "12px";
+    helper.style.color = "#444";
+    helper.style.marginTop = "8px";
     helper.innerText = "Click to choose this post and generate its image.";
     card.appendChild(helper);
 
-    const actions = document.createElement("div");
-    actions.className = "post-actions";
-
     const copyBtn = document.createElement("button");
     copyBtn.type = "button";
-    copyBtn.className = "secondary-btn";
     copyBtn.innerText = "Copy Post";
+    copyBtn.style.marginTop = "10px";
 
     copyBtn.onclick = async (e) => {
       e.stopPropagation();
@@ -448,23 +432,22 @@ function renderPostChoices(posts, typeLabel, ownerFeeling) {
       }
     };
 
-    actions.appendChild(copyBtn);
-    card.appendChild(actions);
+    card.appendChild(copyBtn);
 
     card.onclick = async () => {
       document.querySelectorAll(".post-choice-card").forEach((el) => {
-        el.classList.remove("selected");
+        el.style.background = "white";
+        el.style.border = "1px solid #d7e0eb";
       });
 
-      card.classList.add("selected");
+      card.style.background = "#e8f0fe";
+      card.style.border = "1px solid #8ab4f8";
 
       selectedPost = post;
       selectedPostBox.innerText = post;
       generatedImage.style.display = "none";
       generatedImage.src = "";
       imageStatus.innerText = "Saving choice and generating image...";
-
-      showSection(sectionOutput);
 
       await saveOwnerChoice({
         chosenPost: post,
@@ -528,8 +511,163 @@ function renderPostChoices(posts, typeLabel, ownerFeeling) {
   });
 }
 
+function stripPostHashtags(text = "") {
+  return String(text).replace(/\n?#\w+(?:\s+#\w+)*/g, "").trim();
+}
+
+function extractQuotedSnippets(text = "") {
+  const matches = [...String(text).matchAll(/"([^"]+)"/g)].map((m) => m[1].trim());
+  return matches.filter(Boolean);
+}
+
+function detectLocationCue(text = "") {
+  const locations = [
+    "Kyoto",
+    "Uji",
+    "Japan",
+    "Macarthur",
+    "Sydney",
+    "Melbourne",
+    "Brisbane",
+    "Perth",
+    "Adelaide",
+    "Auckland",
+  ];
+
+  const lower = String(text).toLowerCase();
+  const found = locations.find((loc) => lower.includes(loc.toLowerCase()));
+  return found || "";
+}
+
+function detectRelationshipCue(text = "") {
+  const lower = String(text).toLowerCase();
+
+  if (lower.includes("my wife")) return "wife";
+  if (lower.includes("my husband")) return "husband";
+  if (lower.includes("my son")) return "son";
+  if (lower.includes("my daughter")) return "daughter";
+  if (lower.includes("my family")) return "family";
+  if (lower.includes("my mum")) return "mum";
+  if (lower.includes("my mom")) return "mom";
+  if (lower.includes("my dad")) return "dad";
+
+  return "";
+}
+
+function detectMemoryCue(text = "") {
+  const lower = String(text).toLowerCase();
+
+  if (lower.includes("i remember")) return "memory";
+  if (lower.includes("the first time")) return "first_time";
+  if (lower.includes("last week")) return "last_week";
+  if (lower.includes("this morning")) return "this_morning";
+  if (lower.includes("late afternoon")) return "late_afternoon";
+  if (lower.includes("on weekends")) return "weekend";
+  if (lower.includes("watching her")) return "observed_moment";
+
+  return "";
+}
+
+function detectOriginCue(text = "") {
+  const lower = String(text).toLowerCase();
+
+  if (lower.includes("farm")) return "farm";
+  if (lower.includes("harvest")) return "harvest";
+  if (lower.includes("shade") || lower.includes("shading")) return "shaded cultivation";
+  if (lower.includes("uji")) return "traditional tea region";
+  if (lower.includes("kyoto")) return "japanese origin";
+  if (lower.includes("tradition")) return "tradition";
+  if (lower.includes("ancient")) return "heritage";
+  if (lower.includes("care behind")) return "craft";
+  if (lower.includes("whisk")) return "preparation";
+
+  return "";
+}
+
+function buildStoryPriority({ post, quickType, category, businessName }) {
+  const clean = stripPostHashtags(post);
+  const quotedSnippets = extractQuotedSnippets(clean);
+  const quotedPrimary = quotedSnippets[0] || clean;
+
+  const locationCue = detectLocationCue(clean);
+  const relationshipCue = detectRelationshipCue(clean);
+  const memoryCue = detectMemoryCue(clean);
+  const originCue = detectOriginCue(clean);
+
+  const storyLines = [];
+
+  if (memoryCue === "first_time") {
+    storyLines.push(
+      "- Panel 1 should show the very first discovery moment from the post, not a generic lifestyle shot."
+    );
+  } else if (memoryCue === "memory") {
+    storyLines.push(
+      "- Panel 1 should feel like a remembered real-life moment from the post, as if the scene actually happened."
+    );
+  } else if (memoryCue === "late_afternoon") {
+    storyLines.push(
+      "- Include a late-afternoon work atmosphere if it fits the post."
+    );
+  } else {
+    storyLines.push(
+      "- Panel 1 should show the clearest real-world moment implied by the post."
+    );
+  }
+
+  if (relationshipCue) {
+    storyLines.push(
+      `- Because the post mentions the owner's ${relationshipCue}, at least one panel must include that relational moment or connection.`
+    );
+  }
+
+  if (locationCue) {
+    storyLines.push(
+      `- Because the post mentions ${locationCue}, at least one panel should visually reflect that location or its atmosphere in a believable way.`
+    );
+  }
+
+  if (originCue) {
+    storyLines.push(
+      `- Include one panel that shows the origin/craft side of the story: ${originCue}.`
+    );
+  }
+
+  storyLines.push(
+    "- Do not jump straight to generic product marketing imagery. Start with the human story in the post, then widen outward."
+  );
+  storyLines.push(
+    "- Make the 4 panels feel like one connected narrative, not 4 random brand photos."
+  );
+  storyLines.push(
+    "- If the post contains a memory, discovery, or turning point, make that the emotional anchor of the collage."
+  );
+
+  const narrativeSequence = `
+NARRATIVE SEQUENCE FOR THE 4 PANELS:
+1. Human story moment from the post
+2. Preparation / work / hands-on action related to the post
+3. Origin / source / process / environment behind the thing
+4. Wider meaning or lived result that connects back to the post
+`.trim();
+
+  const postAnchor = `
+POST STORY ANCHOR:
+- Business: ${businessName}
+- Quick type: ${quickType}
+- Internal frame: ${category}
+- Use this sentence as the emotional source: "${quotedPrimary}"
+`.trim();
+
+  return `${postAnchor}
+
+${narrativeSequence}
+
+STORY-SPECIFIC VISUAL RULES:
+${storyLines.join("\n")}`;
+}
+
 function buildImagePrompt({ post, quickType, category, ownerFeeling, initialProfile }) {
-  const cleanedPost = (post || "").replace(/\n?#\w+(?:\s+#\w+)*/g, "").trim();
+  const cleanedPost = stripPostHashtags(post);
 
   const businessName =
     initialProfile?.businessProfile?.name ||
@@ -551,17 +689,20 @@ function buildImagePrompt({ post, quickType, category, ownerFeeling, initialProf
     (initialProfile?.visualProfile?.visualDirections || []).join(", ") ||
     "grounded, realistic, documentary";
 
+  const storyPriority = buildStoryPriority({
+    post: cleanedPost,
+    quickType,
+    category,
+    businessName,
+  });
+
   return `
-Create a realistic 4-panel image collage that matches this post.
+Create a realistic 4-panel image collage that matches this post exactly and tells the same story.
 
 POST TO VISUALIZE:
 "${cleanedPost}"
 
-QUICK TYPE:
-${quickType}
-
-INTERNAL CONTENT FRAME:
-${category}
+${storyPriority}
 
 CURRENT OWNER FEELING:
 ${ownerFeeling || "not specified"}
@@ -582,12 +723,14 @@ GLOBAL RULES:
 - no stock-photo feel
 - each panel must show a different but related real-world moment
 - each panel must contain distinct people or a distinct group
-- no duplicate people across panels
-- no repeated faces across panels
-- do not reuse the same person in multiple panels unless the user explicitly asked for one recurring founder
-- avoid visual cloning of the same subject across the collage
-- if a founder is not explicitly specified as recurring, assume different people in different panels
-- show realistic people, places, tasks, interactions, tools, workflow, or environments relevant to the business
+- no duplicate people across panels unless the post clearly requires a recurring main person
+- if the post strongly implies one recurring founder or one recurring personal memory, it is allowed to keep that same person across some panels
+- otherwise avoid visual cloning of the same subject across the collage
+- show realistic people, places, tasks, interactions, tools, workflow, ingredients, craft, or environments relevant to the post
+- if a specific place is mentioned in the post, reflect it visually
+- if a specific relationship is mentioned in the post, reflect it visually
+- if a process, craft, farm, workshop, source region, or origin story is mentioned, reflect it visually
+- the collage should feel like visual proof of the post, not generic inspiration
 - plain unbranded clothing only
 - no logos
 - no text
@@ -603,4 +746,3 @@ GLOBAL RULES:
 setupFeelingButtons();
 setupSourceWatchers();
 setInitialGuidance();
-initUI();
