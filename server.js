@@ -14,7 +14,22 @@ app.use(express.static(__dirname));
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+async function runJsonChat(prompt) {
+  const response = await openai.chat.completions.create({
+    model: "gpt-4.1-mini",
+    response_format: { type: "json_object" },
+    messages: [{ role: "user", content: prompt }],
+  });
 
+  const raw = response.choices?.[0]?.message?.content || "{}";
+
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error("JSON PARSE ERROR:", raw);
+    throw new Error("Invalid JSON returned from model.");
+  }
+}
 const maxChars = 500;
 const OWNER_KB_PATH = path.join(__dirname, "owner-kb.json");
 
