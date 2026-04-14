@@ -60,14 +60,18 @@ function clearOutputs() {
 }
 
 function setInitialGuidance() {
-  profilePrompt.innerText = "Build the profile first. If the voice source comes back thin, paste more owner writing and rebuild.";
-  feelingPrompt.innerText = "Choose a feeling before you generate so the post matches where you are right now.";
-  generatePrompt.innerText = "After feeling is set, choose the post type you want.";
+  profilePrompt.innerText =
+    "Build the profile first. If the voice source comes back thin, paste more owner writing and rebuild.";
+  feelingPrompt.innerText =
+    "Choose a feeling before you generate so the post matches where you are right now.";
+  generatePrompt.innerText =
+    "After feeling is set, choose the type of post you want.";
 }
 
 function updateSourceChangePrompt() {
   if (profileBuilt && sourceChangedSinceBuild) {
-    sourceChangePrompt.innerText = "New source text added. Rebuild profile to fully apply it.";
+    sourceChangePrompt.innerText =
+      "New source text added. Rebuild profile to fully apply it.";
   } else {
     sourceChangePrompt.innerText = "";
   }
@@ -82,7 +86,7 @@ function markSourceChanged() {
 function setupSourceWatchers() {
   ["businessUrl", "pastedSourceText", "manualBusinessContext"].forEach((id) => {
     const el = document.getElementById(id);
-    el.addEventListener("input", markSourceChanged);
+    if (el) el.addEventListener("input", markSourceChanged);
   });
 }
 
@@ -116,11 +120,11 @@ function setupFeelingButtons() {
         btn.style.borderColor = "";
       });
       selectedFeeling = "";
-      feelingPrompt.innerText = "Custom feeling added. Now choose the type of post you want.";
-    } else {
-      if (!getFeelingInput()) {
-        feelingPrompt.innerText = "Choose a feeling before you generate so the post matches where you are right now.";
-      }
+      feelingPrompt.innerText =
+        "Custom feeling added. Now choose the type of post you want.";
+    } else if (!getFeelingInput()) {
+      feelingPrompt.innerText =
+        "Choose a feeling before you generate so the post matches where you are right now.";
     }
   });
 }
@@ -181,7 +185,8 @@ async function buildInitialProfile() {
     if (!contentType.includes("application/json")) {
       const text = await res.text();
       console.error("Non-JSON response from /build-profile:", text);
-      intakeStatus.innerText = "Profile build failed: server returned HTML instead of JSON.";
+      intakeStatus.innerText =
+        "Profile build failed: server returned HTML instead of JSON.";
       return;
     }
 
@@ -215,19 +220,26 @@ async function buildInitialProfile() {
       : `Profile ready (${data.profile?.sourceProfile?.voiceSourceLane || "unknown"} voice).`;
 
     if (lastWeakVoice) {
-      profilePrompt.innerText = "Voice source looks thin. Paste more owner writing and rebuild profile for stronger results.";
+      profilePrompt.innerText =
+        "Voice source looks thin. Paste more owner writing and rebuild profile for stronger results.";
     } else {
-      profilePrompt.innerText = "Profile looks usable. Choose how you're feeling right now, then choose the type of post you want.";
+      profilePrompt.innerText =
+        "Profile looks usable. Choose how you're feeling right now, then choose the type of post you want.";
     }
 
     if (kbMeta.entryCount > 0) {
-      ownerKbStatus.innerText = `Owner KB active — ${kbMeta.entryCount} saved choice${kbMeta.entryCount === 1 ? "" : "s"} for this business.`;
+      ownerKbStatus.innerText = `Owner KB active — ${kbMeta.entryCount} saved choice${
+        kbMeta.entryCount === 1 ? "" : "s"
+      } for this business.`;
     } else {
-      ownerKbStatus.innerText = "Owner KB active — no saved choices yet. It will start learning when you choose posts.";
+      ownerKbStatus.innerText =
+        "Owner KB active — no saved choices yet. It will start learning when you choose posts.";
     }
 
-    feelingPrompt.innerText = "Choose a feeling before you generate so the post matches where you are right now.";
-    generatePrompt.innerText = "After feeling is set, choose the type of post you want.";
+    feelingPrompt.innerText =
+      "Choose a feeling before you generate so the post matches where you are right now.";
+    generatePrompt.innerText =
+      "After feeling is set, choose the type of post you want.";
   } catch (error) {
     console.error(error);
     intakeStatus.innerText = "Error: " + error.message;
@@ -241,7 +253,9 @@ async function quickGenerate(type) {
   }
 
   if (sourceChangedSinceBuild) {
-    alert("New source text was added after the last profile build. Rebuild profile to fully apply it.");
+    alert(
+      "New source text was added after the last profile build. Rebuild profile to fully apply it."
+    );
     return;
   }
 
@@ -354,7 +368,8 @@ async function saveOwnerChoice({ chosenPost, ownerFeeling }) {
 
 function renderPostChoices(posts, typeLabel, ownerFeeling) {
   postsDiv.innerHTML = "";
-  postsPrompt.innerText = "Choose one of the 3 posts. Your choice will update Owner KB and generate the image.";
+  postsPrompt.innerText =
+    "Choose one of the 3 posts. Your choice will update Owner KB and generate the image.";
 
   const intro = document.createElement("div");
   intro.style.marginBottom = "12px";
@@ -519,6 +534,12 @@ GLOBAL RULES:
 - no fantasy
 - no stock-photo feel
 - each panel must show a different but related real-world moment
+- each panel must contain distinct people or a distinct group
+- no duplicate people across panels
+- no repeated faces across panels
+- do not reuse the same person in multiple panels unless the user explicitly asked for one recurring founder
+- avoid visual cloning of the same subject across the collage
+- if a founder is not explicitly specified as recurring, assume different people in different panels
 - show realistic people, places, tasks, interactions, tools, workflow, or environments relevant to the business
 - plain unbranded clothing only
 - no logos
