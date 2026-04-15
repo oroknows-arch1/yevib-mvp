@@ -1044,6 +1044,14 @@ GLOBAL RULES:
 - keep the whole collage truthful to the business and the post
 `.trim();
 }
+function handleGeneratePostsClick() {
+  if (!selectedLensType) {
+    alert("Choose the lens first.");
+    return;
+  }
+
+  quickGenerate(selectedLensType);
+}
 
 setupFeelingButtons();
 setupLensButtons();
