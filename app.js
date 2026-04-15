@@ -10,6 +10,7 @@ const profilePrompt = document.getElementById("profilePrompt");
 const feelingPrompt = document.getElementById("feelingPrompt");
 const generatePrompt = document.getElementById("generatePrompt");
 const postsPrompt = document.getElementById("postsPrompt");
+const selectedLensPrompt = document.getElementById("selectedLensPrompt");
 
 const founderGoalInput = document.getElementById("founderGoal");
 const founderGoalDisplay = document.getElementById("founderGoalDisplay");
@@ -45,6 +46,8 @@ const activitySignalsDisplay = document.getElementById("activitySignalsDisplay")
 const founderVisibilitySignalsDisplay = document.getElementById("founderVisibilitySignalsDisplay");
 const voiceInput = document.getElementById("voiceInput");
 
+const generatePostsBtn = document.getElementById("generatePostsBtn");
+
 let initialProfile = null;
 let voiceProfile = null;
 let snapshotPieChart = null;
@@ -56,6 +59,7 @@ let currentCategory = "";
 let selectedPost = "";
 let selectedFeeling = "";
 let selectedFounderGoal = "";
+let selectedLensType = "";
 let profileBuilt = false;
 let sourceChangedSinceBuild = false;
 
@@ -117,13 +121,31 @@ function clearOutputs() {
   postsPrompt.innerText = "";
 }
 
+function resetGenerationState() {
+  selectedLensType = "";
+  currentQuickType = "";
+  currentCategory = "";
+
+  document.querySelectorAll(".lens-btn").forEach((btn) => {
+    btn.classList.remove("is-active");
+  });
+
+  if (selectedLensPrompt) {
+    selectedLensPrompt.innerText = "Choose the lens you want YEVIB to generate from.";
+  }
+
+  generatePrompt.innerText = "Select a lens first. Then press Generate Posts.";
+}
+
 function setInitialGuidance() {
   profilePrompt.innerText =
     "Quick glance first. Tap the pie only if you want more detail before generating.";
   feelingPrompt.innerText =
     "Optional: choose a feeling if you want today's content to better match your current tone.";
-  generatePrompt.innerText =
-    "Choose the content lens you want YEVIB to generate from the brand snapshot.";
+  if (selectedLensPrompt) {
+    selectedLensPrompt.innerText = "Choose the lens you want YEVIB to generate from.";
+  }
+  generatePrompt.innerText = "Select a lens first. Then press Generate Posts.";
 }
 
 function updateSourceChangePrompt() {
@@ -196,20 +218,60 @@ function setupFeelingButtons() {
     });
   });
 
-  customFeelingInput.addEventListener("input", () => {
-    if (customFeelingInput.value.trim()) {
-      buttons.forEach((btn) => btn.classList.remove("is-active"));
-      selectedFeeling = "";
-      feelingPrompt.innerText = "Custom feeling added.";
-    } else if (!getFeelingInput()) {
-      feelingPrompt.innerText =
-        "Optional: choose a feeling if you want today's content to better match your current tone.";
-    }
+  if (customFeelingInput) {
+    customFeelingInput.addEventListener("input", () => {
+      if (customFeelingInput.value.trim()) {
+        buttons.forEach((btn) => btn.classList.remove("is-active"));
+        selectedFeeling = "";
+        feelingPrompt.innerText = "Custom feeling added.";
+      } else if (!getFeelingInput()) {
+        feelingPrompt.innerText =
+          "Optional: choose a feeling if you want today's content to better match your current tone.";
+      }
+    });
+  }
+}
+
+function setupLensButtons() {
+  const lensButtons = document.querySelectorAll(".lens-btn");
+
+  lensButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      lensButtons.forEach((btn) => btn.classList.remove("is-active"));
+      button.classList.add("is-active");
+
+      selectedLensType = button.dataset.type || "";
+
+      if (selectedLensPrompt) {
+        selectedLensPrompt.innerText = `Lens selected: ${selectedLensType}.`;
+      }
+
+      generatePrompt.innerText =
+        "Ready to generate. Press Generate Posts when you want the options.";
+    });
   });
 }
 
+function setupGeneratePostsButton() {
+  if (!generatePostsBtn) return;
+
+  generatePostsBtn.addEventListener("click", () => {
+    handleGeneratePostsClick();
+  });
+}
+
+function handleGeneratePostsClick() {
+  if (!selectedLensType) {
+    alert("Choose the lens first.");
+    return;
+  }
+
+  quickGenerate(selectedLensType);
+}
+
 function getFeelingInput() {
-  const customFeeling = document.getElementById("customFeeling").value.trim();
+  const customFeelingEl = document.getElementById("customFeeling");
+  const customFeeling = customFeelingEl ? customFeelingEl.value.trim() : "";
   return customFeeling || selectedFeeling || "";
 }
 
@@ -222,7 +284,7 @@ function getCurrentBusinessName() {
 }
 
 function getCurrentBusinessSummary() {
-  return initialProfile?.businessProfile?.summary || businessSummaryInput.value.trim() || "";
+  return initialProfile?.businessProfile?.summary || businessSummaryInput?.value.trim() || "";
 }
 
 function toDisplayList(items = [], fallback = "Not enough information yet.") {
@@ -255,6 +317,9 @@ function channelsToDisplay(channels = {}) {
 }
 
 function buildIntelligenceSummary(profile) {
+  const intelligenceRead = profile?.advisorSnapshot?.intelligenceRead || "";
+  if (intelligenceRead) return intelligenceRead;
+
   const trustSignals = profile?.discoveryProfile?.trustSignals || [];
   const educationSignals = profile?.discoveryProfile?.educationSignals || [];
   const activitySignals = profile?.discoveryProfile?.activitySignals || [];
@@ -278,13 +343,20 @@ function buildIntelligenceSummary(profile) {
     parts.push("Founder visibility signal exists, but may still need stronger public positioning depending on the goal.");
   }
   if (opportunities.length > 0) {
-    parts.push(`The strongest current optimization direction is to ${String(opportunities[0]).replace(/^./, (m) => m.toLowerCase())}`);
+    parts.push(
+      `The strongest current optimization direction is to ${String(opportunities[0]).replace(
+        /^./,
+        (m) => m.toLowerCase()
+      )}`
+    );
   }
   if (recommendedFocus) {
     parts.push(`Overall, the current recommended focus is: ${recommendedFocus}`);
   }
   if (parts.length === 0) {
-    parts.push(`This scan is running on ${confidence} confidence and is still building a useful first-pass picture of the business.`);
+    parts.push(
+      `This scan is running on ${confidence} confidence and is still building a useful first-pass picture of the business.`
+    );
   }
 
   return parts.join(" ");
@@ -321,9 +393,7 @@ function renderActiveSlice(group) {
   activeSliceWrap.style.display = "block";
   activeSliceTitle.innerText = group.title;
   activeSliceMeta.innerText = `${group.score} / ${group.max} • ${group.stateLabel}`;
-
   activeSliceSummary.innerText = group.summary || "No summary available yet.";
-
   activeSliceNextMove.innerText = group.nextMove || "No next move available yet.";
 
   activeSliceStrengths.innerText = `Strengths\n${toParagraphList(
@@ -363,7 +433,9 @@ function renderSnapshotPie(profile) {
   brandSignalLabel.innerText = brandSignalState.label || "Not scanned yet";
   brandSignalLabel.style.color = getColorForState(brandSignalState.colorKey);
 
-  if (!snapshotPieCanvas || typeof Chart === "undefined" || orderedSnapshotGroups.length === 0) return;
+  if (!snapshotPieCanvas || typeof Chart === "undefined" || orderedSnapshotGroups.length === 0) {
+    return;
+  }
 
   snapshotPieChart = new Chart(snapshotPieCanvas, {
     type: "pie",
@@ -398,8 +470,12 @@ function renderSnapshotPie(profile) {
 }
 
 function renderBrandSnapshot(profile) {
-  businessSummaryInput.value = profile?.businessProfile?.summary || "";
-  founderGoalDisplay.innerText = profile?.founderGoal || "No goal selected yet.";
+  if (businessSummaryInput) {
+    businessSummaryInput.value = profile?.businessProfile?.summary || "";
+  }
+  if (founderGoalDisplay) {
+    founderGoalDisplay.innerText = profile?.founderGoal || "No goal selected yet.";
+  }
 
   renderSnapshotPie(profile);
 
@@ -443,15 +519,20 @@ function renderBrandSnapshot(profile) {
   );
 
   intelligenceSummaryDisplay.innerText = buildIntelligenceSummary(profile);
-  voiceInput.value = profile?.sourceProfile?.voiceSourceText || "";
+  if (voiceInput) {
+    voiceInput.value = profile?.sourceProfile?.voiceSourceText || "";
+  }
 }
 
 function clearSnapshotDisplays() {
-  businessSummaryInput.value = "";
-  founderGoalDisplay.innerText = "No goal selected yet.";
-  brandSignalScore.innerText = "-- / 100";
-  brandSignalLabel.innerText = "Not scanned yet";
-  brandSignalLabel.style.color = "";
+  if (businessSummaryInput) businessSummaryInput.value = "";
+  if (founderGoalDisplay) founderGoalDisplay.innerText = "No goal selected yet.";
+  if (brandSignalScore) brandSignalScore.innerText = "-- / 100";
+  if (brandSignalLabel) {
+    brandSignalLabel.innerText = "Not scanned yet";
+    brandSignalLabel.style.color = "";
+  }
+
   activeSliceIndex = null;
 
   if (activeSliceWrap) {
@@ -470,7 +551,7 @@ function clearSnapshotDisplays() {
   activitySignalsDisplay.innerText = "Public activity signals will appear here after the scan.";
   founderVisibilitySignalsDisplay.innerText =
     "Founder visibility signals will appear here after the scan.";
-  voiceInput.value = "";
+  if (voiceInput) voiceInput.value = "";
 
   destroySnapshotPieChart();
 
@@ -495,6 +576,7 @@ async function buildInitialProfile() {
 
   clearOutputs();
   clearSnapshotDisplays();
+  resetGenerationState();
   ownerKbStatus.innerText = "";
   postsPrompt.innerText = "";
 
@@ -604,7 +686,7 @@ async function quickGenerate(type) {
   postsDiv.innerHTML = "Generating posts...";
   postsPrompt.innerText = ownerFeeling
     ? `Generating ${type} posts with feeling: ${ownerFeeling}.`
-    : `Generating ${type} posts from the brand snapshot.`;
+    : `Generating ${type} posts from the selected lens.`;
 
   try {
     const res = await fetch("/generate", {
@@ -621,7 +703,7 @@ async function quickGenerate(type) {
         founderGoal: getFounderGoal(),
         businessName: getCurrentBusinessName(),
         businessSummary: getCurrentBusinessSummary(),
-        manualVoiceInput: voiceInput.value.trim(),
+        manualVoiceInput: voiceInput?.value.trim() || "",
         voiceProfile,
         initialProfile,
       }),
@@ -671,7 +753,7 @@ async function saveOwnerChoice({ chosenPost, ownerFeeling }) {
         category: currentCategory,
         ownerFeeling: ownerFeeling || "",
         chosenPost,
-        voiceSourceText: voiceInput.value.trim(),
+        voiceSourceText: voiceInput?.value.trim() || "",
         ownerWritingSample: document.getElementById("pastedSourceText").value.trim(),
         manualBusinessContext: "",
       }),
@@ -942,9 +1024,13 @@ function buildStoryPriority({ post, quickType, category, businessName }) {
     storyLines.push(`- Include one panel that shows the origin/craft side of the story: ${originCue}.`);
   }
 
-  storyLines.push("- Do not jump straight to generic product marketing imagery. Start with the human story in the post, then widen outward.");
+  storyLines.push(
+    "- Do not jump straight to generic product marketing imagery. Start with the human story in the post, then widen outward."
+  );
   storyLines.push("- Make the 4 panels feel like one connected narrative, not 4 random brand photos.");
-  storyLines.push("- If the post contains a memory, discovery, or turning point, make that the emotional anchor of the collage.");
+  storyLines.push(
+    "- If the post contains a memory, discovery, or turning point, make that the emotional anchor of the collage."
+  );
 
   const narrativeSequence = `
 NARRATIVE SEQUENCE FOR THE 4 PANELS:
@@ -973,13 +1059,8 @@ ${storyLines.join("\n")}`;
 function buildImagePrompt({ post, quickType, category, ownerFeeling, initialProfile }) {
   const cleanedPost = stripPostHashtags(post);
 
-  const businessName =
-    initialProfile?.businessProfile?.name ||
-    "the business";
-
-  const businessSummary =
-    initialProfile?.businessProfile?.summary ||
-    "a real business";
+  const businessName = initialProfile?.businessProfile?.name || "the business";
+  const businessSummary = initialProfile?.businessProfile?.summary || "a real business";
 
   const audience =
     (initialProfile?.brandProductTruth?.audience || []).join(", ") || "not specified";
@@ -1043,14 +1124,6 @@ GLOBAL RULES:
 - no invented company names on signage, vehicles, garments, packaging, or walls
 - keep the whole collage truthful to the business and the post
 `.trim();
-}
-function handleGeneratePostsClick() {
-  if (!selectedLensType) {
-    alert("Choose the lens first.");
-    return;
-  }
-
-  quickGenerate(selectedLensType);
 }
 
 setupFeelingButtons();
