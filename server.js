@@ -1873,35 +1873,11 @@ function buildSourceMixGroup({
 
   let nextMove = "";
   if (band === "strong") {
-    if (!sourceProfile?.pastedTextUsed && !hasOwnerWriting) {
-      nextMove = "Extend the source base further with owner-written material so YEVIB can make even sharper reads.";
-    } else if (!hasChannels) {
-      nextMove = "Extend the discoverable public footprint so YEVIB can read the business from an even broader source base.";
-    } else if (/founder presence/i.test(founderGoal || "")) {
-      nextMove = "Use more founder-led public signal so the current source base reflects the human side of the business even better.";
-    } else {
-      nextMove = "Extend the source base further so YEVIB can make even sharper, more precise reads.";
-    }
+    nextMove = "Use the broader source base already present to deepen the scan and sharpen future recommendations.";
   } else if (band === "developing") {
-    if (!sourceProfile?.pastedTextUsed && !hasOwnerWriting) {
-      nextMove = "Add more owner-written material so the business sounds more distinct and less inferred.";
-    } else if (!hasChannels) {
-      nextMove = "Broaden the discoverable public footprint so YEVIB can read the business from a stronger source base.";
-    } else if (/founder presence/i.test(founderGoal || "")) {
-      nextMove = "Use more founder-led public signal so the source base reflects the human side of the business better.";
-    } else {
-      nextMove = "Broaden the source base so the next diagnosis carries more confidence and more precision.";
-    }
+    nextMove = "Add more direct founder-written and public-facing source material so the next scan lands more confidently.";
   } else {
-    if (!sourceProfile?.pastedTextUsed && !hasOwnerWriting) {
-      nextMove = "Add more owner-written material so YEVIB has a stronger local source to work from.";
-    } else if (!hasChannels) {
-      nextMove = "Strengthen the discoverable public footprint so YEVIB can read the business from a broader source base.";
-    } else if (/founder presence/i.test(founderGoal || "")) {
-      nextMove = "Add more founder-led public signal so the source base reflects the human side of the business better.";
-    } else {
-      nextMove = "Add more direct and public signal so YEVIB can build a more reliable diagnosis.";
-    }
+    nextMove = "Widen the source mix with more founder-written material, more site coverage, and more visible public signal.";
   }
 
   return {
@@ -1918,69 +1894,68 @@ function buildSourceMixGroup({
   };
 }
 
-function buildGroupedSnapshotScoring({
-  businessProfile = {},
+function buildGroupedSnapshot({
   founderGoal = "",
-  contentProfile = {},
-  sourceProfile = {},
-  founderVoice = {},
-  customerOutcome = {},
-  brandProductTruth = {},
-  discoveryProfile = {},
-  advisorSnapshot = {},
-  debug = {},
+  initialProfile = {},
   hasOwnerWriting = false,
 }) {
-  const brandCore = buildBrandCoreGroup({
-    businessProfile,
-    founderGoal,
-    founderVoice,
-    sourceProfile,
-    discoveryProfile,
-  });
+  const businessProfile = initialProfile?.businessProfile || {};
+  const founderVoice = initialProfile?.founderVoice || {};
+  const brandProductTruth = initialProfile?.brandProductTruth || {};
+  const customerOutcome = initialProfile?.customerOutcome || {};
+  const sourceProfile = initialProfile?.sourceProfile || {};
+  const discoveryProfile = initialProfile?.discoveryProfile || {};
+  const contentProfile = initialProfile?.contentProfile || {};
+  const debug = initialProfile?.debug || {};
+  const advisorSnapshot = initialProfile?.advisorSnapshot || {};
 
-  const marketSignal = buildMarketSignalGroup({
-    founderGoal,
-    brandProductTruth,
-    customerOutcome,
-    discoveryProfile,
-  });
+  const groups = [
+    buildBrandCoreGroup({
+      businessProfile,
+      founderGoal,
+      founderVoice,
+      sourceProfile,
+      discoveryProfile,
+    }),
+    buildMarketSignalGroup({
+      founderGoal,
+      brandProductTruth,
+      customerOutcome,
+      discoveryProfile,
+    }),
+    buildOptimizationGroup({
+      founderGoal,
+      advisorSnapshot,
+      contentProfile,
+      discoveryProfile,
+    }),
+    buildSourceMixGroup({
+      founderGoal,
+      sourceProfile,
+      discoveryProfile,
+      debug,
+      hasOwnerWriting,
+    }),
+  ];
 
-  const optimization = buildOptimizationGroup({
-    founderGoal,
-    advisorSnapshot,
-    contentProfile,
-    discoveryProfile,
-  });
-
-  const sourceMix = buildSourceMixGroup({
-    founderGoal,
-    sourceProfile,
-    discoveryProfile,
-    debug,
-    hasOwnerWriting,
-  });
-
-  const totalScore = clampNumber(
-    brandCore.score + marketSignal.score + optimization.score + sourceMix.score,
-    0,
-    100
+  const totalScore = groups.reduce((sum, group) => sum + group.score, 0);
+  const totalMax = groups.reduce((sum, group) => sum + group.max, 0);
+  const overallPct = totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : 0;
+  const overallState = getOverallState(overallPct);
+  const recommendedFocus = adaptRecommendedFocusByBand(
+    advisorSnapshot?.recommendedFocus || "",
+    getScoreBand(groups[2]?.score || 0, groups[2]?.max || 25, "optimization"),
+    founderGoal
   );
-  const overall = getOverallState(totalScore);
 
   return {
-    brandSignalState: {
-      score: totalScore,
-      max: 100,
-      label: overall.label,
-      colorKey: overall.colorKey,
-    },
-    snapshotGroups: {
-      brandCore,
-      marketSignal,
-      optimization,
-      sourceMix,
-    },
+    overallScore: totalScore,
+    overallMax: totalMax,
+    overallPct,
+    overallStateLabel: overallState.label,
+    overallColorKey: overallState.colorKey,
+    recommendedFocus: recommendedFocus || advisorSnapshot?.recommendedFocus || "",
+    groups,
   };
 }
 
@@ -2071,8 +2046,6 @@ ${clipText(input || "", 3000)}
 
 const sourceProfilePrompt = ({
   mode,
-  businessName,
-  founderGoal,
   founderText,
   customerText,
   productText,
@@ -2112,18 +2085,6 @@ Rules:
 - Suggested category must be a lived-use frame
 - Do not mistake testimonial language for founder voice
 - If founder lane is weak, infer business tone from business summary and product truth instead
-- Use the founder goal to bias the suggested category and suggested idea where it genuinely fits
-- The summary should feel useful to a founder, not like generic catalog copy
-
-BUSINESS NAME PROVIDED:
-"""
-${clipText(businessName || "none provided", 200)}
-"""
-
-FOUNDER GOAL PROVIDED:
-"""
-${clipText(founderGoal || "none provided", 300)}
-"""
 
 FOUNDER LANE:
 """
@@ -2156,12 +2117,12 @@ function buildGenerationContext({
   initialProfile,
   businessName,
   businessSummary,
-  founderGoal,
   businessUrl,
   pastedSourceText,
   manualBusinessContext,
   manualVoiceInput,
   ownerKbContext,
+  founderGoal,
 }) {
   const profileName = initialProfile?.businessProfile?.name || businessName || "Unknown";
   const profileSummary =
@@ -2176,62 +2137,17 @@ function buildGenerationContext({
     (initialProfile?.customerOutcome?.valueOutcomes || []).join(", ") || "Not provided";
   const founderBeliefs =
     (initialProfile?.founderVoice?.doRules || []).join(", ") || "Not provided";
-  const advisorStrengths =
-    (initialProfile?.advisorSnapshot?.strengths || []).join(", ") || "Not provided";
-  const advisorWeakPoints =
-    (initialProfile?.advisorSnapshot?.weakPoints || []).join(", ") || "Not provided";
-  const advisorBlindSpots =
-    (initialProfile?.advisorSnapshot?.blindSpots || []).join(", ") || "Not provided";
-  const advisorOpportunities =
-    (initialProfile?.advisorSnapshot?.opportunities || []).join(", ") || "Not provided";
-  const recommendedFocus =
-    initialProfile?.advisorSnapshot?.recommendedFocus || "Not provided";
-
-  const discoveryChannels = initialProfile?.discoveryProfile?.channelsFound || {};
-  const channelsSummary = Object.entries(discoveryChannels)
-    .filter(([, value]) => Boolean(value))
-    .map(([key]) => key)
-    .join(", ") || "Not detected";
-
-  const trustSignals =
-    (initialProfile?.discoveryProfile?.trustSignals || []).join(", ") || "Not detected";
-  const educationSignals =
-    (initialProfile?.discoveryProfile?.educationSignals || []).join(", ") || "Not detected";
-  const activitySignals =
-    (initialProfile?.discoveryProfile?.activitySignals || []).join(", ") || "Not detected";
-  const founderVisibilitySignals =
-    (initialProfile?.discoveryProfile?.founderVisibilitySignals || []).join(", ") ||
-    "Not detected";
-
-  const brandSignalState = initialProfile?.groupedSnapshot?.brandSignalState || {};
-  const snapshotGroups = initialProfile?.groupedSnapshot?.snapshotGroups || {};
-
-  const groupSummary = Object.values(snapshotGroups)
-    .map((group) => `${group.title}: ${group.score}/${group.max}`)
-    .join(", ") || "Not scored";
 
   const base = `
 PROFILE CONTEXT:
 - Business name: ${profileName}
 - Business summary: ${profileSummary}
-- Founder goal: ${founderGoal || "Not provided"}
 - Offers/services: ${profileOffers}
 - Audience: ${profileAudience}
 - Customer life moments: ${customerMoments}
 - Customer outcomes: ${customerOutcomes}
 - Founder priorities: ${founderBeliefs}
-- Brand Signal State: ${brandSignalState.score || "Not scored"}/${brandSignalState.max || 100} (${brandSignalState.label || "Unknown"})
-- Snapshot groups: ${groupSummary}
-- Detected public channels: ${channelsSummary}
-- Trust signals detected: ${trustSignals}
-- Education signals detected: ${educationSignals}
-- Activity signals detected: ${activitySignals}
-- Founder visibility signals detected: ${founderVisibilitySignals}
-- Strongest business strengths detected: ${advisorStrengths}
-- Weak points detected: ${advisorWeakPoints}
-- Blind spots detected: ${advisorBlindSpots}
-- Opportunity directions detected: ${advisorOpportunities}
-- Recommended focus: ${recommendedFocus}
+- Founder goal: ${founderGoal || "Not provided"}
 - URL: ${businessUrl || "Not provided"}
 
 ${ownerKbContext || ""}
@@ -2252,7 +2168,6 @@ MODE: EXPRESS
 Use founder voice lane as the tone anchor.
 Use customer outcome lane for real-life effects.
 Use brand/product truth lane for factual grounding.
-Use the advisor snapshot, grouped snapshot scoring, discovery profile, and founder goal to make the output more useful.
 Only use manual or pasted inputs as fallback or refinement.
 ${base}
 `;
@@ -2263,7 +2178,6 @@ ${base}
 MODE: MANUAL
 Use manual and pasted inputs as primary truth.
 Use profile/URL context only as fallback.
-Use the founder goal, advisor snapshot, grouped snapshot scoring, and discovery profile to keep the output practical.
 ${base}
 `;
   }
@@ -2273,7 +2187,6 @@ MODE: HYBRID
 Use the profile as the base.
 Blend in pasted and manual inputs where useful.
 If there is conflict, prefer the user's manual wording and corrections.
-Use the founder goal, advisor snapshot, grouped snapshot scoring, discovery profile to keep the output practical.
 ${base}
 `;
 }
@@ -2397,7 +2310,7 @@ function getLensRules({ quickType = "", category = "", weakVoice = false }) {
     lensRules += `
 - The available voice sample is weak or thin, so rely more heavily on this lens
 - Increase contrast between this lens and the others
-- Use the business summary, product truth, advisor snapshot, grouped snapshot scoring, discovery profile, and owner role as stronger anchors than the thin voice sample
+- Use the business summary, product truth, and owner role as stronger anchors than the thin voice sample
 - Make the difference in angle obvious without changing the speaker
 `;
   }
@@ -2847,14 +2760,7 @@ app.post("/save-owner-choice", async (req, res) => {
 });
 
 app.post("/build-profile", async (req, res) => {
-  const {
-    mode,
-    businessName,
-    founderGoal,
-    businessUrl,
-    pastedSourceText,
-    manualBusinessContext,
-  } = req.body || {};
+  const { mode, businessUrl, pastedSourceText, manualBusinessContext, founderGoal, ownerWritingSample } = req.body;
 
   try {
     let laneGather = null;
@@ -2866,7 +2772,7 @@ app.post("/build-profile", async (req, res) => {
 
     const founderText = laneText(
       laneGather?.lanes?.founderVoice || [],
-      manualBusinessContext || pastedSourceText || ""
+      manualBusinessContext || pastedSourceText || ownerWritingSample || ""
     );
 
     const customerText = laneText(laneGather?.lanes?.customerOutcome || [], "");
@@ -2874,10 +2780,10 @@ app.post("/build-profile", async (req, res) => {
 
     const founderSourceInput = clipText(
       mode === "manual"
-        ? manualBusinessContext || pastedSourceText
+        ? manualBusinessContext || pastedSourceText || ownerWritingSample
         : mode === "hybrid"
-        ? pastedSourceText || manualBusinessContext || founderText
-        : founderText || pastedSourceText || manualBusinessContext || productText,
+        ? pastedSourceText || manualBusinessContext || ownerWritingSample || founderText
+        : founderText || pastedSourceText || manualBusinessContext || ownerWritingSample || productText,
       5000
     );
 
@@ -2885,8 +2791,6 @@ app.post("/build-profile", async (req, res) => {
       runJsonChat(
         sourceProfilePrompt({
           mode,
-          businessName,
-          founderGoal,
           founderText,
           customerText,
           productText,
@@ -2915,152 +2819,103 @@ app.post("/build-profile", async (req, res) => {
     );
 
     const finalBusinessName =
-      clipText(businessName || "", 200) ||
       sourceProfile?.businessProfile?.name ||
       brandProductTruth?.productType ||
       "Unknown Business";
 
-    const contentProfile = {
-      suggestedCategory:
-        sourceProfile?.contentProfile?.suggestedCategory || "Product in Real Life",
-      suggestedIdea:
-        sourceProfile?.contentProfile?.suggestedIdea ||
-        "How this business makes everyday life feel easier or better",
-    };
-
-    const weakVoiceSource = isWeakVoiceSource(safeVoiceSourceText);
-
-    const sourceProfileData = {
-      dominantSource: sourceProfile?.sourceProfile?.dominantSource || "mixed",
-      voiceSourceText: safeVoiceSourceText,
-      voiceSourceLane:
-        mode === "manual"
-          ? "manual"
-          : safeVoiceSourceText === founderText
-          ? "founder"
-          : safeVoiceSourceText === pastedSourceText
-          ? "pasted"
-          : safeVoiceSourceText === manualBusinessContext
-          ? "manual"
-          : "fallback",
-      weakVoiceSource,
-      founderLanePreview: founderText,
-      customerLanePreview: customerText,
-      productLanePreview: productText,
-      urlUsed: Boolean(normalizedUrl),
-      pastedTextUsed: Boolean(pastedSourceText),
-      manualContextUsed: Boolean(manualBusinessContext),
-      suggestedCategory: contentProfile.suggestedCategory,
-      suggestedIdea: contentProfile.suggestedIdea,
+    const socialLinks = laneGather?.socialLinks || {};
+    const groupedPages = laneGather?.groupedPages || {
+      aboutPages: [],
+      blogPages: [],
+      faqPages: [],
+      reviewPages: [],
+      activityPages: [],
+      pressPages: [],
+      productPages: [],
     };
 
     const discoveryProfile = {
-      channelsFound: laneGather?.socialLinks || {
-        instagram: "",
-        facebook: "",
-        tiktok: "",
-        youtube: "",
-        x: "",
-        linkedin: "",
-      },
-      sourcePages: laneGather?.groupedPages || {
-        aboutPages: [],
-        blogPages: [],
-        faqPages: [],
-        reviewPages: [],
-        activityPages: [],
-        pressPages: [],
-        productPages: [],
-      },
-      activitySignals: inferActivitySignals({
-        groupedPages: laneGather?.groupedPages || {},
-        pages: laneGather?.pages || [],
-      }),
-      trustSignals: inferTrustSignals({
-        groupedPages: laneGather?.groupedPages || {},
-        lanes: laneGather?.lanes || {},
-        pages: laneGather?.pages || [],
-      }),
-      educationSignals: inferEducationSignals({
-        groupedPages: laneGather?.groupedPages || {},
-        lanes: laneGather?.lanes || {},
-        pages: laneGather?.pages || [],
-      }),
-      founderVisibilitySignals: inferFounderVisibilitySignals({
-        groupedPages: laneGather?.groupedPages || {},
-        founderText,
-        pages: laneGather?.pages || [],
-      }),
+      channelsFound: socialLinks,
+      sourcePages: groupedPages,
+      trustSignals: inferTrustSignals({ groupedPages, lanes: laneGather?.lanes || {}, pages: laneGather?.pages || [] }),
+      educationSignals: inferEducationSignals({ groupedPages, lanes: laneGather?.lanes || {}, pages: laneGather?.pages || [] }),
+      activitySignals: inferActivitySignals({ groupedPages, pages: laneGather?.pages || [] }),
+      founderVisibilitySignals: inferFounderVisibilitySignals({ groupedPages, founderText, pages: laneGather?.pages || [] }),
       sourceConfidence: inferSourceConfidence({
-        channelsFound: laneGather?.socialLinks || {},
-        groupedPages: laneGather?.groupedPages || {},
+        channelsFound: socialLinks,
+        groupedPages,
         pagesScanned: laneGather?.pages?.length || 0,
-        hasOwnerWriting: Boolean(pastedSourceText),
+        hasOwnerWriting: Boolean(ownerWritingSample || manualBusinessContext || pastedSourceText),
       }),
     };
-
-    const advisorSnapshot = inferAdvisorSnapshot({
-      founderGoal,
-      founderVoice: safeFounderVoice,
-      brandProductTruth,
-      customerOutcome,
-      sourceProfile: sourceProfileData,
-      discoveryProfile,
-      contentProfile,
-    });
-
-    const intelligenceRead = buildIntelligenceRead({
-      advisorSnapshot,
-      discoveryProfile,
-      sourceProfile: sourceProfileData,
-    });
-
-    const debug = {
-      pagesScanned: laneGather?.pages?.length || 0,
-      discoveredLinks: laneGather?.allDiscoveredLinks?.length || 0,
-    };
-
-    const groupedSnapshot = buildGroupedSnapshotScoring({
-      businessProfile: {
-        name: finalBusinessName,
-        summary: sourceProfile?.businessProfile?.summary || "",
-      },
-      founderGoal,
-      contentProfile,
-      sourceProfile: sourceProfileData,
-      founderVoice: safeFounderVoice,
-      customerOutcome,
-      brandProductTruth,
-      discoveryProfile,
-      advisorSnapshot,
-      debug,
-      hasOwnerWriting: Boolean(pastedSourceText),
-    });
 
     const profile = {
       businessProfile: {
         name: finalBusinessName,
         summary: sourceProfile?.businessProfile?.summary || "",
       },
-      founderGoal: founderGoal || "",
-      contentProfile,
+      contentProfile: {
+        suggestedCategory:
+          sourceProfile?.contentProfile?.suggestedCategory || "Product in Real Life",
+        suggestedIdea:
+          sourceProfile?.contentProfile?.suggestedIdea ||
+          "How this business makes everyday life feel easier or better",
+      },
       visualProfile: {
         visualDirections: sourceProfile?.visualProfile?.visualDirections || [],
         avoidRules: sourceProfile?.visualProfile?.avoidRules || [],
       },
-      sourceProfile: sourceProfileData,
+      sourceProfile: {
+        dominantSource: sourceProfile?.sourceProfile?.dominantSource || "mixed",
+        voiceSourceText: safeVoiceSourceText,
+        voiceSourceLane:
+          mode === "manual"
+            ? "manual"
+            : safeVoiceSourceText === founderText
+            ? "founder"
+            : safeVoiceSourceText === pastedSourceText
+            ? "pasted"
+            : safeVoiceSourceText === manualBusinessContext
+            ? "manual"
+            : "fallback",
+        weakVoiceSource: isWeakVoiceSource(safeVoiceSourceText),
+        founderLanePreview: founderText,
+        customerLanePreview: customerText,
+        productLanePreview: productText,
+        urlUsed: Boolean(normalizedUrl),
+        pastedTextUsed: Boolean(pastedSourceText),
+        manualContextUsed: Boolean(manualBusinessContext),
+      },
       founderVoice: safeFounderVoice,
       customerOutcome,
       brandProductTruth,
       discoveryProfile,
-      advisorSnapshot: {
-        ...advisorSnapshot,
-        intelligenceRead,
-      },
-      groupedSnapshot,
       ownerKbMeta: getBusinessKbMeta(finalBusinessName),
-      debug,
+      debug: {
+        pagesScanned: laneGather?.pages?.length || 0,
+      },
     };
+
+    profile.advisorSnapshot = inferAdvisorSnapshot({
+      founderGoal,
+      founderVoice: profile.founderVoice,
+      brandProductTruth: profile.brandProductTruth,
+      customerOutcome: profile.customerOutcome,
+      sourceProfile: profile.sourceProfile,
+      discoveryProfile: profile.discoveryProfile,
+      contentProfile: profile.contentProfile,
+    });
+
+    profile.intelligenceRead = buildIntelligenceRead({
+      advisorSnapshot: profile.advisorSnapshot,
+      discoveryProfile: profile.discoveryProfile,
+    });
+
+    profile.groupedSnapshot = buildGroupedSnapshot({
+      founderGoal,
+      initialProfile: profile,
+      hasOwnerWriting: Boolean(ownerWritingSample || manualBusinessContext || pastedSourceText),
+    });
 
     res.json({ profile });
   } catch (err) {
@@ -3070,7 +2925,7 @@ app.post("/build-profile", async (req, res) => {
 });
 
 app.post("/analyze-voice", async (req, res) => {
-  const { input } = req.body || {};
+  const { input } = req.body;
 
   try {
     const profile = await runJsonChat(voiceAgentPrompt(clipText(input, 5000)));
@@ -3130,7 +2985,6 @@ app.post("/generate", async (req, res) => {
     idea,
     category,
     weeklyPosts,
-    founderGoal,
     businessUrl,
     pastedSourceText,
     manualBusinessContext,
@@ -3141,7 +2995,8 @@ app.post("/generate", async (req, res) => {
     initialProfile,
     quickType,
     ownerNudge,
-  } = req.body || {};
+    founderGoal,
+  } = req.body;
 
   let extraCategoryRule = "";
 
@@ -3212,12 +3067,12 @@ app.post("/generate", async (req, res) => {
       initialProfile,
       businessName,
       businessSummary,
-      founderGoal,
       businessUrl,
       pastedSourceText,
       manualBusinessContext,
       manualVoiceInput,
       ownerKbContext,
+      founderGoal,
     });
 
     const weakVoice = Boolean(initialProfile?.sourceProfile?.weakVoiceSource);
@@ -3229,6 +3084,21 @@ app.post("/generate", async (req, res) => {
 
     const { feelingLabel, feelingRules } = getFeelingRules(ownerNudge || "");
     const variationRules = getVariationRules(category);
+    const intelligenceRead = initialProfile?.intelligenceRead || "";
+    const recommendedFocus = initialProfile?.groupedSnapshot?.recommendedFocus || initialProfile?.advisorSnapshot?.recommendedFocus || "";
+    const groupedSnapshot = initialProfile?.groupedSnapshot?.groups || [];
+    const discoveryProfile = initialProfile?.discoveryProfile || {};
+
+    const snapshotLines = groupedSnapshot
+      .map((group) => `- ${group.title}: ${group.score}/${group.max} (${group.stateLabel})`)
+      .join("\n");
+
+    const discoveryLines = [
+      ...(normalizeStringArray(discoveryProfile?.trustSignals, 4).map((x) => `- Trust signal: ${x}`)),
+      ...(normalizeStringArray(discoveryProfile?.educationSignals, 4).map((x) => `- Education signal: ${x}`)),
+      ...(normalizeStringArray(discoveryProfile?.activitySignals, 4).map((x) => `- Activity signal: ${x}`)),
+      ...(normalizeStringArray(discoveryProfile?.founderVisibilitySignals, 4).map((x) => `- Founder visibility: ${x}`)),
+    ].join("\n");
 
     const prompt = `
 Create exactly 3 X posts.
@@ -3250,7 +3120,19 @@ ${feelingRules}
 ${variationRules}
 
 CURRENT FOUNDER GOAL:
-${clipText(founderGoal || initialProfile?.founderGoal || "Not specified", 300)}
+${founderGoal || "Not provided"}
+
+INTELLIGENCE READ:
+${intelligenceRead || "Not available"}
+
+RECOMMENDED FOCUS:
+${recommendedFocus || "Not available"}
+
+SNAPSHOT READ:
+${snapshotLines || "Not available"}
+
+DISCOVERY READ:
+${discoveryLines || "Not available"}
 
 LIFE FRAME:
 ${category}
@@ -3281,28 +3163,6 @@ IMPORTANT VOICE RULE:
 - Write from inside the owner voice, not from the buyer's review perspective
 - Even when customer outcome is strong, keep the post framed as owner reflection, owner observation, or owner-led business truth
 
-FOUNDER GOAL RULE:
-- The current founder goal should influence usefulness, emphasis, and relevance
-- Do not mention the founder goal directly unless it sounds natural
-- Let the post quietly solve toward the goal rather than stating strategy out loud
-
-ADVISOR RULE:
-- Use the detected blind spots, weak points, and opportunities to make the content more useful
-- Help the business say what it is not yet saying clearly enough
-- Where possible, make the output feel like it closes a real business gap
-
-SNAPSHOT RULE:
-- Use the grouped Snapshot scoring to understand where the brand signal is strongest and weakest
-- If Brand Core is weak, write with more care around identity and founder presence
-- If Market Signal is weak, make the offer and practical value easier to understand
-- If Optimization is weak, keep the output more grounded and directly useful
-- If Source Mix is weak, avoid overclaiming what the business is doing publicly
-
-DISCOVERY RULE:
-- Use the discovered public signals where useful
-- If there are trust, activity, education, or founder-visibility signals, let them improve relevance
-- Do not invent public activity that was not found
-
 LENS SEPARATION RULE:
 - Make this lens clearly distinct from the other quick buttons
 - The difference should be obvious in angle, emphasis, and feeling
@@ -3318,8 +3178,28 @@ FEELING INTEGRATION RULE:
 
 OWNER KB RULE:
 - Use learned owner patterns where useful
-- But if today's feeling, current lens, or founder goal points in a different direction, follow the current moment
+- But if today's feeling or current lens points in a different direction, follow the current moment
 - Baseline memory should support the owner, not trap them
+
+ADVISOR RULE:
+- Let the strongest current business opportunity influence the angle of the writing
+- If the scan shows trust signal, standards signal, educational signal, founder signal, or daily-use signal, use that as leverage
+- Do not force the post to mention the diagnosis directly
+- Let the diagnosis shape the angle, not the wording
+
+SNAPSHOT RULE:
+- Use the strongest current group score as a clue for where the business already has momentum
+- If Brand Core is strongest, lean more into founder-led clarity, identity, or belief
+- If Market Signal is strongest, lean more into offer clarity, audience fit, trust, or real-life value
+- If Optimization is strongest, lean more into the clearest business opportunity or next-step leverage
+- If Source Mix is strongest, lean more into confidence, signal depth, or visible brand presence
+- Use the weaker scores to avoid overclaiming what the business has not yet fully shown
+
+DISCOVERY RULE:
+- If trust signals are present, you can write with more confidence around standards, proof, or credibility
+- If education signals are present, you can lean into useful explanation and teaching
+- If activity signals are present, you can make the brand feel more current, active, and in-motion
+- If founder visibility is weak, avoid overclaiming founder-led public presence and keep it more grounded
 
 3-TIER OUTPUT RULE:
 Post 1 = SUBTLE
@@ -3372,7 +3252,7 @@ IMPORTANT:
 - Product truth should keep the content accurate, not make it sound like a brochure
 - Manual mode should follow manual and pasted inputs most closely
 - Hybrid mode should combine both cleanly
-- If the voice sample is thin, rely harder on the lens, advisor snapshot, grouped snapshot scoring, discovery profile, and business truth
+- If the voice sample is thin, rely harder on the lens and business truth
 
 AVOID:
 - generic motivation clichés
@@ -3424,7 +3304,7 @@ ${extraCategoryRule}
 });
 
 app.post("/generate-image", async (req, res) => {
-  const { imagePrompt } = req.body || {};
+  const { imagePrompt } = req.body;
 
   try {
     const hardenedPrompt = `
