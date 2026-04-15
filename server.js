@@ -1409,8 +1409,8 @@ function buildBrandCoreGroup({
   }
 
   score = clampNumber(score, 0, max);
-  const band = getScoreBand(score, max, "brandCore");
-  const state = getGroupState(score, max);
+  const band = getScoreBand(score, max, "sourceMix");
+  const state = getGroupState(score, max); 
   const lead = confidencePrefix(confidence);
   const goal = String(founderGoal || "").toLowerCase();
 
