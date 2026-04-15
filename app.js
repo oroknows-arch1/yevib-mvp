@@ -116,7 +116,7 @@ function clearOutputs() {
 
 function setInitialGuidance() {
   profilePrompt.innerText =
-    "Scan the business first. Review the snapshot, inspect the pie if needed, then continue.";
+    "Use this page as a quick glance. Tap the pie only if you want YEVIB to open up more of the scan.";
   feelingPrompt.innerText =
     "Optional: choose a feeling if you want today's content to better match your current tone.";
   generatePrompt.innerText =
@@ -208,18 +208,11 @@ function getFounderGoal() {
 }
 
 function getCurrentBusinessName() {
-  return (
-    initialProfile?.businessProfile?.name ||
-    "Your Brand"
-  );
+  return initialProfile?.businessProfile?.name || "Your Brand";
 }
 
 function getCurrentBusinessSummary() {
-  return (
-    initialProfile?.businessProfile?.summary ||
-    businessSummaryInput.value.trim() ||
-    ""
-  );
+  return initialProfile?.businessProfile?.summary || businessSummaryInput.value.trim() || "";
 }
 
 function toDisplayList(items = [], fallback = "Not enough information yet.") {
@@ -348,6 +341,10 @@ function renderSnapshotPie(profile) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      animation: {
+        animateRotate: true,
+        animateScale: true,
+      },
       plugins: {
         legend: {
           position: "bottom",
@@ -359,7 +356,7 @@ function renderSnapshotPie(profile) {
         renderActiveSlice(orderedGroups[index]);
         setTimeout(() => {
           activeSliceWrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        }, 50);
+        }, 60);
       },
     },
   });
@@ -512,7 +509,7 @@ async function buildInitialProfile() {
 
     intakeStatus.innerText = "Brand snapshot ready.";
     profilePrompt.innerText =
-      "Review the summary and founder goal first. Tap the pie only if you want to inspect what is strongest or weakest.";
+      "Quick glance first. Tap the pie only if you want YEVIB to open up more of the scan before generating outputs.";
 
     const kbMeta = data.profile?.ownerKbMeta || {};
     if (kbMeta.entryCount > 0) {

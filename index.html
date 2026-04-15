@@ -82,160 +82,163 @@
           <p>This is YEVIB’s first read on what the brand looks like today.</p>
         </div>
 
-        <div class="snapshot-grid compact-grid">
-          <div class="snapshot-card snapshot-card-wide">
-            <h3>Brand Summary</h3>
-            <textarea id="businessSummary" rows="5" placeholder="Brand summary will appear here..."></textarea>
-          </div>
+        <div class="snapshot-shell">
+          <div class="snapshot-top">
+            <div class="snapshot-card snapshot-card-wide">
+              <h3>Brand Summary</h3>
+              <textarea id="businessSummary" rows="5" placeholder="Brand summary will appear here..."></textarea>
+            </div>
 
-          <div class="snapshot-card snapshot-card-wide">
-            <h3>Founder Goal</h3>
-            <div id="founderGoalDisplay" class="snapshot-display">
-              No goal selected yet.
+            <div class="snapshot-card snapshot-card-wide">
+              <h3>Founder Goal</h3>
+              <div id="founderGoalDisplay" class="snapshot-display">
+                No goal selected yet.
+              </div>
             </div>
           </div>
 
-          <div class="snapshot-card snapshot-card-wide">
-            <h3>Brand Signal State</h3>
-            <div id="brandSignalStateDisplay" class="signal-state-wrap">
-              <div id="brandSignalScore" class="signal-score">-- / 100</div>
-              <div id="brandSignalLabel" class="signal-label">Not scanned yet</div>
+          <div class="snapshot-flower-card">
+            <div class="snapshot-flower-head">
+              <h3>Brand Signal State</h3>
+              <div id="brandSignalStateDisplay" class="signal-state-wrap">
+                <div id="brandSignalScore" class="signal-score">-- / 100</div>
+                <div id="brandSignalLabel" class="signal-label">Not scanned yet</div>
+              </div>
+              <p class="subtle-line no-top-margin">
+                Tap a section of the pie to reveal that part of YEVIB’s scan.
+              </p>
             </div>
 
-            <p class="subtle-line no-top-margin">
-              Tap a section of the pie to inspect that part of the brand signal.
-            </p>
-
-            <div class="chart-wrap large-chart-wrap">
+            <div class="chart-wrap flower-chart-wrap">
               <canvas id="snapshotPieChart"></canvas>
             </div>
+
+            <div id="activeSliceWrap" class="flower-detail-wrap" style="display:none;">
+              <div class="flower-detail-card">
+                <h3 id="activeSliceTitle">Snapshot Detail</h3>
+                <div id="activeSliceMeta" class="subtle-line no-top-margin"></div>
+                <div id="activeSliceSummary" class="snapshot-display compact-display"></div>
+                <div id="activeSliceStrengths" class="snapshot-display compact-display"></div>
+                <div id="activeSliceWeaknesses" class="snapshot-display compact-display"></div>
+                <div id="activeSliceNextMove" class="snapshot-display compact-display"></div>
+              </div>
+            </div>
           </div>
 
-          <div class="snapshot-card snapshot-card-wide" id="activeSliceWrap" style="display:none;">
-            <h3 id="activeSliceTitle">Snapshot Detail</h3>
-            <div id="activeSliceMeta" class="subtle-line no-top-margin"></div>
-            <div id="activeSliceSummary" class="snapshot-display compact-display"></div>
-            <div id="activeSliceStrengths" class="snapshot-display compact-display"></div>
-            <div id="activeSliceWeaknesses" class="snapshot-display compact-display"></div>
-            <div id="activeSliceNextMove" class="snapshot-display compact-display"></div>
-          </div>
-        </div>
+          <div class="action-row centered-actions">
+            <button
+              id="toggleBrandIntelligenceBtn"
+              class="secondary-btn"
+              type="button"
+              style="display:none;"
+            >
+              Open Brand Intelligence
+            </button>
 
-        <div class="action-row centered-actions">
-          <button
-            id="toggleBrandIntelligenceBtn"
-            class="secondary-btn"
-            type="button"
-            style="display:none;"
-          >
-            Open Brand Intelligence
-          </button>
-        </div>
-
-        <div id="brandIntelligenceDrawer" class="intelligence-drawer" style="display:none;">
-          <div class="screen-head top-section-gap">
-            <h2>Brand Intelligence</h2>
-            <p>Deeper discovery signals and scan branches, only when you want them.</p>
+            <button
+              id="continueToGenerateBtn"
+              class="primary-btn"
+              type="button"
+              style="display:none;"
+            >
+              Continue to Content Action
+            </button>
           </div>
 
-          <div class="snapshot-grid">
-            <div class="snapshot-card snapshot-card-wide">
-              <h3>YEVIB Read</h3>
-              <div id="intelligenceSummaryDisplay" class="snapshot-display">
-                Brand intelligence summary will appear here after the scan.
-              </div>
+          <div id="brandIntelligenceDrawer" class="intelligence-drawer" style="display:none;">
+            <div class="screen-head top-section-gap">
+              <h2>Brand Intelligence</h2>
+              <p>Deeper discovery signals and scan reasoning, only when you want them.</p>
             </div>
 
-            <div class="snapshot-card">
-              <h3>Voice Summary</h3>
-              <div id="voiceSummaryDisplay" class="snapshot-display">
-                Voice summary will appear here after the scan.
+            <div class="snapshot-grid">
+              <div class="snapshot-card snapshot-card-wide">
+                <h3>YEVIB Read</h3>
+                <div id="intelligenceSummaryDisplay" class="snapshot-display">
+                  Brand intelligence summary will appear here after the scan.
+                </div>
               </div>
-            </div>
 
-            <div class="snapshot-card">
-              <h3>Recommended Focus</h3>
-              <div id="recommendedFocusDisplay" class="snapshot-display">
-                Recommended focus will appear here after the scan.
+              <div class="snapshot-card">
+                <h3>Voice Summary</h3>
+                <div id="voiceSummaryDisplay" class="snapshot-display">
+                  Voice summary will appear here after the scan.
+                </div>
               </div>
-            </div>
 
-            <div class="snapshot-card">
-              <h3>Offers / Services</h3>
-              <div id="offersDisplay" class="snapshot-display">
-                Offers and services will appear here after the scan.
+              <div class="snapshot-card">
+                <h3>Recommended Focus</h3>
+                <div id="recommendedFocusDisplay" class="snapshot-display">
+                  Recommended focus will appear here after the scan.
+                </div>
               </div>
-            </div>
 
-            <div class="snapshot-card">
-              <h3>Audience</h3>
-              <div id="audienceDisplay" class="snapshot-display">
-                Audience clues will appear here after the scan.
+              <div class="snapshot-card">
+                <h3>Offers / Services</h3>
+                <div id="offersDisplay" class="snapshot-display">
+                  Offers and services will appear here after the scan.
+                </div>
               </div>
-            </div>
 
-            <div class="snapshot-card snapshot-card-wide">
-              <h3>Content Opportunities</h3>
-              <div id="opportunitiesDisplay" class="snapshot-display">
-                Opportunities will appear here after the scan.
+              <div class="snapshot-card">
+                <h3>Audience</h3>
+                <div id="audienceDisplay" class="snapshot-display">
+                  Audience clues will appear here after the scan.
+                </div>
               </div>
-            </div>
 
-            <div class="snapshot-card">
-              <h3>Detected Channels</h3>
-              <div id="channelsDisplay" class="snapshot-display">
-                Detected channels will appear here after the scan.
+              <div class="snapshot-card snapshot-card-wide">
+                <h3>Content Opportunities</h3>
+                <div id="opportunitiesDisplay" class="snapshot-display">
+                  Opportunities will appear here after the scan.
+                </div>
               </div>
-            </div>
 
-            <div class="snapshot-card">
-              <h3>Trust / Proof Signals</h3>
-              <div id="trustSignalsDisplay" class="snapshot-display">
-                Trust and proof signals will appear here after the scan.
+              <div class="snapshot-card">
+                <h3>Detected Channels</h3>
+                <div id="channelsDisplay" class="snapshot-display">
+                  Detected channels will appear here after the scan.
+                </div>
               </div>
-            </div>
 
-            <div class="snapshot-card">
-              <h3>Education Signals</h3>
-              <div id="educationSignalsDisplay" class="snapshot-display">
-                Education signals will appear here after the scan.
+              <div class="snapshot-card">
+                <h3>Trust / Proof Signals</h3>
+                <div id="trustSignalsDisplay" class="snapshot-display">
+                  Trust and proof signals will appear here after the scan.
+                </div>
               </div>
-            </div>
 
-            <div class="snapshot-card">
-              <h3>Public Activity Signals</h3>
-              <div id="activitySignalsDisplay" class="snapshot-display">
-                Public activity signals will appear here after the scan.
+              <div class="snapshot-card">
+                <h3>Education Signals</h3>
+                <div id="educationSignalsDisplay" class="snapshot-display">
+                  Education signals will appear here after the scan.
+                </div>
               </div>
-            </div>
 
-            <div class="snapshot-card snapshot-card-wide">
-              <h3>Founder Visibility Signals</h3>
-              <div id="founderVisibilitySignalsDisplay" class="snapshot-display">
-                Founder visibility signals will appear here after the scan.
+              <div class="snapshot-card">
+                <h3>Public Activity Signals</h3>
+                <div id="activitySignalsDisplay" class="snapshot-display">
+                  Public activity signals will appear here after the scan.
+                </div>
               </div>
-            </div>
 
-            <div class="snapshot-card snapshot-card-wide">
-              <h3>Voice Source</h3>
-              <textarea
-                id="voiceInput"
-                rows="8"
-                placeholder="Voice source used for the brand build will appear here..."
-              ></textarea>
+              <div class="snapshot-card snapshot-card-wide">
+                <h3>Founder Visibility Signals</h3>
+                <div id="founderVisibilitySignalsDisplay" class="snapshot-display">
+                  Founder visibility signals will appear here after the scan.
+                </div>
+              </div>
+
+              <div class="snapshot-card snapshot-card-wide">
+                <h3>Voice Source</h3>
+                <textarea
+                  id="voiceInput"
+                  rows="8"
+                  placeholder="Voice source used for the brand build will appear here..."
+                ></textarea>
+              </div>
             </div>
           </div>
-        </div>
-
-        <div class="action-row centered-actions">
-          <button
-            id="continueToGenerateBtn"
-            class="primary-btn"
-            type="button"
-            style="display:none;"
-          >
-            Continue to Content Action
-          </button>
         </div>
 
         <div id="profilePrompt" class="subtle-line"></div>
