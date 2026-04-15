@@ -17,10 +17,29 @@ const voiceSummaryDisplay = document.getElementById("voiceSummaryDisplay");
 const offersDisplay = document.getElementById("offersDisplay");
 const audienceDisplay = document.getElementById("audienceDisplay");
 const opportunitiesDisplay = document.getElementById("opportunitiesDisplay");
+const recommendedFocusDisplay = document.getElementById("recommendedFocusDisplay");
+const recommendedFocusWrap = document.getElementById("recommendedFocusWrap");
+
+const channelsDisplay = document.getElementById("channelsDisplay");
+const trustSignalsDisplay = document.getElementById("trustSignalsDisplay");
+const educationSignalsDisplay = document.getElementById("educationSignalsDisplay");
+const activitySignalsDisplay = document.getElementById("activitySignalsDisplay");
+const founderVisibilitySignalsDisplay = document.getElementById("founderVisibilitySignalsDisplay");
+const intelligenceSummaryDisplay = document.getElementById("intelligenceSummaryDisplay");
+
+const sourceConfidenceDisplay = document.getElementById("sourceConfidenceDisplay");
+const activeSourceSegmentDisplay = document.getElementById("activeSourceSegmentDisplay");
+const sourceSegmentSummary = document.getElementById("sourceSegmentSummary");
+const sourceRatingCanvas = document.getElementById("sourceRatingChart");
+
+const toggleBrandIntelligenceBtn = document.getElementById("toggleBrandIntelligenceBtn");
+const brandIntelligenceDrawer = document.getElementById("brandIntelligenceDrawer");
 const continueToGenerateBtn = document.getElementById("continueToGenerateBtn");
 
 let initialProfile = null;
 let voiceProfile = null;
+let sourceRatingChart = null;
+let sourceBreakdown = null;
 
 let currentQuickType = "";
 let currentCategory = "";
@@ -86,12 +105,46 @@ function clearOutputs() {
   postsPrompt.innerText = "";
 }
 
+function destroySourceChart() {
+  if (sourceRatingChart) {
+    sourceRatingChart.destroy();
+    sourceRatingChart = null;
+  }
+}
+
 function clearSnapshotDisplays() {
   founderGoalDisplay.innerText = "No goal selected yet.";
   voiceSummaryDisplay.innerText = "Voice summary will appear here after the scan.";
   offersDisplay.innerText = "Offers and services will appear here after the scan.";
   audienceDisplay.innerText = "Audience clues will appear here after the scan.";
   opportunitiesDisplay.innerText = "Opportunities will appear here after the scan.";
+  intelligenceSummaryDisplay.innerText = "Brand intelligence summary will appear here after the scan.";
+
+  recommendedFocusDisplay.innerText = "";
+  recommendedFocusWrap.style.display = "none";
+
+  channelsDisplay.innerText = "Detected channels will appear here after the scan.";
+  trustSignalsDisplay.innerText = "Trust and proof signals will appear here after the scan.";
+  educationSignalsDisplay.innerText = "Education signals will appear here after the scan.";
+  activitySignalsDisplay.innerText = "Public activity signals will appear here after the scan.";
+  founderVisibilitySignalsDisplay.innerText =
+    "Founder visibility signals will appear here after the scan.";
+
+  sourceConfidenceDisplay.innerText = "Not scanned yet";
+  activeSourceSegmentDisplay.innerText = "None selected";
+  sourceSegmentSummary.innerText = "Scan source details will appear here after the scan.";
+
+  sourceBreakdown = null;
+  destroySourceChart();
+
+  if (toggleBrandIntelligenceBtn) {
+    toggleBrandIntelligenceBtn.style.display = "none";
+    toggleBrandIntelligenceBtn.innerText = "Open Brand Intelligence";
+  }
+
+  if (brandIntelligenceDrawer) {
+    brandIntelligenceDrawer.style.display = "none";
+  }
 
   if (continueToGenerateBtn) {
     continueToGenerateBtn.style.display = "none";
@@ -139,6 +192,24 @@ function setupContinueButton() {
 
   continueToGenerateBtn.addEventListener("click", () => {
     scrollToSection("section-generate");
+  });
+}
+
+function setupIntelligenceDrawer() {
+  if (!toggleBrandIntelligenceBtn || !brandIntelligenceDrawer) return;
+
+  toggleBrandIntelligenceBtn.addEventListener("click", () => {
+    const isOpen = brandIntelligenceDrawer.style.display === "block";
+    brandIntelligenceDrawer.style.display = isOpen ? "none" : "block";
+    toggleBrandIntelligenceBtn.innerText = isOpen
+      ? "Open Brand Intelligence"
+      : "Hide Brand Intelligence";
+
+    if (!isOpen) {
+      setTimeout(() => {
+        brandIntelligenceDrawer.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 80);
+    }
   });
 }
 
@@ -206,6 +277,25 @@ function toDisplayList(items = [], fallback = "Not enough information yet.") {
   return items.map((item) => `• ${item}`).join("\n");
 }
 
+function channelsToDisplay(channels = {}) {
+  const labels = {
+    instagram: "Instagram",
+    facebook: "Facebook",
+    tiktok: "TikTok",
+    youtube: "YouTube",
+    x: "X",
+    linkedin: "LinkedIn",
+  };
+
+  const found = Object.entries(channels || {})
+    .filter(([, value]) => Boolean(value))
+    .map(([key, value]) => `• ${labels[key] || key}: ${value}`);
+
+  return found.length > 0
+    ? found.join("\n")
+    : "No public channels were clearly detected yet.";
+}
+
 function buildOpportunitiesFromProfile(profile) {
   const backendOpportunities = profile?.advisorSnapshot?.opportunities || [];
   if (Array.isArray(backendOpportunities) && backendOpportunities.length > 0) {
@@ -219,25 +309,11 @@ function buildOpportunitiesFromProfile(profile) {
   const offers = profile?.brandProductTruth?.offers || [];
   const audience = profile?.brandProductTruth?.audience || [];
 
-  if (category) {
-    opportunities.push(`Lean harder into ${category} content.`);
-  }
-
-  if (idea) {
-    opportunities.push(`Use this as an early content direction: ${idea}`);
-  }
-
-  if (offers.length > 0) {
-    opportunities.push("Turn offers and services into clearer lived-use content.");
-  }
-
-  if (audience.length > 0) {
-    opportunities.push("Speak more directly to the audience the brand already appears to serve.");
-  }
-
-  if (weakVoice) {
-    opportunities.push("Add more owner writing to strengthen founder voice consistency.");
-  }
+  if (category) opportunities.push(`Lean harder into ${category} content.`);
+  if (idea) opportunities.push(`Use this as an early content direction: ${idea}`);
+  if (offers.length > 0) opportunities.push("Turn offers and services into clearer lived-use content.");
+  if (audience.length > 0) opportunities.push("Speak more directly to the audience the brand already appears to serve.");
+  if (weakVoice) opportunities.push("Add more owner writing to strengthen founder voice consistency.");
 
   const founderGoal = getFounderGoal();
   if (founderGoal) {
@@ -247,10 +323,184 @@ function buildOpportunitiesFromProfile(profile) {
   return opportunities.slice(0, 5);
 }
 
+function buildIntelligenceSummary(profile) {
+  const trustSignals = profile?.discoveryProfile?.trustSignals || [];
+  const educationSignals = profile?.discoveryProfile?.educationSignals || [];
+  const activitySignals = profile?.discoveryProfile?.activitySignals || [];
+  const founderSignals = profile?.discoveryProfile?.founderVisibilitySignals || [];
+  const opportunities = profile?.advisorSnapshot?.opportunities || [];
+  const recommendedFocus = profile?.advisorSnapshot?.recommendedFocus || "";
+  const confidence = profile?.discoveryProfile?.sourceConfidence || "unknown";
+
+  const parts = [];
+
+  if (trustSignals.length > 0) {
+    parts.push("YEVIB found visible trust and proof signal in the current public source set.");
+  }
+
+  if (educationSignals.length > 0) {
+    parts.push("There is usable education signal that can be turned into clearer teaching and authority content.");
+  }
+
+  if (activitySignals.length > 0) {
+    parts.push("There are signs of public activity or wider ecosystem movement that the brand can surface more clearly.");
+  }
+
+  if (founderSignals.length > 0) {
+    parts.push("Founder visibility signal exists, but may still need stronger public positioning depending on the goal.");
+  }
+
+  if (opportunities.length > 0) {
+    parts.push(`The strongest current optimization direction is to ${opportunities[0].replace(/^./, (m) => m.toLowerCase())}`);
+  }
+
+  if (recommendedFocus) {
+    parts.push(`Overall, the current recommended focus is: ${recommendedFocus}`);
+  }
+
+  if (parts.length === 0) {
+    parts.push(`This scan is running on ${confidence} confidence and is still building a useful first-pass picture of the business.`);
+  }
+
+  return parts.join(" ");
+}
+
+function buildSourceBreakdown(profile) {
+  const discovery = profile?.discoveryProfile || {};
+  const channelsFound = discovery.channelsFound || {};
+  const channelCount = Object.values(channelsFound).filter(Boolean).length;
+
+  const localItems = [];
+  const globalItems = [];
+
+  if (profile?.sourceProfile?.urlUsed) localItems.push("website URL");
+  if (profile?.sourceProfile?.pastedTextUsed) localItems.push("pasted owner writing");
+  if (profile?.sourceProfile?.manualContextUsed) localItems.push("manual business context");
+
+  if (channelCount > 0) globalItems.push(`${channelCount} detected public channel${channelCount === 1 ? "" : "s"}`);
+  if ((discovery.trustSignals || []).length > 0) globalItems.push("public trust/proof signals");
+  if ((discovery.educationSignals || []).length > 0) globalItems.push("public education signals");
+  if ((discovery.activitySignals || []).length > 0) globalItems.push("public activity signals");
+  if ((discovery.founderVisibilitySignals || []).length > 0) globalItems.push("founder visibility signals");
+
+  const localScore = Math.max(localItems.length, 1);
+  const globalScore = Math.max(globalItems.length, 1);
+
+  return {
+    labels: ["Local", "Global"],
+    values: [localScore, globalScore],
+    localSummary:
+      localItems.length > 0
+        ? `This scan used local source material from ${localItems.join(", ")}.`
+        : "No strong local source inputs were detected beyond the current scan base.",
+    globalSummary:
+      globalItems.length > 0
+        ? `This scan also used wider public signal from ${globalItems.join(", ")}.`
+        : "Very limited global public signal was detected in this scan.",
+  };
+}
+
+function renderSourceSegmentSummary(segmentName) {
+  if (!sourceBreakdown) {
+    activeSourceSegmentDisplay.innerText = "None selected";
+    sourceSegmentSummary.innerText = "Scan source details will appear here after the scan.";
+    return;
+  }
+
+  activeSourceSegmentDisplay.innerText = segmentName;
+
+  if (segmentName === "Local") {
+    sourceSegmentSummary.innerText = sourceBreakdown.localSummary;
+    return;
+  }
+
+  if (segmentName === "Global") {
+    sourceSegmentSummary.innerText = sourceBreakdown.globalSummary;
+    return;
+  }
+
+  sourceSegmentSummary.innerText = "Scan source details will appear here after the scan.";
+}
+
+function renderSourceRatingChart(profile) {
+  destroySourceChart();
+
+  sourceBreakdown = buildSourceBreakdown(profile);
+  const confidence = profile?.discoveryProfile?.sourceConfidence || "unknown";
+  sourceConfidenceDisplay.innerText = confidence;
+  activeSourceSegmentDisplay.innerText = "None selected";
+  sourceSegmentSummary.innerText =
+    "Tap Local or Global in the chart to inspect that part of the scan.";
+
+  if (!sourceRatingCanvas || typeof Chart === "undefined") return;
+
+  sourceRatingChart = new Chart(sourceRatingCanvas, {
+    type: "pie",
+    data: {
+      labels: sourceBreakdown.labels,
+      datasets: [
+        {
+          data: sourceBreakdown.values,
+          borderWidth: 1,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: "bottom",
+        },
+      },
+      onClick: (event, elements) => {
+        if (!elements || elements.length === 0) return;
+        const index = elements[0].index;
+        const label = sourceBreakdown.labels[index];
+        renderSourceSegmentSummary(label);
+      },
+    },
+  });
+}
+
+function renderDiscoverySnapshot(profile) {
+  const discovery = profile?.discoveryProfile || {};
+
+  channelsDisplay.innerText = channelsToDisplay(discovery.channelsFound || {});
+  trustSignalsDisplay.innerText = toDisplayList(
+    discovery.trustSignals || [],
+    "No clear trust or proof signals were detected yet."
+  );
+  educationSignalsDisplay.innerText = toDisplayList(
+    discovery.educationSignals || [],
+    "No clear education signals were detected yet."
+  );
+  activitySignalsDisplay.innerText = toDisplayList(
+    discovery.activitySignals || [],
+    "No clear public activity signals were detected yet."
+  );
+  founderVisibilitySignalsDisplay.innerText = toDisplayList(
+    discovery.founderVisibilitySignals || [],
+    "No clear founder visibility signals were detected yet."
+  );
+
+  intelligenceSummaryDisplay.innerText = buildIntelligenceSummary(profile);
+  renderSourceRatingChart(profile);
+}
+
 function renderBrandSnapshot(profile) {
   const founderGoal = profile?.founderGoal || getFounderGoal();
+  const recommendedFocus = profile?.advisorSnapshot?.recommendedFocus || "";
 
   founderGoalDisplay.innerText = founderGoal || "No goal selected yet.";
+
+  if (recommendedFocus) {
+    recommendedFocusWrap.style.display = "block";
+    recommendedFocusDisplay.innerText = recommendedFocus;
+  } else {
+    recommendedFocusWrap.style.display = "none";
+    recommendedFocusDisplay.innerText = "";
+  }
 
   voiceSummaryDisplay.innerText =
     profile?.founderVoice?.voiceSummary || "No voice summary returned yet.";
@@ -269,6 +519,8 @@ function renderBrandSnapshot(profile) {
     buildOpportunitiesFromProfile(profile),
     "No clear opportunities detected yet."
   );
+
+  renderDiscoverySnapshot(profile);
 }
 
 async function buildInitialProfile() {
@@ -335,10 +587,8 @@ async function buildInitialProfile() {
       businessName || data.profile?.businessProfile?.name || "";
 
     document.getElementById("businessName").value = resolvedBusinessName;
-
     document.getElementById("businessSummary").value =
       data.profile?.businessProfile?.summary || "";
-
     document.getElementById("voiceInput").value =
       data.profile?.sourceProfile?.voiceSourceText || "";
 
@@ -346,6 +596,7 @@ async function buildInitialProfile() {
 
     lastWeakVoice = Boolean(data.profile?.sourceProfile?.weakVoiceSource);
     const kbMeta = data.profile?.ownerKbMeta || {};
+    const sourceConfidence = data.profile?.discoveryProfile?.sourceConfidence || "";
 
     intakeStatus.innerText = lastWeakVoice
       ? "Brand snapshot ready. Voice source is thin."
@@ -354,9 +605,12 @@ async function buildInitialProfile() {
     if (lastWeakVoice) {
       profilePrompt.innerText =
         "The scan worked, but the founder voice source is still thin. Review the snapshot first, then add more owner writing and scan again for stronger results if needed.";
+    } else if (sourceConfidence) {
+      profilePrompt.innerText =
+        `Review the brand snapshot first. Discovery confidence is ${sourceConfidence}. Open Brand Intelligence only when you want the deeper read.`;
     } else {
       profilePrompt.innerText =
-        "Review the brand snapshot first. When ready, continue to content action and generate from what YEVIB found.";
+        "Review the brand snapshot first. Open Brand Intelligence only when you want the deeper read.";
     }
 
     if (kbMeta.entryCount > 0) {
@@ -372,6 +626,10 @@ async function buildInitialProfile() {
       "Optional: choose a feeling if you want today's content to better match your current tone.";
     generatePrompt.innerText =
       "Choose the content lens you want YEVIB to generate from the brand snapshot.";
+
+    if (toggleBrandIntelligenceBtn) {
+      toggleBrandIntelligenceBtn.style.display = "inline-flex";
+    }
 
     if (continueToGenerateBtn) {
       continueToGenerateBtn.style.display = "inline-flex";
@@ -874,5 +1132,6 @@ GLOBAL RULES:
 setupFeelingButtons();
 setupSourceWatchers();
 setupContinueButton();
+setupIntelligenceDrawer();
 clearSnapshotDisplays();
 setInitialGuidance();
