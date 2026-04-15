@@ -1199,6 +1199,108 @@ function buildRecommendedFocus({
   return "Take the clearest existing business truth and turn it into one repeatable public-facing theme the brand can return to consistently.";
 }
 
+function adaptRecommendedFocusByBand(focus = "", band = "developing", founderGoal = "") {
+  const clean = String(focus || "").trim();
+  if (!clean) return "";
+
+  if (band === "weak") return clean;
+
+  const lower = clean.toLowerCase();
+  const goal = String(founderGoal || "").toLowerCase();
+
+  if (band === "strong") {
+    if (lower.includes("already has trust signal") || lower.includes("surface it more clearly")) {
+      return "Use the trust signal already present in the business more deliberately so it carries more public weight.";
+    }
+    if (lower.includes("already shows useful teaching signal")) {
+      return "Turn the teaching signal already present in the business into a stronger public advantage through clearer educational content.";
+    }
+    if (lower.includes("enough material to post from more regularly")) {
+      return "Use the strongest current theme as a repeatable weekly advantage so the business posts with more momentum and less friction.";
+    }
+    if (lower.includes("bring more founder-written language")) {
+      return "Use more founder-led language deliberately so the business feels even more distinct and human in public.";
+    }
+    if (lower.includes("tighten the public-facing language")) {
+      return "Carry the founder voice more consistently across the public-facing language so it becomes a stronger brand advantage.";
+    }
+    if (lower.includes("make the offer easier to understand")) {
+      return "Turn the already-visible offer into clearer real-life messaging so it carries more weight publicly.";
+    }
+    if (lower.includes("make the founder more visible")) {
+      return "Use the founder signal already present more deliberately so it carries more weight across the public brand.";
+    }
+    if (lower.includes("already lends itself to repeat-use content")) {
+      return "Turn the repeat-use nature of the business into a stronger public advantage through one repeatable content theme.";
+    }
+    if (lower.includes("already enough knowledge")) {
+      return "Use the knowledge already present in the business as a stronger public advantage through repeatable educational content.";
+    }
+    if (lower.includes("use the business activity that already exists")) {
+      return "Turn the business activity already present into more visible public momentum so it does more work for the brand.";
+    }
+    if (lower.includes("speak more directly to the audience")) {
+      return "Use the audience signal already present to make the public message land more clearly and carry more weight.";
+    }
+    if (lower.includes("take the clearest existing business truth")) {
+      return "Turn the clearest existing business truth into a repeatable public advantage the brand can build from consistently.";
+    }
+
+    if (/posting consistency/.test(goal)) {
+      return "Use the strongest current direction as a repeatable weekly advantage so the business posts with more consistency and less drag.";
+    }
+
+    return clean;
+  }
+
+  if (band === "developing") {
+    if (lower.includes("already has trust signal") || lower.includes("surface it more clearly")) {
+      return "Bring the trust signal already present in the business forward more clearly so it does more public work.";
+    }
+    if (lower.includes("already shows useful teaching signal")) {
+      return "Sharpen the teaching signal already present in the business into clearer educational content.";
+    }
+    if (lower.includes("enough material to post from more regularly")) {
+      return "Structure the strongest current theme into a repeatable weekly format so posting becomes easier to sustain.";
+    }
+    if (lower.includes("bring more founder-written language")) {
+      return "Bring more founder-led language forward so the business sounds more distinct in public.";
+    }
+    if (lower.includes("tighten the public-facing language")) {
+      return "Tighten the public-facing language so the founder voice carries more clearly across the business.";
+    }
+    if (lower.includes("make the offer easier to understand")) {
+      return "Sharpen how the offer is explained so its real-life value lands more clearly.";
+    }
+    if (lower.includes("make the founder more visible")) {
+      return "Strengthen how the founder shows up in the public-facing language of the brand.";
+    }
+    if (lower.includes("already lends itself to repeat-use content")) {
+      return "Build the repeat-use nature of the business into one clearer recurring content theme.";
+    }
+    if (lower.includes("already enough knowledge")) {
+      return "Turn the knowledge already present in the business into clearer educational content people can follow easily.";
+    }
+    if (lower.includes("use the business activity that already exists")) {
+      return "Make the business activity already present more visible so the brand feels more current and active.";
+    }
+    if (lower.includes("speak more directly to the audience")) {
+      return "Speak more directly to the audience already visible in the business signal so the message lands more clearly.";
+    }
+    if (lower.includes("take the clearest existing business truth")) {
+      return "Structure the clearest existing business truth into a repeatable public-facing theme.";
+    }
+
+    if (/posting consistency/.test(goal)) {
+      return "Structure the strongest current direction into a repeatable weekly format so the business posts more consistently.";
+    }
+
+    return clean;
+  }
+
+  return clean;
+}
+
 function inferAdvisorSnapshot({
   founderGoal,
   founderVoice,
@@ -1651,25 +1753,27 @@ function buildOptimizationGroup({
   }
 
   let nextMove = "";
+  const scoreAwareFocus = adaptRecommendedFocusByBand(recommendedFocus, band, founderGoal);
+
   if (band === "strong") {
-    if (recommendedFocus) {
-      nextMove = recommendedFocus.replace(/^./, (m) => m.toUpperCase());
+    if (scoreAwareFocus) {
+      nextMove = scoreAwareFocus;
     } else if (/posting consistency/i.test(founderGoal || "")) {
       nextMove = "Use the strongest current opportunity as a leverage point and turn it into a repeatable weekly advantage.";
     } else {
       nextMove = "Use the strongest current opportunity as a leverage point and turn it into a repeatable public advantage.";
     }
   } else if (band === "developing") {
-    if (recommendedFocus) {
-      nextMove = recommendedFocus;
+    if (scoreAwareFocus) {
+      nextMove = scoreAwareFocus;
     } else if (/posting consistency/i.test(founderGoal || "")) {
       nextMove = "Structure the strongest opportunity into a clearer weekly next-step direction.";
     } else {
       nextMove = "Structure the strongest opportunity into a clearer next-step direction.";
     }
   } else {
-    if (recommendedFocus) {
-      nextMove = recommendedFocus;
+    if (scoreAwareFocus) {
+      nextMove = scoreAwareFocus;
     } else if (/posting consistency/i.test(founderGoal || "")) {
       nextMove = "Clarify the next direction so the business has a more usable weekly improvement path.";
     } else {
@@ -2169,7 +2273,7 @@ MODE: HYBRID
 Use the profile as the base.
 Blend in pasted and manual inputs where useful.
 If there is conflict, prefer the user's manual wording and corrections.
-Use the founder goal, advisor snapshot, grouped snapshot scoring, and discovery profile to keep the output practical.
+Use the founder goal, advisor snapshot, grouped snapshot scoring, discovery profile to keep the output practical.
 ${base}
 `;
 }
