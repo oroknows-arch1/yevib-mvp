@@ -1046,9 +1046,12 @@ GLOBAL RULES:
 }
 
 setupFeelingButtons();
+setupLensButtons();
+setupGeneratePostsButton();
 setupSourceWatchers();
 setupContinueButton();
 setupIntelligenceDrawer();
 setupCloseSliceButton();
 clearSnapshotDisplays();
+resetGenerationState();
 setInitialGuidance();
