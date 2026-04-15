@@ -213,7 +213,7 @@ function setupFeelingButtons() {
       buttons.forEach((btn) => btn.classList.remove("is-active"));
       button.classList.add("is-active");
       selectedFeeling = button.dataset.feeling || "";
-      customFeelingInput.value = "";
+      if (customFeelingInput) customFeelingInput.value = "";
       feelingPrompt.innerText = `Feeling set: ${selectedFeeling}.`;
     });
   });
@@ -316,8 +316,41 @@ function channelsToDisplay(channels = {}) {
     : "No public channels were clearly detected yet.";
 }
 
+function normalizeGroupedSnapshot(groupedSnapshot = {}) {
+  const groupsArray = Array.isArray(groupedSnapshot?.groups) ? groupedSnapshot.groups : [];
+
+  const snapshotGroups = {
+    brandCore: groupsArray.find((group) => group?.key === "brandCore") || null,
+    marketSignal: groupsArray.find((group) => group?.key === "marketSignal") || null,
+    optimization: groupsArray.find((group) => group?.key === "optimization") || null,
+    sourceMix: groupsArray.find((group) => group?.key === "sourceMix") || null,
+  };
+
+  const overallScore = Number(groupedSnapshot?.overallScore ?? 0);
+  const overallMax = Number(groupedSnapshot?.overallMax ?? 100);
+  const overallPct = Number(groupedSnapshot?.overallPct ?? 0);
+
+  return {
+    overallScore,
+    overallMax,
+    overallPct,
+    overallStateLabel: groupedSnapshot?.overallStateLabel || "Not scanned yet",
+    overallColorKey: groupedSnapshot?.overallColorKey || "",
+    recommendedFocus: groupedSnapshot?.recommendedFocus || "",
+    groups: groupsArray,
+    snapshotGroups,
+    brandSignalState: {
+      score: overallScore,
+      max: overallMax,
+      pct: overallPct,
+      label: groupedSnapshot?.overallStateLabel || "Not scanned yet",
+      colorKey: groupedSnapshot?.overallColorKey || "",
+    },
+  };
+}
+
 function buildIntelligenceSummary(profile) {
-  const intelligenceRead = profile?.advisorSnapshot?.intelligenceRead || "";
+  const intelligenceRead = profile?.intelligenceRead || profile?.advisorSnapshot?.intelligenceRead || "";
   if (intelligenceRead) return intelligenceRead;
 
   const trustSignals = profile?.discoveryProfile?.trustSignals || [];
@@ -325,7 +358,8 @@ function buildIntelligenceSummary(profile) {
   const activitySignals = profile?.discoveryProfile?.activitySignals || [];
   const founderSignals = profile?.discoveryProfile?.founderVisibilitySignals || [];
   const opportunities = profile?.advisorSnapshot?.opportunities || [];
-  const recommendedFocus = profile?.advisorSnapshot?.recommendedFocus || "";
+  const recommendedFocus =
+    profile?.groupedSnapshot?.recommendedFocus || profile?.advisorSnapshot?.recommendedFocus || "";
   const confidence = profile?.discoveryProfile?.sourceConfidence || "unknown";
 
   const parts = [];
@@ -425,13 +459,19 @@ function renderSnapshotPie(profile) {
   destroySnapshotPieChart();
   closeActiveSlice();
 
-  const brandSignalState = profile?.groupedSnapshot?.brandSignalState || {};
-  const snapshotGroups = profile?.groupedSnapshot?.snapshotGroups || {};
+  const normalizedSnapshot = normalizeGroupedSnapshot(profile?.groupedSnapshot || {});
+  const brandSignalState = normalizedSnapshot.brandSignalState || {};
+  const snapshotGroups = normalizedSnapshot.snapshotGroups || {};
   orderedSnapshotGroups = getPieGroupOrder(snapshotGroups);
 
-  brandSignalScore.innerText = `${brandSignalState.score ?? "--"} / ${brandSignalState.max ?? 100}`;
-  brandSignalLabel.innerText = brandSignalState.label || "Not scanned yet";
-  brandSignalLabel.style.color = getColorForState(brandSignalState.colorKey);
+  if (brandSignalScore) {
+    brandSignalScore.innerText = `${brandSignalState.score ?? "--"} / ${brandSignalState.max ?? 100}`;
+  }
+
+  if (brandSignalLabel) {
+    brandSignalLabel.innerText = brandSignalState.label || "Not scanned yet";
+    brandSignalLabel.style.color = getColorForState(brandSignalState.colorKey);
+  }
 
   if (!snapshotPieCanvas || typeof Chart === "undefined" || orderedSnapshotGroups.length === 0) {
     return;
@@ -445,6 +485,11 @@ function renderSnapshotPie(profile) {
         {
           data: orderedSnapshotGroups.map((group) => group.score),
           borderWidth: 1,
+          backgroundColor: orderedSnapshotGroups.map((group) => {
+            if (group.colorKey === "green") return "#43a047";
+            if (group.colorKey === "amber") return "#fb8c00";
+            return "#e53935";
+          }),
         },
       ],
     },
@@ -470,20 +515,24 @@ function renderSnapshotPie(profile) {
 }
 
 function renderBrandSnapshot(profile) {
+  const normalizedSnapshot = normalizeGroupedSnapshot(profile?.groupedSnapshot || {});
+
   if (businessSummaryInput) {
     businessSummaryInput.value = profile?.businessProfile?.summary || "";
   }
   if (founderGoalDisplay) {
-    founderGoalDisplay.innerText = profile?.founderGoal || "No goal selected yet.";
+    founderGoalDisplay.innerText = getFounderGoal() || "No goal selected yet.";
   }
 
-  renderSnapshotPie(profile);
+  renderSnapshotPie({ ...profile, groupedSnapshot: normalizedSnapshot });
 
   voiceSummaryDisplay.innerText =
     profile?.founderVoice?.voiceSummary || "No voice summary returned yet.";
 
   recommendedFocusDisplay.innerText =
-    profile?.advisorSnapshot?.recommendedFocus || "No recommended focus returned yet.";
+    normalizedSnapshot.recommendedFocus ||
+    profile?.advisorSnapshot?.recommendedFocus ||
+    "No recommended focus returned yet.";
 
   offersDisplay.innerText = toDisplayList(
     profile?.brandProductTruth?.offers || [],
@@ -518,7 +567,11 @@ function renderBrandSnapshot(profile) {
     "No clear founder visibility signals were detected yet."
   );
 
-  intelligenceSummaryDisplay.innerText = buildIntelligenceSummary(profile);
+  intelligenceSummaryDisplay.innerText = buildIntelligenceSummary({
+    ...profile,
+    groupedSnapshot: normalizedSnapshot,
+  });
+
   if (voiceInput) {
     voiceInput.value = profile?.sourceProfile?.voiceSourceText || "";
   }
@@ -624,7 +677,7 @@ async function buildInitialProfile() {
     sourceChangedSinceBuild = false;
     updateSourceChangePrompt();
 
-    selectedFounderGoal = data.profile?.founderGoal || founderGoal;
+    selectedFounderGoal = founderGoal;
 
     renderBrandSnapshot(data.profile);
 
