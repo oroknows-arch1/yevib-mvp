@@ -13,33 +13,40 @@ const postsPrompt = document.getElementById("postsPrompt");
 
 const founderGoalInput = document.getElementById("founderGoal");
 const founderGoalDisplay = document.getElementById("founderGoalDisplay");
-const voiceSummaryDisplay = document.getElementById("voiceSummaryDisplay");
-const offersDisplay = document.getElementById("offersDisplay");
-const audienceDisplay = document.getElementById("audienceDisplay");
-const opportunitiesDisplay = document.getElementById("opportunitiesDisplay");
-const recommendedFocusDisplay = document.getElementById("recommendedFocusDisplay");
-const recommendedFocusWrap = document.getElementById("recommendedFocusWrap");
+const businessSummaryInput = document.getElementById("businessSummary");
 
-const channelsDisplay = document.getElementById("channelsDisplay");
-const trustSignalsDisplay = document.getElementById("trustSignalsDisplay");
-const educationSignalsDisplay = document.getElementById("educationSignalsDisplay");
-const activitySignalsDisplay = document.getElementById("activitySignalsDisplay");
-const founderVisibilitySignalsDisplay = document.getElementById("founderVisibilitySignalsDisplay");
-const intelligenceSummaryDisplay = document.getElementById("intelligenceSummaryDisplay");
+const brandSignalScore = document.getElementById("brandSignalScore");
+const brandSignalLabel = document.getElementById("brandSignalLabel");
+const snapshotPieCanvas = document.getElementById("snapshotPieChart");
 
-const sourceConfidenceDisplay = document.getElementById("sourceConfidenceDisplay");
-const activeSourceSegmentDisplay = document.getElementById("activeSourceSegmentDisplay");
-const sourceSegmentSummary = document.getElementById("sourceSegmentSummary");
-const sourceRatingCanvas = document.getElementById("sourceRatingChart");
+const activeSliceWrap = document.getElementById("activeSliceWrap");
+const activeSliceTitle = document.getElementById("activeSliceTitle");
+const activeSliceMeta = document.getElementById("activeSliceMeta");
+const activeSliceSummary = document.getElementById("activeSliceSummary");
+const activeSliceStrengths = document.getElementById("activeSliceStrengths");
+const activeSliceWeaknesses = document.getElementById("activeSliceWeaknesses");
+const activeSliceNextMove = document.getElementById("activeSliceNextMove");
 
 const toggleBrandIntelligenceBtn = document.getElementById("toggleBrandIntelligenceBtn");
 const brandIntelligenceDrawer = document.getElementById("brandIntelligenceDrawer");
 const continueToGenerateBtn = document.getElementById("continueToGenerateBtn");
 
+const intelligenceSummaryDisplay = document.getElementById("intelligenceSummaryDisplay");
+const voiceSummaryDisplay = document.getElementById("voiceSummaryDisplay");
+const recommendedFocusDisplay = document.getElementById("recommendedFocusDisplay");
+const offersDisplay = document.getElementById("offersDisplay");
+const audienceDisplay = document.getElementById("audienceDisplay");
+const opportunitiesDisplay = document.getElementById("opportunitiesDisplay");
+const channelsDisplay = document.getElementById("channelsDisplay");
+const trustSignalsDisplay = document.getElementById("trustSignalsDisplay");
+const educationSignalsDisplay = document.getElementById("educationSignalsDisplay");
+const activitySignalsDisplay = document.getElementById("activitySignalsDisplay");
+const founderVisibilitySignalsDisplay = document.getElementById("founderVisibilitySignalsDisplay");
+const voiceInput = document.getElementById("voiceInput");
+
 let initialProfile = null;
 let voiceProfile = null;
-let sourceRatingChart = null;
-let sourceBreakdown = null;
+let snapshotPieChart = null;
 
 let currentQuickType = "";
 let currentCategory = "";
@@ -48,7 +55,6 @@ let selectedFeeling = "";
 let selectedFounderGoal = "";
 let profileBuilt = false;
 let sourceChangedSinceBuild = false;
-let lastWeakVoice = false;
 
 const QUICK_TYPES = {
   Business: {
@@ -86,13 +92,16 @@ function scrollToSection(id, behavior = "smooth") {
 function forceSnapshotStop() {
   requestAnimationFrame(() => {
     scrollToSection("section-profile", "auto");
-    setTimeout(() => {
-      scrollToSection("section-profile", "smooth");
-    }, 120);
-    setTimeout(() => {
-      scrollToSection("section-profile", "auto");
-    }, 320);
+    setTimeout(() => scrollToSection("section-profile", "smooth"), 120);
+    setTimeout(() => scrollToSection("section-profile", "auto"), 320);
   });
+}
+
+function destroySnapshotPieChart() {
+  if (snapshotPieChart) {
+    snapshotPieChart.destroy();
+    snapshotPieChart = null;
+  }
 }
 
 function clearOutputs() {
@@ -105,59 +114,13 @@ function clearOutputs() {
   postsPrompt.innerText = "";
 }
 
-function destroySourceChart() {
-  if (sourceRatingChart) {
-    sourceRatingChart.destroy();
-    sourceRatingChart = null;
-  }
-}
-
-function clearSnapshotDisplays() {
-  founderGoalDisplay.innerText = "No goal selected yet.";
-  voiceSummaryDisplay.innerText = "Voice summary will appear here after the scan.";
-  offersDisplay.innerText = "Offers and services will appear here after the scan.";
-  audienceDisplay.innerText = "Audience clues will appear here after the scan.";
-  opportunitiesDisplay.innerText = "Opportunities will appear here after the scan.";
-  intelligenceSummaryDisplay.innerText = "Brand intelligence summary will appear here after the scan.";
-
-  recommendedFocusDisplay.innerText = "";
-  recommendedFocusWrap.style.display = "none";
-
-  channelsDisplay.innerText = "Detected channels will appear here after the scan.";
-  trustSignalsDisplay.innerText = "Trust and proof signals will appear here after the scan.";
-  educationSignalsDisplay.innerText = "Education signals will appear here after the scan.";
-  activitySignalsDisplay.innerText = "Public activity signals will appear here after the scan.";
-  founderVisibilitySignalsDisplay.innerText =
-    "Founder visibility signals will appear here after the scan.";
-
-  sourceConfidenceDisplay.innerText = "Not scanned yet";
-  activeSourceSegmentDisplay.innerText = "None selected";
-  sourceSegmentSummary.innerText = "Scan source details will appear here after the scan.";
-
-  sourceBreakdown = null;
-  destroySourceChart();
-
-  if (toggleBrandIntelligenceBtn) {
-    toggleBrandIntelligenceBtn.style.display = "none";
-    toggleBrandIntelligenceBtn.innerText = "Open Brand Intelligence";
-  }
-
-  if (brandIntelligenceDrawer) {
-    brandIntelligenceDrawer.style.display = "none";
-  }
-
-  if (continueToGenerateBtn) {
-    continueToGenerateBtn.style.display = "none";
-  }
-}
-
 function setInitialGuidance() {
   profilePrompt.innerText =
-    "Scan the business first. Review the brand snapshot before moving into content action.";
+    "Scan the business first. Review the snapshot, inspect the pie if needed, then continue.";
   feelingPrompt.innerText =
     "Optional: choose a feeling if you want today's content to better match your current tone.";
   generatePrompt.innerText =
-    "After the brand snapshot is ready, choose the content lens you want YEVIB to generate from.";
+    "Choose the content lens you want YEVIB to generate from the brand snapshot.";
 }
 
 function updateSourceChangePrompt() {
@@ -176,20 +139,16 @@ function markSourceChanged() {
 }
 
 function setupSourceWatchers() {
-  ["businessName", "businessUrl", "pastedSourceText", "manualBusinessContext", "founderGoal"].forEach(
-    (id) => {
-      const el = document.getElementById(id);
-      if (el) el.addEventListener("input", markSourceChanged);
-      if (el && el.tagName === "SELECT") {
-        el.addEventListener("change", markSourceChanged);
-      }
-    }
-  );
+  ["businessUrl", "pastedSourceText", "founderGoal"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("input", markSourceChanged);
+    el.addEventListener("change", markSourceChanged);
+  });
 }
 
 function setupContinueButton() {
   if (!continueToGenerateBtn) return;
-
   continueToGenerateBtn.addEventListener("click", () => {
     scrollToSection("section-generate");
   });
@@ -219,27 +178,19 @@ function setupFeelingButtons() {
 
   buttons.forEach((button) => {
     button.addEventListener("click", () => {
-      buttons.forEach((btn) => {
-        btn.classList.remove("is-active");
-      });
-
+      buttons.forEach((btn) => btn.classList.remove("is-active"));
       button.classList.add("is-active");
       selectedFeeling = button.dataset.feeling || "";
       customFeelingInput.value = "";
-
-      feelingPrompt.innerText = `Feeling set: ${selectedFeeling}. Now choose the content lens you want.`;
-      scrollToSection("section-generate");
+      feelingPrompt.innerText = `Feeling set: ${selectedFeeling}.`;
     });
   });
 
   customFeelingInput.addEventListener("input", () => {
     if (customFeelingInput.value.trim()) {
-      buttons.forEach((btn) => {
-        btn.classList.remove("is-active");
-      });
+      buttons.forEach((btn) => btn.classList.remove("is-active"));
       selectedFeeling = "";
-      feelingPrompt.innerText =
-        "Custom feeling added. Now choose the content lens you want.";
+      feelingPrompt.innerText = "Custom feeling added.";
     } else if (!getFeelingInput()) {
       feelingPrompt.innerText =
         "Optional: choose a feeling if you want today's content to better match your current tone.";
@@ -259,7 +210,6 @@ function getFounderGoal() {
 function getCurrentBusinessName() {
   return (
     initialProfile?.businessProfile?.name ||
-    document.getElementById("businessName").value.trim() ||
     "Your Brand"
   );
 }
@@ -267,7 +217,7 @@ function getCurrentBusinessName() {
 function getCurrentBusinessSummary() {
   return (
     initialProfile?.businessProfile?.summary ||
-    document.getElementById("businessSummary").value.trim() ||
+    businessSummaryInput.value.trim() ||
     ""
   );
 }
@@ -296,33 +246,6 @@ function channelsToDisplay(channels = {}) {
     : "No public channels were clearly detected yet.";
 }
 
-function buildOpportunitiesFromProfile(profile) {
-  const backendOpportunities = profile?.advisorSnapshot?.opportunities || [];
-  if (Array.isArray(backendOpportunities) && backendOpportunities.length > 0) {
-    return backendOpportunities.slice(0, 6);
-  }
-
-  const opportunities = [];
-  const category = profile?.contentProfile?.suggestedCategory || "";
-  const idea = profile?.contentProfile?.suggestedIdea || "";
-  const weakVoice = Boolean(profile?.sourceProfile?.weakVoiceSource);
-  const offers = profile?.brandProductTruth?.offers || [];
-  const audience = profile?.brandProductTruth?.audience || [];
-
-  if (category) opportunities.push(`Lean harder into ${category} content.`);
-  if (idea) opportunities.push(`Use this as an early content direction: ${idea}`);
-  if (offers.length > 0) opportunities.push("Turn offers and services into clearer lived-use content.");
-  if (audience.length > 0) opportunities.push("Speak more directly to the audience the brand already appears to serve.");
-  if (weakVoice) opportunities.push("Add more owner writing to strengthen founder voice consistency.");
-
-  const founderGoal = getFounderGoal();
-  if (founderGoal) {
-    opportunities.push(`Bias future content toward this founder goal: ${founderGoal}`);
-  }
-
-  return opportunities.slice(0, 5);
-}
-
 function buildIntelligenceSummary(profile) {
   const trustSignals = profile?.discoveryProfile?.trustSignals || [];
   const educationSignals = profile?.discoveryProfile?.educationSignals || [];
@@ -337,27 +260,21 @@ function buildIntelligenceSummary(profile) {
   if (trustSignals.length > 0) {
     parts.push("YEVIB found visible trust and proof signal in the current public source set.");
   }
-
   if (educationSignals.length > 0) {
     parts.push("There is usable education signal that can be turned into clearer teaching and authority content.");
   }
-
   if (activitySignals.length > 0) {
     parts.push("There are signs of public activity or wider ecosystem movement that the brand can surface more clearly.");
   }
-
   if (founderSignals.length > 0) {
     parts.push("Founder visibility signal exists, but may still need stronger public positioning depending on the goal.");
   }
-
   if (opportunities.length > 0) {
-    parts.push(`The strongest current optimization direction is to ${opportunities[0].replace(/^./, (m) => m.toLowerCase())}`);
+    parts.push(`The strongest current optimization direction is to ${String(opportunities[0]).replace(/^./, (m) => m.toLowerCase())}`);
   }
-
   if (recommendedFocus) {
     parts.push(`Overall, the current recommended focus is: ${recommendedFocus}`);
   }
-
   if (parts.length === 0) {
     parts.push(`This scan is running on ${confidence} confidence and is still building a useful first-pass picture of the business.`);
   }
@@ -365,82 +282,65 @@ function buildIntelligenceSummary(profile) {
   return parts.join(" ");
 }
 
-function buildSourceBreakdown(profile) {
-  const discovery = profile?.discoveryProfile || {};
-  const channelsFound = discovery.channelsFound || {};
-  const channelCount = Object.values(channelsFound).filter(Boolean).length;
-
-  const localItems = [];
-  const globalItems = [];
-
-  if (profile?.sourceProfile?.urlUsed) localItems.push("website URL");
-  if (profile?.sourceProfile?.pastedTextUsed) localItems.push("pasted owner writing");
-  if (profile?.sourceProfile?.manualContextUsed) localItems.push("manual business context");
-
-  if (channelCount > 0) globalItems.push(`${channelCount} detected public channel${channelCount === 1 ? "" : "s"}`);
-  if ((discovery.trustSignals || []).length > 0) globalItems.push("public trust/proof signals");
-  if ((discovery.educationSignals || []).length > 0) globalItems.push("public education signals");
-  if ((discovery.activitySignals || []).length > 0) globalItems.push("public activity signals");
-  if ((discovery.founderVisibilitySignals || []).length > 0) globalItems.push("founder visibility signals");
-
-  const localScore = Math.max(localItems.length, 1);
-  const globalScore = Math.max(globalItems.length, 1);
-
-  return {
-    labels: ["Local", "Global"],
-    values: [localScore, globalScore],
-    localSummary:
-      localItems.length > 0
-        ? `This scan used local source material from ${localItems.join(", ")}.`
-        : "No strong local source inputs were detected beyond the current scan base.",
-    globalSummary:
-      globalItems.length > 0
-        ? `This scan also used wider public signal from ${globalItems.join(", ")}.`
-        : "Very limited global public signal was detected in this scan.",
-  };
+function getColorForState(colorKey = "") {
+  if (colorKey === "green") return "#2e7d32";
+  if (colorKey === "amber") return "#b26a00";
+  return "#b42318";
 }
 
-function renderSourceSegmentSummary(segmentName) {
-  if (!sourceBreakdown) {
-    activeSourceSegmentDisplay.innerText = "None selected";
-    sourceSegmentSummary.innerText = "Scan source details will appear here after the scan.";
-    return;
-  }
-
-  activeSourceSegmentDisplay.innerText = segmentName;
-
-  if (segmentName === "Local") {
-    sourceSegmentSummary.innerText = sourceBreakdown.localSummary;
-    return;
-  }
-
-  if (segmentName === "Global") {
-    sourceSegmentSummary.innerText = sourceBreakdown.globalSummary;
-    return;
-  }
-
-  sourceSegmentSummary.innerText = "Scan source details will appear here after the scan.";
+function getPieGroupOrder(snapshotGroups = {}) {
+  return [
+    snapshotGroups.brandCore,
+    snapshotGroups.marketSignal,
+    snapshotGroups.optimization,
+    snapshotGroups.sourceMix,
+  ].filter(Boolean);
 }
 
-function renderSourceRatingChart(profile) {
-  destroySourceChart();
+function renderActiveSlice(group) {
+  if (!group) {
+    activeSliceWrap.style.display = "none";
+    return;
+  }
 
-  sourceBreakdown = buildSourceBreakdown(profile);
-  const confidence = profile?.discoveryProfile?.sourceConfidence || "unknown";
-  sourceConfidenceDisplay.innerText = confidence;
-  activeSourceSegmentDisplay.innerText = "None selected";
-  sourceSegmentSummary.innerText =
-    "Tap Local or Global in the chart to inspect that part of the scan.";
+  activeSliceWrap.style.display = "block";
+  activeSliceTitle.innerText = group.title;
+  activeSliceMeta.innerText = `${group.score} / ${group.max} • ${group.stateLabel}`;
+  activeSliceSummary.innerText = group.summary || "";
 
-  if (!sourceRatingCanvas || typeof Chart === "undefined") return;
+  activeSliceStrengths.innerText = `Strengths\n${toDisplayList(
+    group.strengths || [],
+    "No clear strengths detected yet."
+  )}`;
 
-  sourceRatingChart = new Chart(sourceRatingCanvas, {
+  activeSliceWeaknesses.innerText = `Weaknesses\n${toDisplayList(
+    group.weaknesses || [],
+    "No clear weaknesses detected yet."
+  )}`;
+
+  activeSliceNextMove.innerText = `Next move\n${group.nextMove || "No next move available yet."}`;
+}
+
+function renderSnapshotPie(profile) {
+  destroySnapshotPieChart();
+
+  const brandSignalState = profile?.groupedSnapshot?.brandSignalState || {};
+  const snapshotGroups = profile?.groupedSnapshot?.snapshotGroups || {};
+  const orderedGroups = getPieGroupOrder(snapshotGroups);
+
+  brandSignalScore.innerText = `${brandSignalState.score ?? "--"} / ${brandSignalState.max ?? 100}`;
+  brandSignalLabel.innerText = brandSignalState.label || "Not scanned yet";
+  brandSignalLabel.style.color = getColorForState(brandSignalState.colorKey);
+
+  if (!snapshotPieCanvas || typeof Chart === "undefined" || orderedGroups.length === 0) return;
+
+  snapshotPieChart = new Chart(snapshotPieCanvas, {
     type: "pie",
     data: {
-      labels: sourceBreakdown.labels,
+      labels: orderedGroups.map((group) => group.title),
       datasets: [
         {
-          data: sourceBreakdown.values,
+          data: orderedGroups.map((group) => group.score),
           borderWidth: 1,
         },
       ],
@@ -456,54 +356,26 @@ function renderSourceRatingChart(profile) {
       onClick: (event, elements) => {
         if (!elements || elements.length === 0) return;
         const index = elements[0].index;
-        const label = sourceBreakdown.labels[index];
-        renderSourceSegmentSummary(label);
+        renderActiveSlice(orderedGroups[index]);
+        setTimeout(() => {
+          activeSliceWrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }, 50);
       },
     },
   });
 }
 
-function renderDiscoverySnapshot(profile) {
-  const discovery = profile?.discoveryProfile || {};
-
-  channelsDisplay.innerText = channelsToDisplay(discovery.channelsFound || {});
-  trustSignalsDisplay.innerText = toDisplayList(
-    discovery.trustSignals || [],
-    "No clear trust or proof signals were detected yet."
-  );
-  educationSignalsDisplay.innerText = toDisplayList(
-    discovery.educationSignals || [],
-    "No clear education signals were detected yet."
-  );
-  activitySignalsDisplay.innerText = toDisplayList(
-    discovery.activitySignals || [],
-    "No clear public activity signals were detected yet."
-  );
-  founderVisibilitySignalsDisplay.innerText = toDisplayList(
-    discovery.founderVisibilitySignals || [],
-    "No clear founder visibility signals were detected yet."
-  );
-
-  intelligenceSummaryDisplay.innerText = buildIntelligenceSummary(profile);
-  renderSourceRatingChart(profile);
-}
-
 function renderBrandSnapshot(profile) {
-  const founderGoal = profile?.founderGoal || getFounderGoal();
-  const recommendedFocus = profile?.advisorSnapshot?.recommendedFocus || "";
+  businessSummaryInput.value = profile?.businessProfile?.summary || "";
+  founderGoalDisplay.innerText = profile?.founderGoal || "No goal selected yet.";
 
-  founderGoalDisplay.innerText = founderGoal || "No goal selected yet.";
-
-  if (recommendedFocus) {
-    recommendedFocusWrap.style.display = "block";
-    recommendedFocusDisplay.innerText = recommendedFocus;
-  } else {
-    recommendedFocusWrap.style.display = "none";
-    recommendedFocusDisplay.innerText = "";
-  }
+  renderSnapshotPie(profile);
 
   voiceSummaryDisplay.innerText =
     profile?.founderVoice?.voiceSummary || "No voice summary returned yet.";
+
+  recommendedFocusDisplay.innerText =
+    profile?.advisorSnapshot?.recommendedFocus || "No recommended focus returned yet.";
 
   offersDisplay.innerText = toDisplayList(
     profile?.brandProductTruth?.offers || [],
@@ -516,19 +388,73 @@ function renderBrandSnapshot(profile) {
   );
 
   opportunitiesDisplay.innerText = toDisplayList(
-    buildOpportunitiesFromProfile(profile),
+    profile?.advisorSnapshot?.opportunities || [],
     "No clear opportunities detected yet."
   );
 
-  renderDiscoverySnapshot(profile);
+  channelsDisplay.innerText = channelsToDisplay(profile?.discoveryProfile?.channelsFound || {});
+  trustSignalsDisplay.innerText = toDisplayList(
+    profile?.discoveryProfile?.trustSignals || [],
+    "No clear trust or proof signals were detected yet."
+  );
+  educationSignalsDisplay.innerText = toDisplayList(
+    profile?.discoveryProfile?.educationSignals || [],
+    "No clear education signals were detected yet."
+  );
+  activitySignalsDisplay.innerText = toDisplayList(
+    profile?.discoveryProfile?.activitySignals || [],
+    "No clear public activity signals were detected yet."
+  );
+  founderVisibilitySignalsDisplay.innerText = toDisplayList(
+    profile?.discoveryProfile?.founderVisibilitySignals || [],
+    "No clear founder visibility signals were detected yet."
+  );
+
+  intelligenceSummaryDisplay.innerText = buildIntelligenceSummary(profile);
+  voiceInput.value = profile?.sourceProfile?.voiceSourceText || "";
+}
+
+function clearSnapshotDisplays() {
+  businessSummaryInput.value = "";
+  founderGoalDisplay.innerText = "No goal selected yet.";
+  brandSignalScore.innerText = "-- / 100";
+  brandSignalLabel.innerText = "Not scanned yet";
+  brandSignalLabel.style.color = "";
+  activeSliceWrap.style.display = "none";
+
+  intelligenceSummaryDisplay.innerText = "Brand intelligence summary will appear here after the scan.";
+  voiceSummaryDisplay.innerText = "Voice summary will appear here after the scan.";
+  recommendedFocusDisplay.innerText = "Recommended focus will appear here after the scan.";
+  offersDisplay.innerText = "Offers and services will appear here after the scan.";
+  audienceDisplay.innerText = "Audience clues will appear here after the scan.";
+  opportunitiesDisplay.innerText = "Opportunities will appear here after the scan.";
+  channelsDisplay.innerText = "Detected channels will appear here after the scan.";
+  trustSignalsDisplay.innerText = "Trust and proof signals will appear here after the scan.";
+  educationSignalsDisplay.innerText = "Education signals will appear here after the scan.";
+  activitySignalsDisplay.innerText = "Public activity signals will appear here after the scan.";
+  founderVisibilitySignalsDisplay.innerText =
+    "Founder visibility signals will appear here after the scan.";
+  voiceInput.value = "";
+
+  destroySnapshotPieChart();
+
+  if (toggleBrandIntelligenceBtn) {
+    toggleBrandIntelligenceBtn.style.display = "none";
+    toggleBrandIntelligenceBtn.innerText = "Open Brand Intelligence";
+  }
+
+  if (brandIntelligenceDrawer) {
+    brandIntelligenceDrawer.style.display = "none";
+  }
+
+  if (continueToGenerateBtn) {
+    continueToGenerateBtn.style.display = "none";
+  }
 }
 
 async function buildInitialProfile() {
-  const mode = document.getElementById("generationMode").value;
-  const businessName = document.getElementById("businessName").value.trim();
   const businessUrl = document.getElementById("businessUrl").value.trim();
   const pastedSourceText = document.getElementById("pastedSourceText").value.trim();
-  const manualBusinessContext = document.getElementById("manualBusinessContext").value.trim();
   const founderGoal = getFounderGoal();
 
   clearOutputs();
@@ -536,8 +462,8 @@ async function buildInitialProfile() {
   ownerKbStatus.innerText = "";
   postsPrompt.innerText = "";
 
-  if (!businessUrl && !pastedSourceText && !manualBusinessContext) {
-    intakeStatus.innerText = "Please add at least one source before scanning.";
+  if (!businessUrl && !pastedSourceText) {
+    intakeStatus.innerText = "Please add a website URL or owner writing before scanning.";
     return;
   }
 
@@ -550,12 +476,11 @@ async function buildInitialProfile() {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        mode,
-        businessName,
-        founderGoal,
+        mode: "hybrid",
         businessUrl,
+        founderGoal,
         pastedSourceText,
-        manualBusinessContext,
+        manualBusinessContext: "",
       }),
     });
 
@@ -583,36 +508,13 @@ async function buildInitialProfile() {
 
     selectedFounderGoal = data.profile?.founderGoal || founderGoal;
 
-    const resolvedBusinessName =
-      businessName || data.profile?.businessProfile?.name || "";
-
-    document.getElementById("businessName").value = resolvedBusinessName;
-    document.getElementById("businessSummary").value =
-      data.profile?.businessProfile?.summary || "";
-    document.getElementById("voiceInput").value =
-      data.profile?.sourceProfile?.voiceSourceText || "";
-
     renderBrandSnapshot(data.profile);
 
-    lastWeakVoice = Boolean(data.profile?.sourceProfile?.weakVoiceSource);
+    intakeStatus.innerText = "Brand snapshot ready.";
+    profilePrompt.innerText =
+      "Review the summary and founder goal first. Tap the pie only if you want to inspect what is strongest or weakest.";
+
     const kbMeta = data.profile?.ownerKbMeta || {};
-    const sourceConfidence = data.profile?.discoveryProfile?.sourceConfidence || "";
-
-    intakeStatus.innerText = lastWeakVoice
-      ? "Brand snapshot ready. Voice source is thin."
-      : "Brand snapshot ready.";
-
-    if (lastWeakVoice) {
-      profilePrompt.innerText =
-        "The scan worked, but the founder voice source is still thin. Review the snapshot first, then add more owner writing and scan again for stronger results if needed.";
-    } else if (sourceConfidence) {
-      profilePrompt.innerText =
-        `Review the brand snapshot first. Discovery confidence is ${sourceConfidence}. Open Brand Intelligence only when you want the deeper read.`;
-    } else {
-      profilePrompt.innerText =
-        "Review the brand snapshot first. Open Brand Intelligence only when you want the deeper read.";
-    }
-
     if (kbMeta.entryCount > 0) {
       ownerKbStatus.innerText = `Owner KB active — ${kbMeta.entryCount} saved choice${
         kbMeta.entryCount === 1 ? "" : "s"
@@ -621,11 +523,6 @@ async function buildInitialProfile() {
       ownerKbStatus.innerText =
         "Owner KB active — no saved choices yet. It will start learning when you choose posts.";
     }
-
-    feelingPrompt.innerText =
-      "Optional: choose a feeling if you want today's content to better match your current tone.";
-    generatePrompt.innerText =
-      "Choose the content lens you want YEVIB to generate from the brand snapshot.";
 
     if (toggleBrandIntelligenceBtn) {
       toggleBrandIntelligenceBtn.style.display = "inline-flex";
@@ -649,9 +546,7 @@ async function quickGenerate(type) {
   }
 
   if (sourceChangedSinceBuild) {
-    alert(
-      "Source material changed after the last scan. Scan brand again to fully apply the new inputs."
-    );
+    alert("Inputs changed after the last scan. Scan brand again first.");
     return;
   }
 
@@ -662,7 +557,6 @@ async function quickGenerate(type) {
   }
 
   const ownerFeeling = getFeelingInput();
-
   currentQuickType = type;
   currentCategory = config.category;
   selectedPost = "";
@@ -691,7 +585,7 @@ async function quickGenerate(type) {
         founderGoal: getFounderGoal(),
         businessName: getCurrentBusinessName(),
         businessSummary: getCurrentBusinessSummary(),
-        manualVoiceInput: document.getElementById("voiceInput").value.trim(),
+        manualVoiceInput: voiceInput.value.trim(),
         voiceProfile,
         initialProfile,
       }),
@@ -741,9 +635,9 @@ async function saveOwnerChoice({ chosenPost, ownerFeeling }) {
         category: currentCategory,
         ownerFeeling: ownerFeeling || "",
         chosenPost,
-        voiceSourceText: document.getElementById("voiceInput").value.trim(),
+        voiceSourceText: voiceInput.value.trim(),
         ownerWritingSample: document.getElementById("pastedSourceText").value.trim(),
-        manualBusinessContext: document.getElementById("manualBusinessContext").value.trim(),
+        manualBusinessContext: "",
       }),
     });
 
@@ -991,13 +885,9 @@ function buildStoryPriority({ post, quickType, category, businessName }) {
       "- Panel 1 should feel like a remembered real-life moment from the post, as if the scene actually happened."
     );
   } else if (memoryCue === "late_afternoon") {
-    storyLines.push(
-      "- Include a late-afternoon work atmosphere if it fits the post."
-    );
+    storyLines.push("- Include a late-afternoon work atmosphere if it fits the post.");
   } else {
-    storyLines.push(
-      "- Panel 1 should show the clearest real-world moment implied by the post."
-    );
+    storyLines.push("- Panel 1 should show the clearest real-world moment implied by the post.");
   }
 
   if (relationshipCue) {
@@ -1013,20 +903,12 @@ function buildStoryPriority({ post, quickType, category, businessName }) {
   }
 
   if (originCue) {
-    storyLines.push(
-      `- Include one panel that shows the origin/craft side of the story: ${originCue}.`
-    );
+    storyLines.push(`- Include one panel that shows the origin/craft side of the story: ${originCue}.`);
   }
 
-  storyLines.push(
-    "- Do not jump straight to generic product marketing imagery. Start with the human story in the post, then widen outward."
-  );
-  storyLines.push(
-    "- Make the 4 panels feel like one connected narrative, not 4 random brand photos."
-  );
-  storyLines.push(
-    "- If the post contains a memory, discovery, or turning point, make that the emotional anchor of the collage."
-  );
+  storyLines.push("- Do not jump straight to generic product marketing imagery. Start with the human story in the post, then widen outward.");
+  storyLines.push("- Make the 4 panels feel like one connected narrative, not 4 random brand photos.");
+  storyLines.push("- If the post contains a memory, discovery, or turning point, make that the emotional anchor of the collage.");
 
   const narrativeSequence = `
 NARRATIVE SEQUENCE FOR THE 4 PANELS:
@@ -1057,12 +939,10 @@ function buildImagePrompt({ post, quickType, category, ownerFeeling, initialProf
 
   const businessName =
     initialProfile?.businessProfile?.name ||
-    document.getElementById("businessName").value.trim() ||
     "the business";
 
   const businessSummary =
     initialProfile?.businessProfile?.summary ||
-    document.getElementById("businessSummary").value.trim() ||
     "a real business";
 
   const audience =

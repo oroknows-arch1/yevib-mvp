@@ -30,29 +30,20 @@
         <div class="screen-head">
           <div class="step-tag">Step 1</div>
           <h2>Business Intake</h2>
-          <p>Enter the business details and give YEVIB enough source material to understand the brand properly.</p>
+          <p>Enter the minimum YEVIB needs to scan the brand properly.</p>
         </div>
 
         <div class="form-grid">
           <div class="field field-full">
-            <label for="generationMode">Build Mode</label>
-            <select id="generationMode">
-              <option value="express">Express (URL-first)</option>
-              <option value="hybrid" selected>Hybrid</option>
-              <option value="manual">Manual</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label for="businessName">Business Name</label>
+            <label for="businessUrl">Website URL</label>
             <input
-              id="businessName"
+              id="businessUrl"
               type="text"
-              placeholder="e.g. Purematcha, YEVIB, OROK"
+              placeholder="https://yourbusiness.com"
             />
           </div>
 
-          <div class="field">
+          <div class="field field-full">
             <label for="founderGoal">Founder Goal</label>
             <select id="founderGoal">
               <option value="">Select a goal</option>
@@ -66,35 +57,11 @@
           </div>
 
           <div class="field field-full">
-            <label for="businessUrl">Website URL</label>
-            <input
-              id="businessUrl"
-              type="text"
-              placeholder="https://yourbusiness.com"
-            />
-          </div>
-
-          <div class="field field-full">
-            <div class="field-note">
-              Optional: paste real writing from the owner for stronger voice results. This should be owner writing, not customer reviews.
-            </div>
-          </div>
-
-          <div class="field field-full">
             <label for="pastedSourceText">Owner Writing / Pasted Text</label>
             <textarea
               id="pastedSourceText"
               rows="8"
-              placeholder="Paste writing from the owner here..."
-            ></textarea>
-          </div>
-
-          <div class="field field-full">
-            <label for="manualBusinessContext">Manual Business Context</label>
-            <textarea
-              id="manualBusinessContext"
-              rows="4"
-              placeholder="Add business context, corrections, offers, audience notes, or anything the website may miss..."
+              placeholder="Paste real owner writing here..."
             ></textarea>
           </div>
         </div>
@@ -121,58 +88,40 @@
             <textarea id="businessSummary" rows="5" placeholder="Brand summary will appear here..."></textarea>
           </div>
 
-          <div class="snapshot-card">
+          <div class="snapshot-card snapshot-card-wide">
             <h3>Founder Goal</h3>
             <div id="founderGoalDisplay" class="snapshot-display">
               No goal selected yet.
             </div>
           </div>
 
-          <div class="snapshot-card">
-            <h3>Voice Summary</h3>
-            <div id="voiceSummaryDisplay" class="snapshot-display">
-              Voice summary will appear here after the scan.
-            </div>
-          </div>
-
-          <div class="snapshot-card snapshot-card-wide" id="recommendedFocusWrap" style="display:none;">
-            <h3>Recommended Focus</h3>
-            <div id="recommendedFocusDisplay" class="snapshot-display">
-              Recommended focus will appear here after the scan.
-            </div>
-          </div>
-
           <div class="snapshot-card snapshot-card-wide">
-            <h3>Scan Source Rating</h3>
+            <h3>Brand Signal State</h3>
+            <div id="brandSignalStateDisplay" class="signal-state-wrap">
+              <div id="brandSignalScore" class="signal-score">-- / 100</div>
+              <div id="brandSignalLabel" class="signal-label">Not scanned yet</div>
+            </div>
+
             <p class="subtle-line no-top-margin">
-              Tap a section of the chart to inspect where this scan got its signal from.
+              Tap a section of the pie to inspect that part of the brand signal.
             </p>
 
-            <div class="source-rating-wrap">
-              <div class="chart-wrap">
-                <canvas id="sourceRatingChart"></canvas>
-              </div>
-
-              <div class="source-rating-meta">
-                <div class="source-rating-item">
-                  <div class="source-rating-label">Confidence</div>
-                  <div id="sourceConfidenceDisplay" class="source-rating-value">Not scanned yet</div>
-                </div>
-
-                <div class="source-rating-item">
-                  <div class="source-rating-label">Active segment</div>
-                  <div id="activeSourceSegmentDisplay" class="source-rating-value">None selected</div>
-                </div>
-
-                <div id="sourceSegmentSummary" class="snapshot-display compact-display">
-                  Scan source details will appear here after the scan.
-                </div>
-              </div>
+            <div class="chart-wrap large-chart-wrap">
+              <canvas id="snapshotPieChart"></canvas>
             </div>
+          </div>
+
+          <div class="snapshot-card snapshot-card-wide" id="activeSliceWrap" style="display:none;">
+            <h3 id="activeSliceTitle">Snapshot Detail</h3>
+            <div id="activeSliceMeta" class="subtle-line no-top-margin"></div>
+            <div id="activeSliceSummary" class="snapshot-display compact-display"></div>
+            <div id="activeSliceStrengths" class="snapshot-display compact-display"></div>
+            <div id="activeSliceWeaknesses" class="snapshot-display compact-display"></div>
+            <div id="activeSliceNextMove" class="snapshot-display compact-display"></div>
           </div>
         </div>
 
-        <div class="action-row">
+        <div class="action-row centered-actions">
           <button
             id="toggleBrandIntelligenceBtn"
             class="secondary-btn"
@@ -180,15 +129,6 @@
             style="display:none;"
           >
             Open Brand Intelligence
-          </button>
-
-          <button
-            id="continueToGenerateBtn"
-            class="primary-btn"
-            type="button"
-            style="display:none;"
-          >
-            Continue to Content Action
           </button>
         </div>
 
@@ -203,6 +143,20 @@
               <h3>YEVIB Read</h3>
               <div id="intelligenceSummaryDisplay" class="snapshot-display">
                 Brand intelligence summary will appear here after the scan.
+              </div>
+            </div>
+
+            <div class="snapshot-card">
+              <h3>Voice Summary</h3>
+              <div id="voiceSummaryDisplay" class="snapshot-display">
+                Voice summary will appear here after the scan.
+              </div>
+            </div>
+
+            <div class="snapshot-card">
+              <h3>Recommended Focus</h3>
+              <div id="recommendedFocusDisplay" class="snapshot-display">
+                Recommended focus will appear here after the scan.
               </div>
             </div>
 
@@ -273,6 +227,17 @@
           </div>
         </div>
 
+        <div class="action-row centered-actions">
+          <button
+            id="continueToGenerateBtn"
+            class="primary-btn"
+            type="button"
+            style="display:none;"
+          >
+            Continue to Content Action
+          </button>
+        </div>
+
         <div id="profilePrompt" class="subtle-line"></div>
       </section>
 
@@ -280,15 +245,24 @@
         <div class="screen-head">
           <div class="step-tag">Step 3</div>
           <h2>Content Action</h2>
-          <p>Refine the tone if needed, then choose the type of post you want YEVIB to generate from the brand snapshot.</p>
+          <p>Choose the type of post you want YEVIB to generate from the brand snapshot.</p>
         </div>
 
         <div class="sub-block">
-          <h3>Optional: how are you feeling right now?</h3>
-          <p class="sub-block-copy">
-            This is a refinement layer, not the main starting point.
-          </p>
+          <h3>Choose the content lens</h3>
+          <div class="chip-row">
+            <button class="lens-btn" onclick="quickGenerate('Business')">Business</button>
+            <button class="lens-btn" onclick="quickGenerate('Family')">Family</button>
+            <button class="lens-btn" onclick="quickGenerate('Educational')">Educational</button>
+            <button class="lens-btn" onclick="quickGenerate('Community')">Community</button>
+            <button class="lens-btn" onclick="quickGenerate('Personal')">Personal</button>
+            <button class="lens-btn" onclick="quickGenerate('Something Real')">Something Real</button>
+          </div>
+          <div id="generatePrompt" class="subtle-line"></div>
+        </div>
 
+        <div class="sub-block">
+          <h3>Optional feeling refinement</h3>
           <div id="feelingButtons" class="chip-row">
             <button type="button" class="feeling-btn" data-feeling="Focused">Focused</button>
             <button type="button" class="feeling-btn" data-feeling="Proud">Proud</button>
@@ -306,29 +280,11 @@
             <input
               id="customFeeling"
               type="text"
-              placeholder="quietly proud, more direct, less polished, more human..."
+              placeholder="more direct, less polished, more human..."
             />
           </div>
 
           <div id="feelingPrompt" class="subtle-line"></div>
-        </div>
-
-        <div class="sub-block">
-          <h3>Choose the content lens</h3>
-          <p class="sub-block-copy">
-            These lenses shape the angle of the post while keeping the same brand voice underneath.
-          </p>
-
-          <div class="chip-row">
-            <button class="lens-btn" onclick="quickGenerate('Business')">Business</button>
-            <button class="lens-btn" onclick="quickGenerate('Family')">Family</button>
-            <button class="lens-btn" onclick="quickGenerate('Educational')">Educational</button>
-            <button class="lens-btn" onclick="quickGenerate('Community')">Community</button>
-            <button class="lens-btn" onclick="quickGenerate('Personal')">Personal</button>
-            <button class="lens-btn" onclick="quickGenerate('Something Real')">Something Real</button>
-          </div>
-
-          <div id="generatePrompt" class="subtle-line"></div>
         </div>
       </section>
 
