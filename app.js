@@ -26,6 +26,7 @@ const activeSliceSummary = document.getElementById("activeSliceSummary");
 const activeSliceStrengths = document.getElementById("activeSliceStrengths");
 const activeSliceWeaknesses = document.getElementById("activeSliceWeaknesses");
 const activeSliceNextMove = document.getElementById("activeSliceNextMove");
+const closeActiveSliceBtn = document.getElementById("closeActiveSliceBtn");
 
 const toggleBrandIntelligenceBtn = document.getElementById("toggleBrandIntelligenceBtn");
 const brandIntelligenceDrawer = document.getElementById("brandIntelligenceDrawer");
@@ -47,6 +48,8 @@ const voiceInput = document.getElementById("voiceInput");
 let initialProfile = null;
 let voiceProfile = null;
 let snapshotPieChart = null;
+let orderedSnapshotGroups = [];
+let activeSliceIndex = null;
 
 let currentQuickType = "";
 let currentCategory = "";
@@ -116,7 +119,7 @@ function clearOutputs() {
 
 function setInitialGuidance() {
   profilePrompt.innerText =
-    "Use this page as a quick glance. Tap the pie only if you want YEVIB to open up more of the scan.";
+    "Quick glance first. Tap the pie only if you want more detail before generating.";
   feelingPrompt.innerText =
     "Optional: choose a feeling if you want today's content to better match your current tone.";
   generatePrompt.innerText =
@@ -172,6 +175,13 @@ function setupIntelligenceDrawer() {
   });
 }
 
+function setupCloseSliceButton() {
+  if (!closeActiveSliceBtn) return;
+  closeActiveSliceBtn.addEventListener("click", () => {
+    closeActiveSlice();
+  });
+}
+
 function setupFeelingButtons() {
   const buttons = document.querySelectorAll(".feeling-btn");
   const customFeelingInput = document.getElementById("customFeeling");
@@ -216,6 +226,11 @@ function getCurrentBusinessSummary() {
 }
 
 function toDisplayList(items = [], fallback = "Not enough information yet.") {
+  if (!Array.isArray(items) || items.length === 0) return fallback;
+  return items.map((item) => `• ${item}`).join("\n");
+}
+
+function toParagraphList(items = [], fallback = "Not enough information yet.") {
   if (!Array.isArray(items) || items.length === 0) return fallback;
   return items.map((item) => `• ${item}`).join("\n");
 }
@@ -290,50 +305,73 @@ function getPieGroupOrder(snapshotGroups = {}) {
   ].filter(Boolean);
 }
 
+function closeActiveSlice() {
+  activeSliceIndex = null;
+  if (activeSliceWrap) {
+    activeSliceWrap.style.display = "none";
+  }
+}
+
 function renderActiveSlice(group) {
   if (!group) {
-    activeSliceWrap.style.display = "none";
+    closeActiveSlice();
     return;
   }
 
   activeSliceWrap.style.display = "block";
   activeSliceTitle.innerText = group.title;
   activeSliceMeta.innerText = `${group.score} / ${group.max} • ${group.stateLabel}`;
-  activeSliceSummary.innerText = group.summary || "";
 
-  activeSliceStrengths.innerText = `Strengths\n${toDisplayList(
+  activeSliceSummary.innerText = group.summary || "No summary available yet.";
+
+  activeSliceNextMove.innerText = group.nextMove || "No next move available yet.";
+
+  activeSliceStrengths.innerText = `Strengths\n${toParagraphList(
     group.strengths || [],
     "No clear strengths detected yet."
   )}`;
 
-  activeSliceWeaknesses.innerText = `Weaknesses\n${toDisplayList(
+  activeSliceWeaknesses.innerText = `Weaknesses\n${toParagraphList(
     group.weaknesses || [],
     "No clear weaknesses detected yet."
   )}`;
+}
 
-  activeSliceNextMove.innerText = `Next move\n${group.nextMove || "No next move available yet."}`;
+function handlePieSliceToggle(index) {
+  if (index === activeSliceIndex) {
+    closeActiveSlice();
+    return;
+  }
+
+  activeSliceIndex = index;
+  renderActiveSlice(orderedSnapshotGroups[index]);
+
+  setTimeout(() => {
+    activeSliceWrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, 60);
 }
 
 function renderSnapshotPie(profile) {
   destroySnapshotPieChart();
+  closeActiveSlice();
 
   const brandSignalState = profile?.groupedSnapshot?.brandSignalState || {};
   const snapshotGroups = profile?.groupedSnapshot?.snapshotGroups || {};
-  const orderedGroups = getPieGroupOrder(snapshotGroups);
+  orderedSnapshotGroups = getPieGroupOrder(snapshotGroups);
 
   brandSignalScore.innerText = `${brandSignalState.score ?? "--"} / ${brandSignalState.max ?? 100}`;
   brandSignalLabel.innerText = brandSignalState.label || "Not scanned yet";
   brandSignalLabel.style.color = getColorForState(brandSignalState.colorKey);
 
-  if (!snapshotPieCanvas || typeof Chart === "undefined" || orderedGroups.length === 0) return;
+  if (!snapshotPieCanvas || typeof Chart === "undefined" || orderedSnapshotGroups.length === 0) return;
 
   snapshotPieChart = new Chart(snapshotPieCanvas, {
     type: "pie",
     data: {
-      labels: orderedGroups.map((group) => group.title),
+      labels: orderedSnapshotGroups.map((group) => group.title),
       datasets: [
         {
-          data: orderedGroups.map((group) => group.score),
+          data: orderedSnapshotGroups.map((group) => group.score),
           borderWidth: 1,
         },
       ],
@@ -353,10 +391,7 @@ function renderSnapshotPie(profile) {
       onClick: (event, elements) => {
         if (!elements || elements.length === 0) return;
         const index = elements[0].index;
-        renderActiveSlice(orderedGroups[index]);
-        setTimeout(() => {
-          activeSliceWrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        }, 60);
+        handlePieSliceToggle(index);
       },
     },
   });
@@ -417,7 +452,11 @@ function clearSnapshotDisplays() {
   brandSignalScore.innerText = "-- / 100";
   brandSignalLabel.innerText = "Not scanned yet";
   brandSignalLabel.style.color = "";
-  activeSliceWrap.style.display = "none";
+  activeSliceIndex = null;
+
+  if (activeSliceWrap) {
+    activeSliceWrap.style.display = "none";
+  }
 
   intelligenceSummaryDisplay.innerText = "Brand intelligence summary will appear here after the scan.";
   voiceSummaryDisplay.innerText = "Voice summary will appear here after the scan.";
@@ -509,7 +548,7 @@ async function buildInitialProfile() {
 
     intakeStatus.innerText = "Brand snapshot ready.";
     profilePrompt.innerText =
-      "Quick glance first. Tap the pie only if you want YEVIB to open up more of the scan before generating outputs.";
+      "Review the summary and goal first. Tap the pie only if you want detail, then tap again to clear it.";
 
     const kbMeta = data.profile?.ownerKbMeta || {};
     if (kbMeta.entryCount > 0) {
@@ -1010,5 +1049,6 @@ setupFeelingButtons();
 setupSourceWatchers();
 setupContinueButton();
 setupIntelligenceDrawer();
+setupCloseSliceButton();
 clearSnapshotDisplays();
 setInitialGuidance();

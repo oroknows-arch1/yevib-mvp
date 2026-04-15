@@ -105,7 +105,7 @@
                 <div id="brandSignalLabel" class="signal-label">Not scanned yet</div>
               </div>
               <p class="subtle-line no-top-margin">
-                Tap a section of the pie to reveal that part of YEVIB’s scan.
+                Tap a section of the pie to reveal that part of YEVIB’s scan. Tap it again to close.
               </p>
             </div>
 
@@ -115,12 +115,27 @@
 
             <div id="activeSliceWrap" class="flower-detail-wrap" style="display:none;">
               <div class="flower-detail-card">
-                <h3 id="activeSliceTitle">Snapshot Detail</h3>
-                <div id="activeSliceMeta" class="subtle-line no-top-margin"></div>
-                <div id="activeSliceSummary" class="snapshot-display compact-display"></div>
-                <div id="activeSliceStrengths" class="snapshot-display compact-display"></div>
-                <div id="activeSliceWeaknesses" class="snapshot-display compact-display"></div>
-                <div id="activeSliceNextMove" class="snapshot-display compact-display"></div>
+                <div class="slice-head-row">
+                  <div>
+                    <h3 id="activeSliceTitle">Snapshot Detail</h3>
+                    <div id="activeSliceMeta" class="subtle-line no-top-margin"></div>
+                  </div>
+                  <button id="closeActiveSliceBtn" class="secondary-btn" type="button">
+                    Close
+                  </button>
+                </div>
+
+                <div id="activeSliceSummary" class="snapshot-display compact-display slice-summary-box"></div>
+
+                <div class="next-move-card">
+                  <div class="next-move-label">Best next move</div>
+                  <div id="activeSliceNextMove" class="next-move-text"></div>
+                </div>
+
+                <div class="slice-support-grid">
+                  <div id="activeSliceStrengths" class="snapshot-display compact-display slice-support-box"></div>
+                  <div id="activeSliceWeaknesses" class="snapshot-display compact-display slice-support-box"></div>
+                </div>
               </div>
             </div>
           </div>
