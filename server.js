@@ -43,6 +43,23 @@ function normalizeUrl(input) {
   return `https://${trimmed}`;
 }
 
+async function runJsonChat(prompt) {
+  const response = await openai.chat.completions.create({
+    model: "gpt-4.1-mini",
+    response_format: { type: "json_object" },
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const raw = response.choices?.[0]?.message?.content || "{}";
+
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error("JSON PARSE ERROR:", raw);
+    throw new Error("Invalid JSON returned from model.");
+  }
+}
+
 function clampNumber(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
