@@ -75,6 +75,7 @@ function normalizeStringArray(input, maxItems = 8) {
 function uniqueStrings(items = [], maxItems = 8) {
   const seen = new Set();
   const result = [];
+
   for (const item of items) {
     const text = String(item || "").trim();
     if (!text) continue;
@@ -84,6 +85,7 @@ function uniqueStrings(items = [], maxItems = 8) {
     result.push(text);
     if (result.length >= maxItems) break;
   }
+
   return result;
 }
 
@@ -116,6 +118,29 @@ function getGroupState(score = 0, max = 100) {
   if (pct >= 70) return { label: "Strong", colorKey: "green" };
   if (pct >= 40) return { label: "Developing", colorKey: "amber" };
   return { label: "Weak", colorKey: "red" };
+}
+
+function getScoreBand(score = 0, max = 100, groupKey = "") {
+  if (groupKey === "brandCore") {
+    if (score >= 21) return "strong";
+    if (score >= 12) return "developing";
+    return "weak";
+  }
+  if (groupKey === "marketSignal" || groupKey === "optimization") {
+    if (score >= 18) return "strong";
+    if (score >= 10) return "developing";
+    return "weak";
+  }
+  if (groupKey === "sourceMix") {
+    if (score >= 14) return "strong";
+    if (score >= 8) return "developing";
+    return "weak";
+  }
+
+  const pct = max > 0 ? (score / max) * 100 : 0;
+  if (pct >= 70) return "strong";
+  if (pct >= 40) return "developing";
+  return "weak";
 }
 
 function confidencePrefix(confidence = "medium") {
@@ -1283,16 +1308,22 @@ function inferAdvisorSnapshot({
 }
 
 function buildIntelligenceRead({
-  businessProfile = {},
   advisorSnapshot = {},
   discoveryProfile = {},
-  sourceProfile = {},
 }) {
   const confidence = discoveryProfile?.sourceConfidence || "medium";
   const lead = confidencePrefix(confidence);
-  const strong = pickFirst(advisorSnapshot?.strengths, "the business has at least one credible signal to build from");
-  const weak = pickFirst(advisorSnapshot?.weakPoints, "parts of the public signal are still thinner than they should be");
-  const focus = advisorSnapshot?.recommendedFocus || "clarify the strongest current business truth and use it more consistently";
+  const strong = pickFirst(
+    advisorSnapshot?.strengths,
+    "the business has at least one credible signal to build from"
+  );
+  const weak = pickFirst(
+    advisorSnapshot?.weakPoints,
+    "parts of the public signal are still thinner than they should be"
+  );
+  const focus =
+    advisorSnapshot?.recommendedFocus ||
+    "clarify the strongest current business truth and use it more consistently";
 
   const sentence1 = `${lead} that ${strong.toLowerCase()}.`;
   const sentence2 = `What looks weaker right now is that ${weak.toLowerCase()}.`;
@@ -1378,26 +1409,45 @@ function buildBrandCoreGroup({
   }
 
   score = clampNumber(score, 0, max);
+  const band = getScoreBand(score, max, "brandCore");
   const state = getGroupState(score, max);
   const lead = confidencePrefix(confidence);
+  const goal = String(founderGoal || "").toLowerCase();
 
   let summary = "";
-  if (score >= 21) {
-    summary = `${lead} a workable brand identity, a visible founder signal, and enough shape to build from confidently.`;
-  } else if (score >= 12) {
-    summary = `${lead} a recognizable brand core, but founder presence or message clarity is still not doing enough public work.`;
+  if (band === "strong") {
+    summary = `${lead} a clear brand core that is already doing useful public work. The founder signal is visible enough to be used more deliberately, not rebuilt from scratch.`;
+  } else if (band === "developing") {
+    summary = `${lead} a recognizable brand core, but founder presence or message clarity is still not carrying enough weight consistently.`;
   } else {
     summary = `${lead} only a partial brand core right now, which makes the business feel less distinct than it could.`;
   }
 
   let nextMove = "";
-  const goal = String(founderGoal || "").toLowerCase();
-  if (/founder presence/.test(goal) || weakVoice || founderLimited) {
-    nextMove = "Make the founder more visible in the public-facing language of the brand.";
-  } else if (/clarify brand voice/.test(goal)) {
-    nextMove = "Tighten the public language so the founder voice carries more clearly across the business.";
+  if (band === "strong") {
+    if (/founder presence/.test(goal) || weakVoice || founderLimited) {
+      nextMove = "Use the founder signal more deliberately so it carries more weight across the public brand.";
+    } else if (/clarify brand voice/.test(goal)) {
+      nextMove = "Carry the founder voice more consistently across the public-facing language so the brand feels even more distinct.";
+    } else {
+      nextMove = "Turn the founder-led side of the brand into an even clearer public advantage.";
+    }
+  } else if (band === "developing") {
+    if (/founder presence/.test(goal) || weakVoice || founderLimited) {
+      nextMove = "Strengthen the founder-led side of the brand so the public identity feels clearer and more consistent.";
+    } else if (/clarify brand voice/.test(goal)) {
+      nextMove = "Tighten the public language so the founder voice carries more clearly across the business.";
+    } else {
+      nextMove = "Sharpen the founder-led side of the brand so the public identity feels more legible and consistent.";
+    }
   } else {
-    nextMove = "Strengthen the founder-led side of the brand so the public identity feels more legible and consistent.";
+    if (/founder presence/.test(goal) || weakVoice || founderLimited) {
+      nextMove = "Make the founder more visible in the public-facing language of the brand.";
+    } else if (/clarify brand voice/.test(goal)) {
+      nextMove = "Clarify the public language so the founder voice is easier to recognise.";
+    } else {
+      nextMove = "Build a clearer founder-led brand core so the business feels more distinct publicly.";
+    }
   }
 
   return {
@@ -1469,28 +1519,51 @@ function buildMarketSignalGroup({
   }
 
   score = clampNumber(score, 0, max);
+  const band = getScoreBand(score, max, "marketSignal");
   const state = getGroupState(score, max);
   const lead = confidencePrefix(confidence);
+  const goal = String(founderGoal || "").toLowerCase();
 
   let summary = "";
-  if (score >= 18) {
-    summary = `${lead} enough offer, audience, and trust signal to understand how the business lands publicly.`;
-  } else if (score >= 10) {
+  if (band === "strong") {
+    summary = `${lead} enough offer, audience, and trust signal to understand how the business lands publicly. This part of the brand is already visible enough to be leveraged further.`;
+  } else if (band === "developing") {
     summary = `${lead} a developing market signal, but some of the business value is still not visible enough yet.`;
   } else {
     summary = `${lead} only a thin market signal right now, which makes the public read less clear than it should be.`;
   }
 
   let nextMove = "";
-  const goal = String(founderGoal || "").toLowerCase();
-  if (/promote products or services/.test(goal)) {
-    nextMove = "Explain the offer through real-life use and practical value instead of relying on feature description alone.";
-  } else if (/build more trust/.test(goal)) {
-    nextMove = "Bring proof, process, and standards forward so the business feels more credible at first glance.";
-  } else if (/educational/.test(goal) && educationSignals.length > 0) {
-    nextMove = "Turn the business knowledge already visible here into clearer educational content.";
+  if (band === "strong") {
+    if (/promote products or services/.test(goal)) {
+      nextMove = "Turn the already-visible offer into clearer real-world messaging so it carries more weight publicly.";
+    } else if (/build more trust/.test(goal)) {
+      nextMove = "Use the proof and standards already present here more deliberately so they carry more public weight.";
+    } else if (/educational/.test(goal) && educationSignals.length > 0) {
+      nextMove = "Leverage the existing market signal to support stronger educational content that explains why the offer matters.";
+    } else {
+      nextMove = "Make the already-visible offer do more public work by tying it more clearly to real-life value.";
+    }
+  } else if (band === "developing") {
+    if (/promote products or services/.test(goal)) {
+      nextMove = "Sharpen how the offer is explained so its real-world value lands more clearly.";
+    } else if (/build more trust/.test(goal)) {
+      nextMove = "Bring proof, process, and standards forward so the business feels more credible at first glance.";
+    } else if (/educational/.test(goal) && educationSignals.length > 0) {
+      nextMove = "Turn the business knowledge already visible here into clearer educational content.";
+    } else {
+      nextMove = "Make the offer and its real-world value easier to understand in public-facing content.";
+    }
   } else {
-    nextMove = "Make the offer and its real-world value easier to understand in public-facing content.";
+    if (/promote products or services/.test(goal)) {
+      nextMove = "Clarify the offer through practical use and plain value, not just feature description.";
+    } else if (/build more trust/.test(goal)) {
+      nextMove = "Surface proof, process, and standards more clearly so the business feels more credible quickly.";
+    } else if (/educational/.test(goal) && educationSignals.length > 0) {
+      nextMove = "Use the early educational signal here to make the offer easier to understand.";
+    } else {
+      nextMove = "Make the offer and its real-world value easier to understand in public-facing content.";
+    }
   }
 
   return {
@@ -1564,25 +1637,44 @@ function buildOptimizationGroup({
   }
 
   score = clampNumber(score, 0, max);
+  const band = getScoreBand(score, max, "optimization");
   const state = getGroupState(score, max);
   const lead = confidencePrefix(confidence);
 
   let summary = "";
-  if (score >= 18) {
-    summary = `${lead} enough business signal to give useful next-step guidance rather than only broad suggestions.`;
-  } else if (score >= 10) {
+  if (band === "strong") {
+    summary = `${lead} enough business signal to give useful next-step guidance rather than only broad suggestions. This part of the diagnosis is ready to be used as leverage, not just correction.`;
+  } else if (band === "developing") {
     summary = `${lead} some grounded direction, but parts of the diagnosis still need stronger signal underneath them.`;
   } else {
     summary = `${lead} only an early optimization read right now, so the advice is still lighter than it could be.`;
   }
 
   let nextMove = "";
-  if (recommendedFocus) {
-    nextMove = recommendedFocus;
-  } else if (/posting consistency/i.test(founderGoal || "")) {
-    nextMove = "Turn the strongest current business theme into one repeatable weekly format.";
+  if (band === "strong") {
+    if (recommendedFocus) {
+      nextMove = recommendedFocus.replace(/^./, (m) => m.toUpperCase());
+    } else if (/posting consistency/i.test(founderGoal || "")) {
+      nextMove = "Use the strongest current opportunity as a leverage point and turn it into a repeatable weekly advantage.";
+    } else {
+      nextMove = "Use the strongest current opportunity as a leverage point and turn it into a repeatable public advantage.";
+    }
+  } else if (band === "developing") {
+    if (recommendedFocus) {
+      nextMove = recommendedFocus;
+    } else if (/posting consistency/i.test(founderGoal || "")) {
+      nextMove = "Structure the strongest opportunity into a clearer weekly next-step direction.";
+    } else {
+      nextMove = "Structure the strongest opportunity into a clearer next-step direction.";
+    }
   } else {
-    nextMove = "Use the clearest current strength and make it do more visible work for the brand.";
+    if (recommendedFocus) {
+      nextMove = recommendedFocus;
+    } else if (/posting consistency/i.test(founderGoal || "")) {
+      nextMove = "Clarify the next direction so the business has a more usable weekly improvement path.";
+    } else {
+      nextMove = "Clarify the next direction so the business has a more usable improvement path.";
+    }
   }
 
   return {
@@ -1663,26 +1755,48 @@ function buildSourceMixGroup({
   }
 
   score = clampNumber(score, 0, max);
-  const state = getGroupState(score, max);
+  const band = getScoreBand(score, max, "sourceMix");
 
   let summary = "";
-  if (score >= 14) {
-    summary = "YEVIB is working from a broad enough source mix to make the current scan feel more grounded.";
-  } else if (score >= 8) {
+  if (band === "strong") {
+    summary = "YEVIB is working from a broad enough source mix to make the current scan feel more grounded. This base can now be extended for sharper reads, not just basic reliability.";
+  } else if (band === "developing") {
     summary = "The source mix is workable, but the scan would feel stronger with more direct and public signal.";
   } else {
     summary = "The current diagnosis is still constrained by a narrow source mix.";
   }
 
   let nextMove = "";
-  if (!sourceProfile?.pastedTextUsed && !hasOwnerWriting) {
-    nextMove = "Add more owner-written material so the business sounds more distinct and less inferred.";
-  } else if (!hasChannels) {
-    nextMove = "Strengthen the discoverable public footprint so YEVIB can read the business from a broader source base.";
-  } else if (/founder presence/i.test(founderGoal || "")) {
-    nextMove = "Use more founder-led public signal so the source base reflects the human side of the business better.";
+  if (band === "strong") {
+    if (!sourceProfile?.pastedTextUsed && !hasOwnerWriting) {
+      nextMove = "Extend the source base further with owner-written material so YEVIB can make even sharper reads.";
+    } else if (!hasChannels) {
+      nextMove = "Extend the discoverable public footprint so YEVIB can read the business from an even broader source base.";
+    } else if (/founder presence/i.test(founderGoal || "")) {
+      nextMove = "Use more founder-led public signal so the current source base reflects the human side of the business even better.";
+    } else {
+      nextMove = "Extend the source base further so YEVIB can make even sharper, more precise reads.";
+    }
+  } else if (band === "developing") {
+    if (!sourceProfile?.pastedTextUsed && !hasOwnerWriting) {
+      nextMove = "Add more owner-written material so the business sounds more distinct and less inferred.";
+    } else if (!hasChannels) {
+      nextMove = "Broaden the discoverable public footprint so YEVIB can read the business from a stronger source base.";
+    } else if (/founder presence/i.test(founderGoal || "")) {
+      nextMove = "Use more founder-led public signal so the source base reflects the human side of the business better.";
+    } else {
+      nextMove = "Broaden the source base so the next diagnosis carries more confidence and more precision.";
+    }
   } else {
-    nextMove = "Keep widening the source base so the next diagnosis carries more confidence and more precision.";
+    if (!sourceProfile?.pastedTextUsed && !hasOwnerWriting) {
+      nextMove = "Add more owner-written material so YEVIB has a stronger local source to work from.";
+    } else if (!hasChannels) {
+      nextMove = "Strengthen the discoverable public footprint so YEVIB can read the business from a broader source base.";
+    } else if (/founder presence/i.test(founderGoal || "")) {
+      nextMove = "Add more founder-led public signal so the source base reflects the human side of the business better.";
+    } else {
+      nextMove = "Add more direct and public signal so YEVIB can build a more reliable diagnosis.";
+    }
   }
 
   return {
@@ -2791,10 +2905,6 @@ app.post("/build-profile", async (req, res) => {
     });
 
     const intelligenceRead = buildIntelligenceRead({
-      businessProfile: {
-        name: finalBusinessName,
-        summary: sourceProfile?.businessProfile?.summary || "",
-      },
       advisorSnapshot,
       discoveryProfile,
       sourceProfile: sourceProfileData,
