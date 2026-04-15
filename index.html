@@ -262,25 +262,25 @@
       <section class="screen-card" id="section-generate">
         <div class="screen-head">
           <div class="step-tag">Step 3</div>
-          <h2>Content Action</h2>
-          <p>Choose the type of post you want YEVIB to generate from the brand snapshot.</p>
+          <h2>Generate Content</h2>
+          <p>Choose the lens first, optionally refine the tone, then generate the posts.</p>
         </div>
 
         <div class="sub-block">
-          <h3>Choose the content lens</h3>
-          <div class="chip-row">
-            <button class="lens-btn" onclick="quickGenerate('Business')">Business</button>
-            <button class="lens-btn" onclick="quickGenerate('Family')">Family</button>
-            <button class="lens-btn" onclick="quickGenerate('Educational')">Educational</button>
-            <button class="lens-btn" onclick="quickGenerate('Community')">Community</button>
-            <button class="lens-btn" onclick="quickGenerate('Personal')">Personal</button>
-            <button class="lens-btn" onclick="quickGenerate('Something Real')">Something Real</button>
+          <h3>1. Choose the lens</h3>
+          <div class="chip-row" id="lensButtons">
+            <button type="button" class="lens-btn" data-type="Business">Business</button>
+            <button type="button" class="lens-btn" data-type="Family">Family</button>
+            <button type="button" class="lens-btn" data-type="Educational">Educational</button>
+            <button type="button" class="lens-btn" data-type="Community">Community</button>
+            <button type="button" class="lens-btn" data-type="Personal">Personal</button>
+            <button type="button" class="lens-btn" data-type="Something Real">Something Real</button>
           </div>
-          <div id="generatePrompt" class="subtle-line"></div>
+          <div id="selectedLensPrompt" class="subtle-line"></div>
         </div>
 
         <div class="sub-block">
-          <h3>Optional feeling refinement</h3>
+          <h3>2. Optional feeling refinement</h3>
           <div id="feelingButtons" class="chip-row">
             <button type="button" class="feeling-btn" data-feeling="Focused">Focused</button>
             <button type="button" class="feeling-btn" data-feeling="Proud">Proud</button>
@@ -303,6 +303,16 @@
           </div>
 
           <div id="feelingPrompt" class="subtle-line"></div>
+        </div>
+
+        <div class="sub-block">
+          <h3>3. Generate</h3>
+          <div class="action-row">
+            <button id="generatePostsBtn" class="primary-btn" type="button">
+              Generate Posts
+            </button>
+          </div>
+          <div id="generatePrompt" class="subtle-line"></div>
         </div>
       </section>
 
