@@ -1,4 +1,4 @@
- require("dotenv").config();
+require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
@@ -54,6 +54,39 @@ function normalizeStringArray(input, maxItems = 6) {
 function cleanSentenceList(input, fallback = []) {
   const items = normalizeStringArray(input, 8);
   return items.length > 0 ? items : fallback;
+}
+
+function clampNumber(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function titleCase(text = "") {
+  return String(text)
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function getOverallState(score = 0) {
+  if (score >= 70) {
+    return { label: "Strong", colorKey: "green" };
+  }
+  if (score >= 40) {
+    return { label: "Developing", colorKey: "amber" };
+  }
+  return { label: "Weak", colorKey: "red" };
+}
+
+function getGroupState(score = 0, max = 100) {
+  const pct = max > 0 ? (score / max) * 100 : 0;
+  if (pct >= 70) {
+    return { label: "Strong", colorKey: "green" };
+  }
+  if (pct >= 40) {
+    return { label: "Developing", colorKey: "amber" };
+  }
+  return { label: "Weak", colorKey: "red" };
 }
 
 async function runJsonChat(prompt) {
@@ -539,7 +572,7 @@ function inferTrustSignals({ groupedPages = {}, lanes = {}, pages = [] }) {
   const signals = [];
   const productLane = lanes?.brandProductTruth || [];
   const pageText = pages
-    .map((page) => `${page?.title || ""} ${(page?.headings || []).join(" ")} ${(page?.metaDescription || "")}`)
+    .map((page) => `${page?.title || ""} ${(page?.headings || []).join(" ")} ${page?.metaDescription || ""}`)
     .join(" ")
     .toLowerCase();
   const productText = productLane.join(" ").toLowerCase();
@@ -564,7 +597,7 @@ function inferEducationSignals({ groupedPages = {}, lanes = {}, pages = [] }) {
   const signals = [];
   const productLane = lanes?.brandProductTruth || [];
   const pageText = pages
-    .map((page) => `${page?.title || ""} ${(page?.headings || []).join(" ")} ${(page?.metaDescription || "")}`)
+    .map((page) => `${page?.title || ""} ${(page?.headings || []).join(" ")} ${page?.metaDescription || ""}`)
     .join(" ")
     .toLowerCase();
   const productText = productLane.join(" ").toLowerCase();
@@ -585,7 +618,7 @@ function inferEducationSignals({ groupedPages = {}, lanes = {}, pages = [] }) {
 function inferActivitySignals({ groupedPages = {}, pages = [] }) {
   const signals = [];
   const pageText = pages
-    .map((page) => `${page?.title || ""} ${(page?.headings || []).join(" ")} ${(page?.metaDescription || "")}`)
+    .map((page) => `${page?.title || ""} ${(page?.headings || []).join(" ")} ${page?.metaDescription || ""}`)
     .join(" ")
     .toLowerCase();
 
@@ -609,7 +642,7 @@ function inferFounderVisibilitySignals({ groupedPages = {}, founderText = "", pa
   const signals = [];
   const founderLower = String(founderText || "").toLowerCase();
   const pageText = pages
-    .map((page) => `${page?.title || ""} ${(page?.headings || []).join(" ")} ${(page?.metaDescription || "")}`)
+    .map((page) => `${page?.title || ""} ${(page?.headings || []).join(" ")} ${page?.metaDescription || ""}`)
     .join(" ")
     .toLowerCase();
 
@@ -1290,6 +1323,416 @@ function inferAdvisorSnapshot({
   };
 }
 
+function buildBrandCoreGroup({
+  businessProfile = {},
+  founderGoal = "",
+  founderVoice = {},
+  sourceProfile = {},
+  discoveryProfile = {},
+}) {
+  let score = 0;
+  const max = 30;
+  const strengths = [];
+  const weaknesses = [];
+
+  const businessSummary = String(businessProfile?.summary || "").trim();
+  const voiceSummary = String(founderVoice?.voiceSummary || "").trim();
+  const weakVoice = Boolean(sourceProfile?.weakVoiceSource);
+  const founderSignals = normalizeStringArray(discoveryProfile?.founderVisibilitySignals, 6);
+  const hasFounderPage = founderSignals.some((s) => /page|story/i.test(s));
+  const hasFounderPresence = founderSignals.some((s) => /present|includes/i.test(s));
+  const founderLimited = founderSignals.some((s) => /limited/i.test(s));
+  const doRules = normalizeStringArray(founderVoice?.doRules, 6);
+
+  if (businessSummary.length >= 80) {
+    score += 8;
+    strengths.push("The brand summary is clear enough to anchor the scan.");
+  } else {
+    weaknesses.push("The core business summary is still a bit thin.");
+  }
+
+  if (voiceSummary.length >= 60 && !weakVoice) {
+    score += 8;
+    strengths.push("Founder voice is usable and gives the brand a clearer identity.");
+  } else if (voiceSummary.length >= 30) {
+    score += 4;
+    weaknesses.push("There is some voice signal, but it is not strong enough yet.");
+  } else {
+    weaknesses.push("Founder voice is still too weak or generic.");
+  }
+
+  if (String(founderGoal || "").trim()) {
+    score += 4;
+    strengths.push("The founder goal gives YEVIB a clear direction.");
+  } else {
+    weaknesses.push("No founder goal was provided, so guidance is more general.");
+  }
+
+  if (hasFounderPage || hasFounderPresence) {
+    score += 5;
+    strengths.push("Founder or story presence is visible in the public signal.");
+  } else if (founderLimited) {
+    score += 1;
+    weaknesses.push("Founder visibility appears limited in public-facing material.");
+  } else {
+    weaknesses.push("Founder visibility is not clearly surfacing yet.");
+  }
+
+  if (doRules.length >= 2) {
+    score += 5;
+    strengths.push("The brand has enough voice behavior to feel human-led.");
+  } else {
+    weaknesses.push("The brand identity still risks feeling more generic than distinct.");
+  }
+
+  score = clampNumber(score, 0, max);
+  const state = getGroupState(score, max);
+  const summary =
+    score >= 21
+      ? "YEVIB can see a usable identity, a workable voice, and enough founder-led shape to build from."
+      : score >= 12
+      ? "The brand core is developing. There is a recognizable center, but founder visibility or voice strength still needs work."
+      : "The brand core is weak right now. The business may have substance, but its human-led identity is not surfacing strongly enough yet.";
+
+  const nextMove =
+    weakVoice || founderLimited
+      ? "Strengthen founder-led language and make the human side of the brand more visible."
+      : "Keep building from the existing voice and sharpen the brand’s core message.";
+
+  return {
+    key: "brandCore",
+    title: "Brand Core",
+    score,
+    max,
+    stateLabel: state.label,
+    colorKey: state.colorKey,
+    summary,
+    strengths: cleanSentenceList(strengths, ["There is at least some core brand identity visible."]),
+    weaknesses: cleanSentenceList(weaknesses, ["The brand core still has room to become more distinct."]),
+    nextMove,
+  };
+}
+
+function buildMarketSignalGroup({
+  brandProductTruth = {},
+  customerOutcome = {},
+  discoveryProfile = {},
+}) {
+  let score = 0;
+  const max = 25;
+  const strengths = [];
+  const weaknesses = [];
+
+  const offers = normalizeStringArray(brandProductTruth?.offers, 6);
+  const audience = normalizeStringArray(brandProductTruth?.audience, 6);
+  const trustSignals = normalizeStringArray(discoveryProfile?.trustSignals, 6);
+  const educationSignals = normalizeStringArray(discoveryProfile?.educationSignals, 6);
+  const activitySignals = normalizeStringArray(discoveryProfile?.activitySignals, 6);
+  const lifeMoments = normalizeStringArray(customerOutcome?.lifeMoments, 6);
+
+  if (offers.length > 0) {
+    score += 6;
+    strengths.push("The scan can see what the business offers.");
+  } else {
+    weaknesses.push("Offer clarity is still weak in the visible source set.");
+  }
+
+  if (audience.length > 0) {
+    score += 5;
+    strengths.push("The business gives at least some audience clues.");
+  } else {
+    weaknesses.push("Audience clarity is not strong enough yet.");
+  }
+
+  if (trustSignals.length > 0) {
+    score += 5;
+    strengths.push("Trust and proof markers are visible.");
+  } else {
+    weaknesses.push("Trust signal is not surfacing strongly enough.");
+  }
+
+  if (educationSignals.length > 0) {
+    score += 4;
+    strengths.push("There is educational or process signal available.");
+  } else {
+    weaknesses.push("Education signal is limited or not well exposed.");
+  }
+
+  if (activitySignals.length > 0 || lifeMoments.length > 0) {
+    score += 5;
+    strengths.push("There are signs of real-world activity or lived-use value.");
+  } else {
+    weaknesses.push("Public activity and lived-use signal still looks thin.");
+  }
+
+  score = clampNumber(score, 0, max);
+  const state = getGroupState(score, max);
+  const summary =
+    score >= 18
+      ? "The market signal is strong enough for YEVIB to understand the offer, trust markers, and practical value reasonably well."
+      : score >= 10
+      ? "The market signal is developing. The business has some usable offer and trust signal, but parts of it are still under-surfaced."
+      : "The market signal is weak right now. YEVIB cannot yet see enough offer clarity, trust, or public value signal.";
+
+  const nextMove =
+    offers.length === 0 || audience.length === 0
+      ? "Clarify who the business serves and what it offers in more obvious real-life terms."
+      : "Use the existing offer and proof signal to create clearer public-facing value content.";
+
+  return {
+    key: "marketSignal",
+    title: "Market Signal",
+    score,
+    max,
+    stateLabel: state.label,
+    colorKey: state.colorKey,
+    summary,
+    strengths: cleanSentenceList(strengths, ["There is at least some visible market-facing signal."]),
+    weaknesses: cleanSentenceList(weaknesses, ["The market-facing signal still has visible gaps."]),
+    nextMove,
+  };
+}
+
+function buildOptimizationGroup({
+  advisorSnapshot = {},
+  contentProfile = {},
+  founderGoal = "",
+  discoveryProfile = {},
+}) {
+  let score = 0;
+  const max = 25;
+  const strengths = [];
+  const weaknesses = [];
+
+  const opportunities = normalizeStringArray(advisorSnapshot?.opportunities, 6);
+  const blindSpots = normalizeStringArray(advisorSnapshot?.blindSpots, 6);
+  const recommendedFocus = String(advisorSnapshot?.recommendedFocus || "").trim();
+  const suggestedCategory = String(contentProfile?.suggestedCategory || "").trim();
+  const suggestedIdea = String(contentProfile?.suggestedIdea || "").trim();
+  const hasDiscoverySignal =
+    normalizeStringArray(discoveryProfile?.trustSignals, 6).length > 0 ||
+    normalizeStringArray(discoveryProfile?.educationSignals, 6).length > 0 ||
+    normalizeStringArray(discoveryProfile?.activitySignals, 6).length > 0;
+
+  if (opportunities.length >= 2) {
+    score += 8;
+    strengths.push("YEVIB can identify specific content or optimization opportunities.");
+  } else if (opportunities.length === 1) {
+    score += 4;
+    weaknesses.push("There is at least one useful opportunity, but the optimization layer is still light.");
+  } else {
+    weaknesses.push("Optimization opportunities are still too generic.");
+  }
+
+  if (recommendedFocus.length >= 40) {
+    score += 6;
+    strengths.push("There is a usable recommended focus for next steps.");
+  } else {
+    weaknesses.push("Recommended focus is still weak or unclear.");
+  }
+
+  if (blindSpots.length > 0) {
+    score += 5;
+    strengths.push("YEVIB can see some underused or hidden areas of the business signal.");
+  } else {
+    weaknesses.push("Blind-spot detection is still limited.");
+  }
+
+  if (suggestedCategory || suggestedIdea) {
+    score += 3;
+    strengths.push("The scan can suggest a practical content direction.");
+  } else {
+    weaknesses.push("The content direction is not clear enough yet.");
+  }
+
+  if (String(founderGoal || "").trim() || hasDiscoverySignal) {
+    score += 3;
+    strengths.push("The optimization advice is being shaped by real scan context.");
+  } else {
+    weaknesses.push("The optimization advice is still relying on narrower context than ideal.");
+  }
+
+  score = clampNumber(score, 0, max);
+  const state = getGroupState(score, max);
+  const summary =
+    score >= 18
+      ? "YEVIB has enough substance to give useful next-step guidance rather than only generic advice."
+      : score >= 10
+      ? "The optimization layer is developing. Some grounded next moves are visible, but deeper diagnosis is still limited."
+      : "The optimization layer is weak right now. The scan still needs stronger signal before advice becomes consistently sharp.";
+
+  const nextMove =
+    opportunities.length > 0
+      ? opportunities[0]
+      : "Increase signal depth so YEVIB can move from general guidance to sharper optimization advice.";
+
+  return {
+    key: "optimization",
+    title: "Optimization",
+    score,
+    max,
+    stateLabel: state.label,
+    colorKey: state.colorKey,
+    summary,
+    strengths: cleanSentenceList(strengths, ["There is at least some optimization direction available."]),
+    weaknesses: cleanSentenceList(weaknesses, ["Optimization advice is still not as grounded as it could be."]),
+    nextMove,
+  };
+}
+
+function buildSourceMixGroup({
+  sourceProfile = {},
+  discoveryProfile = {},
+  debug = {},
+}) {
+  let score = 0;
+  const max = 20;
+  const strengths = [];
+  const weaknesses = [];
+
+  const channelsFound = discoveryProfile?.channelsFound || {};
+  const sourceConfidence = String(discoveryProfile?.sourceConfidence || "").trim().toLowerCase();
+  const pagesScanned = Number(debug?.pagesScanned || 0);
+  const hasChannels = Object.values(channelsFound).some(Boolean);
+  const broaderDiscovery =
+    (discoveryProfile?.sourcePages?.aboutPages || []).length > 0 ||
+    (discoveryProfile?.sourcePages?.blogPages || []).length > 0 ||
+    (discoveryProfile?.sourcePages?.faqPages || []).length > 0 ||
+    (discoveryProfile?.sourcePages?.reviewPages || []).length > 0 ||
+    (discoveryProfile?.sourcePages?.activityPages || []).length > 0 ||
+    (discoveryProfile?.sourcePages?.pressPages || []).length > 0 ||
+    (discoveryProfile?.sourcePages?.productPages || []).length > 0;
+
+  if (sourceProfile?.urlUsed) {
+    score += 4;
+    strengths.push("The scan has a direct website source to work from.");
+  } else {
+    weaknesses.push("No website source was available for the scan.");
+  }
+
+  if (sourceProfile?.pastedTextUsed) {
+    score += 4;
+    strengths.push("Owner writing was provided, which strengthens the local signal.");
+  } else {
+    weaknesses.push("No owner writing was provided, so some signal remains inferred.");
+  }
+
+  if (hasChannels) {
+    score += 4;
+    strengths.push("YEVIB detected at least some broader public-channel signal.");
+  } else {
+    weaknesses.push("Very little public-channel signal was detected.");
+  }
+
+  if (broaderDiscovery || pagesScanned >= 3) {
+    score += 4;
+    strengths.push("The scan reached beyond a single page and found a wider source base.");
+  } else {
+    weaknesses.push("The source base is still narrow.");
+  }
+
+  if (sourceConfidence === "high") {
+    score += 4;
+    strengths.push("The scan confidence is high.");
+  } else if (sourceConfidence === "medium") {
+    score += 2;
+    strengths.push("The scan confidence is usable, but not broad yet.");
+  } else {
+    weaknesses.push("The current scan confidence is low.");
+  }
+
+  score = clampNumber(score, 0, max);
+  const state = getGroupState(score, max);
+  const summary =
+    score >= 14
+      ? "The source mix is strong enough that YEVIB can work from both direct and discovered signal with reasonable confidence."
+      : score >= 8
+      ? "The source mix is developing. YEVIB has enough to work with, but the scan still depends on a somewhat limited source base."
+      : "The source mix is weak right now. The scan is relying on too little signal to be fully confident.";
+
+  const nextMove =
+    !sourceProfile?.pastedTextUsed
+      ? "Add more owner-written material to deepen the local signal."
+      : !hasChannels
+      ? "Strengthen discoverable public signal so the scan has more to work with."
+      : "Keep building a broader source base so the scan becomes more confident and grounded.";
+
+  return {
+    key: "sourceMix",
+    title: "Source Mix",
+    score,
+    max,
+    stateLabel: state.label,
+    colorKey: state.colorKey,
+    summary,
+    strengths: cleanSentenceList(strengths, ["There is at least some source variety behind the scan."]),
+    weaknesses: cleanSentenceList(weaknesses, ["The source base is still narrower than ideal."]),
+    nextMove,
+  };
+}
+
+function buildGroupedSnapshotScoring({
+  businessProfile = {},
+  founderGoal = "",
+  contentProfile = {},
+  sourceProfile = {},
+  founderVoice = {},
+  customerOutcome = {},
+  brandProductTruth = {},
+  discoveryProfile = {},
+  advisorSnapshot = {},
+  debug = {},
+}) {
+  const brandCore = buildBrandCoreGroup({
+    businessProfile,
+    founderGoal,
+    founderVoice,
+    sourceProfile,
+    discoveryProfile,
+  });
+
+  const marketSignal = buildMarketSignalGroup({
+    brandProductTruth,
+    customerOutcome,
+    discoveryProfile,
+  });
+
+  const optimization = buildOptimizationGroup({
+    advisorSnapshot,
+    contentProfile,
+    founderGoal,
+    discoveryProfile,
+  });
+
+  const sourceMix = buildSourceMixGroup({
+    sourceProfile,
+    discoveryProfile,
+    debug,
+  });
+
+  const totalScore = clampNumber(
+    brandCore.score + marketSignal.score + optimization.score + sourceMix.score,
+    0,
+    100
+  );
+  const overall = getOverallState(totalScore);
+
+  return {
+    brandSignalState: {
+      score: totalScore,
+      max: 100,
+      label: overall.label,
+      colorKey: overall.colorKey,
+    },
+    snapshotGroups: {
+      brandCore,
+      marketSignal,
+      optimization,
+      sourceMix,
+    },
+  };
+}
+
 const voiceAgentPrompt = (input) => `
 You are a Brand Voice Agent.
 
@@ -1509,6 +1952,13 @@ function buildGenerationContext({
     (initialProfile?.discoveryProfile?.founderVisibilitySignals || []).join(", ") ||
     "Not detected";
 
+  const brandSignalState = initialProfile?.groupedSnapshot?.brandSignalState || {};
+  const snapshotGroups = initialProfile?.groupedSnapshot?.snapshotGroups || {};
+
+  const groupSummary = Object.values(snapshotGroups)
+    .map((group) => `${group.title}: ${group.score}/${group.max}`)
+    .join(", ") || "Not scored";
+
   const base = `
 PROFILE CONTEXT:
 - Business name: ${profileName}
@@ -1519,6 +1969,8 @@ PROFILE CONTEXT:
 - Customer life moments: ${customerMoments}
 - Customer outcomes: ${customerOutcomes}
 - Founder priorities: ${founderBeliefs}
+- Brand Signal State: ${brandSignalState.score || "Not scored"}/${brandSignalState.max || 100} (${brandSignalState.label || "Unknown"})
+- Snapshot groups: ${groupSummary}
 - Detected public channels: ${channelsSummary}
 - Trust signals detected: ${trustSignals}
 - Education signals detected: ${educationSignals}
@@ -1549,7 +2001,7 @@ MODE: EXPRESS
 Use founder voice lane as the tone anchor.
 Use customer outcome lane for real-life effects.
 Use brand/product truth lane for factual grounding.
-Use the advisor snapshot, discovery profile, and founder goal to make the output more useful.
+Use the advisor snapshot, grouped snapshot scoring, discovery profile, and founder goal to make the output more useful.
 Only use manual or pasted inputs as fallback or refinement.
 ${base}
 `;
@@ -1560,7 +2012,7 @@ ${base}
 MODE: MANUAL
 Use manual and pasted inputs as primary truth.
 Use profile/URL context only as fallback.
-Use the founder goal, advisor snapshot, and discovery profile to keep the output practical.
+Use the founder goal, advisor snapshot, grouped snapshot scoring, and discovery profile to keep the output practical.
 ${base}
 `;
   }
@@ -1570,7 +2022,7 @@ MODE: HYBRID
 Use the profile as the base.
 Blend in pasted and manual inputs where useful.
 If there is conflict, prefer the user's manual wording and corrections.
-Use the founder goal, advisor snapshot, and discovery profile to keep the output practical.
+Use the founder goal, advisor snapshot, grouped snapshot scoring, and discovery profile to keep the output practical.
 ${base}
 `;
 }
@@ -1694,7 +2146,7 @@ function getLensRules({ quickType = "", category = "", weakVoice = false }) {
     lensRules += `
 - The available voice sample is weak or thin, so rely more heavily on this lens
 - Increase contrast between this lens and the others
-- Use the business summary, product truth, advisor snapshot, discovery profile, and owner role as stronger anchors than the thin voice sample
+- Use the business summary, product truth, advisor snapshot, grouped snapshot scoring, discovery profile, and owner role as stronger anchors than the thin voice sample
 - Make the difference in angle obvious without changing the speaker
 `;
   }
@@ -2304,6 +2756,27 @@ app.post("/build-profile", async (req, res) => {
       discoveryProfile,
     });
 
+    const debug = {
+      pagesScanned: laneGather?.pages?.length || 0,
+      discoveredLinks: laneGather?.allDiscoveredLinks?.length || 0,
+    };
+
+    const groupedSnapshot = buildGroupedSnapshotScoring({
+      businessProfile: {
+        name: finalBusinessName,
+        summary: sourceProfile?.businessProfile?.summary || "",
+      },
+      founderGoal,
+      contentProfile,
+      sourceProfile: sourceProfileData,
+      founderVoice: safeFounderVoice,
+      customerOutcome,
+      brandProductTruth,
+      discoveryProfile,
+      advisorSnapshot,
+      debug,
+    });
+
     const profile = {
       businessProfile: {
         name: finalBusinessName,
@@ -2321,11 +2794,9 @@ app.post("/build-profile", async (req, res) => {
       brandProductTruth,
       discoveryProfile,
       advisorSnapshot,
+      groupedSnapshot,
       ownerKbMeta: getBusinessKbMeta(finalBusinessName),
-      debug: {
-        pagesScanned: laneGather?.pages?.length || 0,
-        discoveredLinks: laneGather?.allDiscoveredLinks?.length || 0,
-      },
+      debug,
     };
 
     res.json({ profile });
@@ -2336,7 +2807,7 @@ app.post("/build-profile", async (req, res) => {
 });
 
 app.post("/analyze-voice", async (req, res) => {
-  const { input } = req.body;
+  const { input } = req.body || {};
 
   try {
     const profile = await runJsonChat(voiceAgentPrompt(clipText(input, 5000)));
@@ -2557,6 +3028,13 @@ ADVISOR RULE:
 - Help the business say what it is not yet saying clearly enough
 - Where possible, make the output feel like it closes a real business gap
 
+SNAPSHOT RULE:
+- Use the grouped Snapshot scoring to understand where the brand signal is strongest and weakest
+- If Brand Core is weak, write with more care around identity and founder presence
+- If Market Signal is weak, make the offer and practical value easier to understand
+- If Optimization is weak, keep the output more grounded and directly useful
+- If Source Mix is weak, avoid overclaiming what the business is doing publicly
+
 DISCOVERY RULE:
 - Use the discovered public signals where useful
 - If there are trust, activity, education, or founder-visibility signals, let them improve relevance
@@ -2631,7 +3109,7 @@ IMPORTANT:
 - Product truth should keep the content accurate, not make it sound like a brochure
 - Manual mode should follow manual and pasted inputs most closely
 - Hybrid mode should combine both cleanly
-- If the voice sample is thin, rely harder on the lens, advisor snapshot, discovery profile, and business truth
+- If the voice sample is thin, rely harder on the lens, advisor snapshot, grouped snapshot scoring, discovery profile, and business truth
 
 AVOID:
 - generic motivation clichés
@@ -2683,7 +3161,7 @@ ${extraCategoryRule}
 });
 
 app.post("/generate-image", async (req, res) => {
-  const { imagePrompt } = req.body;
+  const { imagePrompt } = req.body || {};
 
   try {
     const hardenedPrompt = `
