@@ -43,7 +43,11 @@ function normalizeUrl(input) {
   return `https://${trimmed}`;
 }
 
-function normalizeStringArray(input, maxItems = 6) {
+function clampNumber(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function normalizeStringArray(input, maxItems = 8) {
   if (!Array.isArray(input)) return [];
   return input
     .map((item) => String(item || "").trim())
@@ -51,59 +55,62 @@ function normalizeStringArray(input, maxItems = 6) {
     .slice(0, maxItems);
 }
 
-function cleanSentenceList(input, fallback = []) {
-  const items = normalizeStringArray(input, 8);
-  return items.length > 0 ? items : fallback;
+function uniqueStrings(items = [], maxItems = 8) {
+  const seen = new Set();
+  const result = [];
+  for (const item of items) {
+    const text = String(item || "").trim();
+    if (!text) continue;
+    const key = text.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(text);
+    if (result.length >= maxItems) break;
+  }
+  return result;
 }
 
-function clampNumber(value, min, max) {
-  return Math.max(min, Math.min(max, value));
+function sentenceCase(text = "") {
+  const cleaned = String(text || "").trim();
+  if (!cleaned) return "";
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
 
-function titleCase(text = "") {
-  return String(text)
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+function ensureSentence(text = "") {
+  const cleaned = String(text || "").trim();
+  if (!cleaned) return "";
+  if (/[.!?]$/.test(cleaned)) return cleaned;
+  return `${cleaned}.`;
+}
+
+function pickFirst(items = [], fallback = "") {
+  const clean = normalizeStringArray(items, 1);
+  return clean[0] || fallback;
 }
 
 function getOverallState(score = 0) {
-  if (score >= 70) {
-    return { label: "Strong", colorKey: "green" };
-  }
-  if (score >= 40) {
-    return { label: "Developing", colorKey: "amber" };
-  }
+  if (score >= 70) return { label: "Strong", colorKey: "green" };
+  if (score >= 40) return { label: "Developing", colorKey: "amber" };
   return { label: "Weak", colorKey: "red" };
 }
 
 function getGroupState(score = 0, max = 100) {
   const pct = max > 0 ? (score / max) * 100 : 0;
-  if (pct >= 70) {
-    return { label: "Strong", colorKey: "green" };
-  }
-  if (pct >= 40) {
-    return { label: "Developing", colorKey: "amber" };
-  }
+  if (pct >= 70) return { label: "Strong", colorKey: "green" };
+  if (pct >= 40) return { label: "Developing", colorKey: "amber" };
   return { label: "Weak", colorKey: "red" };
 }
 
-async function runJsonChat(prompt) {
-  const response = await openai.chat.completions.create({
-    model: "gpt-4.1-mini",
-    response_format: { type: "json_object" },
-    messages: [{ role: "user", content: prompt }],
-  });
+function confidencePrefix(confidence = "medium") {
+  if (confidence === "high") return "YEVIB can see";
+  if (confidence === "low") return "The current scan suggests";
+  return "YEVIB can reasonably infer";
+}
 
-  const raw = response.choices?.[0]?.message?.content || "{}";
-
-  try {
-    return JSON.parse(raw);
-  } catch (err) {
-    console.error("JSON PARSE ERROR:", raw);
-    throw new Error("Invalid JSON returned from model.");
-  }
+function confidenceActionLead(confidence = "medium") {
+  if (confidence === "high") return "The strongest current direction is to";
+  if (confidence === "low") return "A sensible next step would be to";
+  return "The most useful next move is to";
 }
 
 function ensureOwnerKbFile() {
@@ -374,30 +381,12 @@ function extractSocialLinks(links = []) {
   for (const link of links) {
     const href = String(link?.href || "").toLowerCase();
 
-    if (!result.instagram && href.includes("instagram.com")) {
-      result.instagram = link.href;
-      continue;
-    }
-    if (!result.facebook && href.includes("facebook.com")) {
-      result.facebook = link.href;
-      continue;
-    }
-    if (!result.tiktok && href.includes("tiktok.com")) {
-      result.tiktok = link.href;
-      continue;
-    }
-    if (!result.youtube && (href.includes("youtube.com") || href.includes("youtu.be"))) {
-      result.youtube = link.href;
-      continue;
-    }
-    if (!result.x && (href.includes("x.com") || href.includes("twitter.com"))) {
-      result.x = link.href;
-      continue;
-    }
-    if (!result.linkedin && href.includes("linkedin.com")) {
-      result.linkedin = link.href;
-      continue;
-    }
+    if (!result.instagram && href.includes("instagram.com")) result.instagram = link.href;
+    else if (!result.facebook && href.includes("facebook.com")) result.facebook = link.href;
+    else if (!result.tiktok && href.includes("tiktok.com")) result.tiktok = link.href;
+    else if (!result.youtube && (href.includes("youtube.com") || href.includes("youtu.be"))) result.youtube = link.href;
+    else if (!result.x && (href.includes("x.com") || href.includes("twitter.com"))) result.x = link.href;
+    else if (!result.linkedin && href.includes("linkedin.com")) result.linkedin = link.href;
   }
 
   return result;
@@ -510,13 +499,7 @@ function isPressPage(link = {}) {
 
 function isProductPage(link = {}) {
   const text = classifyLinkText(link);
-  return /shop|product|products|service|services|collection|collections|menu|catalog|store/.test(
-    text
-  );
-}
-
-function limitGroupedLinks(links = [], maxItems = 5) {
-  return dedupeLinksByHref(links, maxItems).slice(0, maxItems);
+  return /shop|product|products|service|services|collection|collections|menu|catalog|store/.test(text);
 }
 
 function groupDiscoveredPages(links = []) {
@@ -540,153 +523,11 @@ function groupDiscoveredPages(links = []) {
     if (isProductPage(link)) grouped.productPages.push(link);
   }
 
-  return {
-    aboutPages: limitGroupedLinks(grouped.aboutPages),
-    blogPages: limitGroupedLinks(grouped.blogPages),
-    faqPages: limitGroupedLinks(grouped.faqPages),
-    reviewPages: limitGroupedLinks(grouped.reviewPages),
-    activityPages: limitGroupedLinks(grouped.activityPages),
-    pressPages: limitGroupedLinks(grouped.pressPages),
-    productPages: limitGroupedLinks(grouped.productPages),
-  };
-}
-
-function dedupeStrings(strings = [], maxItems = 5) {
-  const seen = new Set();
-  const result = [];
-
-  for (const item of strings) {
-    const text = String(item || "").trim();
-    if (!text) continue;
-    const key = text.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    result.push(text);
-    if (result.length >= maxItems) break;
+  for (const key of Object.keys(grouped)) {
+    grouped[key] = dedupeLinksByHref(grouped[key], 5);
   }
 
-  return result;
-}
-
-function inferTrustSignals({ groupedPages = {}, lanes = {}, pages = [] }) {
-  const signals = [];
-  const productLane = lanes?.brandProductTruth || [];
-  const pageText = pages
-    .map((page) => `${page?.title || ""} ${(page?.headings || []).join(" ")} ${page?.metaDescription || ""}`)
-    .join(" ")
-    .toLowerCase();
-  const productText = productLane.join(" ").toLowerCase();
-
-  if ((groupedPages.aboutPages || []).length > 0) {
-    signals.push("Founder/about page detected.");
-  }
-  if ((groupedPages.reviewPages || []).length > 0) {
-    signals.push("Review or testimonial pages were detected.");
-  }
-  if (/organic|traditional|sourced|origin|quality|process|craft|standard|certified|ceremonial/.test(productText)) {
-    signals.push("Visible product/process truth is present.");
-  }
-  if (/organic|traditional|sourced|origin|quality|process|craft|standard|certified|ceremonial/.test(pageText)) {
-    signals.push("Origin or sourcing language appears on the site.");
-  }
-
-  return dedupeStrings(signals);
-}
-
-function inferEducationSignals({ groupedPages = {}, lanes = {}, pages = [] }) {
-  const signals = [];
-  const productLane = lanes?.brandProductTruth || [];
-  const pageText = pages
-    .map((page) => `${page?.title || ""} ${(page?.headings || []).join(" ")} ${page?.metaDescription || ""}`)
-    .join(" ")
-    .toLowerCase();
-  const productText = productLane.join(" ").toLowerCase();
-
-  if ((groupedPages.faqPages || []).length > 0) {
-    signals.push("FAQ/help content is present.");
-  }
-  if ((groupedPages.blogPages || []).length > 0) {
-    signals.push("Blog or article content appears to exist.");
-  }
-  if (/how to|benefits|faq|guide|learn|ritual|what is|why it matters|process|brewing|preparation/.test(pageText + " " + productText)) {
-    signals.push("The site contains educational product or process language.");
-  }
-
-  return dedupeStrings(signals);
-}
-
-function inferActivitySignals({ groupedPages = {}, pages = [] }) {
-  const signals = [];
-  const pageText = pages
-    .map((page) => `${page?.title || ""} ${(page?.headings || []).join(" ")} ${page?.metaDescription || ""}`)
-    .join(" ")
-    .toLowerCase();
-
-  if ((groupedPages.activityPages || []).length > 0) {
-    signals.push("Activity or collaboration-related pages were detected.");
-  }
-  if ((groupedPages.pressPages || []).length > 0) {
-    signals.push("Press or media-style pages were detected.");
-  }
-  if ((groupedPages.blogPages || []).length > 0) {
-    signals.push("News or journal content suggests ongoing public activity.");
-  }
-  if (/event|workshop|community|collab|partner|stockist|featured|press|media/.test(pageText)) {
-    signals.push("Public activity signals appear somewhere in the site ecosystem.");
-  }
-
-  return dedupeStrings(signals);
-}
-
-function inferFounderVisibilitySignals({ groupedPages = {}, founderText = "", pages = [] }) {
-  const signals = [];
-  const founderLower = String(founderText || "").toLowerCase();
-  const pageText = pages
-    .map((page) => `${page?.title || ""} ${(page?.headings || []).join(" ")} ${page?.metaDescription || ""}`)
-    .join(" ")
-    .toLowerCase();
-
-  if ((groupedPages.aboutPages || []).length > 0) {
-    signals.push("Founder/story pages were detected.");
-  }
-  if (/we started|our story|why we started|founder|i started|we believe/.test(founderLower)) {
-    signals.push("Founder voice appears present in the source material.");
-  }
-  if (!founderText || founderText.length < 180) {
-    signals.push("Founder visibility appears limited in the current public sources.");
-  }
-  if (/founder|our story|why we started|about/.test(pageText)) {
-    signals.push("The public site includes at least some founder or story signal.");
-  }
-
-  return dedupeStrings(signals);
-}
-
-function inferSourceConfidence({
-  channelsFound = {},
-  groupedPages = {},
-  pagesScanned = 0,
-}) {
-  let score = 0;
-
-  if (pagesScanned > 0) score += 1;
-  if ((groupedPages.aboutPages || []).length > 0) score += 1;
-  if ((groupedPages.productPages || []).length > 0) score += 1;
-  if (Object.values(channelsFound).some(Boolean)) score += 1;
-  if (
-    (groupedPages.blogPages || []).length > 0 ||
-    (groupedPages.faqPages || []).length > 0 ||
-    (groupedPages.reviewPages || []).length > 0 ||
-    (groupedPages.activityPages || []).length > 0 ||
-    (groupedPages.pressPages || []).length > 0
-  ) {
-    score += 1;
-  }
-  if (pagesScanned >= 3) score += 1;
-
-  if (score >= 4) return "high";
-  if (score >= 2) return "medium";
-  return "low";
+  return grouped;
 }
 
 function extractWebsiteData(html, url) {
@@ -813,19 +654,11 @@ function scoreFounderBlock(text = "") {
   if (/\bwe\b|\bour\b/.test(lower)) score += 1;
   if (looksLikeTestimonial(lower)) score -= 12;
 
-  if (
-    /i bought|i tried|my husband|highly recommend|worth the price|shipping|5 stars|review/i.test(
-      lower
-    )
-  ) {
+  if (/i bought|i tried|my husband|highly recommend|worth the price|shipping|5 stars|review/i.test(lower)) {
     score -= 10;
   }
 
-  if (
-    /exclusive access|new releases|promotions|instant alerts|order status|tracking at a glance|subscribe/i.test(
-      lower
-    )
-  ) {
+  if (/exclusive access|new releases|promotions|instant alerts|order status|tracking at a glance|subscribe/i.test(lower)) {
     score -= 10;
   }
 
@@ -848,11 +681,7 @@ function scoreCustomerBlock(text = "") {
 
   if (looksLikeTestimonial(lower)) score += 5;
 
-  if (
-    /our mission|we started|we believe|our story|founder|our goal|our vision|why we started/i.test(
-      lower
-    )
-  ) {
+  if (/our mission|we started|we believe|our story|founder|our goal|our vision|why we started/i.test(lower)) {
     score -= 5;
   }
 
@@ -1118,6 +947,112 @@ function isWeakVoiceSource(text = "") {
   return false;
 }
 
+function inferTrustSignals({ groupedPages = {}, lanes = {}, pages = [] }) {
+  const signals = [];
+  const productLane = lanes?.brandProductTruth || [];
+  const pageText = pages
+    .map((page) => `${page?.title || ""} ${(page?.headings || []).join(" ")} ${page?.metaDescription || ""}`)
+    .join(" ")
+    .toLowerCase();
+  const productText = productLane.join(" ").toLowerCase();
+
+  if ((groupedPages.aboutPages || []).length > 0) signals.push("Founder or about page is publicly visible");
+  if ((groupedPages.reviewPages || []).length > 0) signals.push("Review or testimonial pages were detected");
+  if (/organic|traditional|sourced|origin|quality|process|craft|standard|certified|ceremonial/.test(productText)) {
+    signals.push("Product or process truth appears in the source material");
+  }
+  if (/organic|traditional|sourced|origin|quality|process|craft|standard|certified|ceremonial/.test(pageText)) {
+    signals.push("Origin or sourcing language appears on the public site");
+  }
+
+  return uniqueStrings(signals, 5);
+}
+
+function inferEducationSignals({ groupedPages = {}, lanes = {}, pages = [] }) {
+  const signals = [];
+  const productLane = lanes?.brandProductTruth || [];
+  const pageText = pages
+    .map((page) => `${page?.title || ""} ${(page?.headings || []).join(" ")} ${page?.metaDescription || ""}`)
+    .join(" ")
+    .toLowerCase();
+  const productText = productLane.join(" ").toLowerCase();
+
+  if ((groupedPages.faqPages || []).length > 0) signals.push("FAQ or help content is present");
+  if ((groupedPages.blogPages || []).length > 0) signals.push("Blog or article content appears to exist");
+  if (/how to|benefits|faq|guide|learn|ritual|what is|why it matters|process|brewing|preparation/.test(pageText + " " + productText)) {
+    signals.push("Educational or process-based language is already present");
+  }
+
+  return uniqueStrings(signals, 5);
+}
+
+function inferActivitySignals({ groupedPages = {}, pages = [] }) {
+  const signals = [];
+  const pageText = pages
+    .map((page) => `${page?.title || ""} ${(page?.headings || []).join(" ")} ${page?.metaDescription || ""}`)
+    .join(" ")
+    .toLowerCase();
+
+  if ((groupedPages.activityPages || []).length > 0) signals.push("Activity or collaboration pages were detected");
+  if ((groupedPages.pressPages || []).length > 0) signals.push("Press or media pages were detected");
+  if ((groupedPages.blogPages || []).length > 0) signals.push("News or journal content suggests ongoing public activity");
+  if (/event|workshop|community|collab|partner|stockist|featured|press|media/.test(pageText)) {
+    signals.push("The public site shows signs of wider ecosystem activity");
+  }
+
+  return uniqueStrings(signals, 5);
+}
+
+function inferFounderVisibilitySignals({ groupedPages = {}, founderText = "", pages = [] }) {
+  const signals = [];
+  const founderLower = String(founderText || "").toLowerCase();
+  const pageText = pages
+    .map((page) => `${page?.title || ""} ${(page?.headings || []).join(" ")} ${page?.metaDescription || ""}`)
+    .join(" ")
+    .toLowerCase();
+
+  if ((groupedPages.aboutPages || []).length > 0) signals.push("Founder or story pages were detected");
+  if (/we started|our story|why we started|founder|i started|we believe/.test(founderLower)) {
+    signals.push("Founder voice appears in the current source material");
+  }
+  if (!founderText || founderText.length < 180) {
+    signals.push("Founder presence is still limited in the current public signal");
+  }
+  if (/founder|our story|why we started|about/.test(pageText)) {
+    signals.push("The public site carries at least some founder or story signal");
+  }
+
+  return uniqueStrings(signals, 5);
+}
+
+function inferSourceConfidence({
+  channelsFound = {},
+  groupedPages = {},
+  pagesScanned = 0,
+  hasOwnerWriting = false,
+}) {
+  let score = 0;
+
+  if (pagesScanned > 0) score += 1;
+  if ((groupedPages.aboutPages || []).length > 0) score += 1;
+  if ((groupedPages.productPages || []).length > 0) score += 1;
+  if (Object.values(channelsFound).some(Boolean)) score += 1;
+  if (hasOwnerWriting) score += 1;
+  if (
+    (groupedPages.blogPages || []).length > 0 ||
+    (groupedPages.faqPages || []).length > 0 ||
+    (groupedPages.reviewPages || []).length > 0 ||
+    (groupedPages.activityPages || []).length > 0 ||
+    (groupedPages.pressPages || []).length > 0
+  ) {
+    score += 1;
+  }
+
+  if (score >= 5) return "high";
+  if (score >= 3) return "medium";
+  return "low";
+}
+
 function buildVoiceInstructions(profile) {
   if (!profile) {
     return `
@@ -1161,6 +1096,67 @@ ${(profile.dontRules || []).map((r) => `- ${r}`).join("\n")}
 `;
 }
 
+function buildRecommendedFocus({
+  founderGoal = "",
+  contentProfile = {},
+  discoveryProfile = {},
+  brandProductTruth = {},
+  customerOutcome = {},
+  sourceProfile = {},
+}) {
+  const goal = String(founderGoal || "").toLowerCase();
+  const category = String(contentProfile?.suggestedCategory || "");
+  const offers = normalizeStringArray(brandProductTruth?.offers, 5);
+  const audience = normalizeStringArray(brandProductTruth?.audience, 5);
+  const lifeMoments = normalizeStringArray(customerOutcome?.lifeMoments, 5);
+  const weakVoice = Boolean(sourceProfile?.weakVoiceSource);
+  const trustSignals = normalizeStringArray(discoveryProfile?.trustSignals, 5);
+  const educationSignals = normalizeStringArray(discoveryProfile?.educationSignals, 5);
+  const activitySignals = normalizeStringArray(discoveryProfile?.activitySignals, 5);
+
+  if (/posting consistency/.test(goal)) {
+    return "The business already has enough material to post from more regularly. Turn the strongest current theme into one repeatable weekly format.";
+  }
+  if (/clarify brand voice/.test(goal)) {
+    return weakVoice
+      ? "Bring more founder-written language into the public brand so the business sounds more distinct and less generic."
+      : "Tighten the public-facing language so the founder voice carries more clearly across the business.";
+  }
+  if (/educational/.test(goal)) {
+    return educationSignals.length > 0
+      ? "The business already shows useful teaching signal. Turn that into clearer educational content that explains why the work matters."
+      : "Use product truth and process detail to create simple educational content the audience can learn from quickly.";
+  }
+  if (/trust/.test(goal)) {
+    return trustSignals.length > 0
+      ? "The business already has trust signal. Surface it more clearly so it does more public work."
+      : "Make standards, proof, and process more visible so the business feels more credible faster.";
+  }
+  if (/promote products or services/.test(goal)) {
+    return offers.length > 0
+      ? "Make the offer easier to understand through real-life use cases instead of relying on feature description alone."
+      : "Clarify the offer in practical terms so people can understand what the business does and why it matters.";
+  }
+  if (/founder presence/.test(goal)) {
+    return "Make the founder more visible in the public-facing language of the brand so the business feels more human-led and memorable.";
+  }
+
+  if (category === "Everyday Ritual" || lifeMoments.length > 0) {
+    return "Your business already lends itself to repeat-use content. Turn that into one steady content theme built around real daily use.";
+  }
+  if (educationSignals.length > 0) {
+    return "There is already enough knowledge in the business to support clearer educational content. Turn that into a repeatable public asset.";
+  }
+  if (activitySignals.length > 0) {
+    return "Use the business activity that already exists and make it more visible so the brand feels more active and current.";
+  }
+  if (audience.length > 0) {
+    return "Speak more directly to the audience the business already appears to serve so the public signal becomes more legible.";
+  }
+
+  return "Take the clearest existing business truth and turn it into one repeatable public-facing theme the brand can return to consistently.";
+}
+
 function inferAdvisorSnapshot({
   founderGoal,
   founderVoice,
@@ -1168,6 +1164,7 @@ function inferAdvisorSnapshot({
   customerOutcome,
   sourceProfile,
   discoveryProfile,
+  contentProfile,
 }) {
   const offers = normalizeStringArray(brandProductTruth?.offers, 6);
   const audience = normalizeStringArray(brandProductTruth?.audience, 6);
@@ -1176,17 +1173,11 @@ function inferAdvisorSnapshot({
   const outcomes = normalizeStringArray(customerOutcome?.valueOutcomes, 6);
   const doRules = normalizeStringArray(founderVoice?.doRules, 6);
   const weakVoice = Boolean(sourceProfile?.weakVoiceSource);
-  const suggestedCategory = sourceProfile?.suggestedCategory || "";
-  const suggestedIdea = sourceProfile?.suggestedIdea || "";
-  const goal = String(founderGoal || "").trim();
 
   const trustSignals = normalizeStringArray(discoveryProfile?.trustSignals, 6);
   const educationSignals = normalizeStringArray(discoveryProfile?.educationSignals, 6);
   const activitySignals = normalizeStringArray(discoveryProfile?.activitySignals, 6);
-  const founderVisibilitySignals = normalizeStringArray(
-    discoveryProfile?.founderVisibilitySignals,
-    6
-  );
+  const founderVisibilitySignals = normalizeStringArray(discoveryProfile?.founderVisibilitySignals, 6);
   const channelsFound = discoveryProfile?.channelsFound || {};
   const hasChannels = Object.values(channelsFound).some(Boolean);
 
@@ -1195,132 +1186,116 @@ function inferAdvisorSnapshot({
   const blindSpots = [];
   const opportunities = [];
 
-  if (facts.length > 0) strengths.push("The brand appears to have real product or service substance behind it.");
-  if (offers.length > 0) strengths.push("There is enough offer signal to create clearer lived-use and value-led content.");
-  if (audience.length > 0) strengths.push("The business already gives useful clues about who it serves.");
+  if (facts.length > 0) strengths.push("The business has real product or service substance that can be turned into public signal");
+  if (offers.length > 0) strengths.push("The offer is clear enough to support stronger value-led content");
+  if (audience.length > 0) strengths.push("The audience is visible enough to shape more direct communication");
   if (lifeMoments.length > 0 || outcomes.length > 0) {
-    strengths.push("There are practical customer use cases that can be turned into stronger everyday content.");
+    strengths.push("There are real-world use cues that can make the content more believable");
   }
   if (doRules.length > 0 && !weakVoice) {
-    strengths.push("There is enough founder voice signal to keep the content human-led rather than generic.");
+    strengths.push("There is enough founder voice to keep the brand human-led rather than generic");
   }
   if (trustSignals.length > 0) {
-    strengths.push("There are visible trust or proof markers in the current public sources.");
+    strengths.push("The business already has trust markers that can do more public work");
   }
   if (educationSignals.length > 0) {
-    strengths.push("The public source set suggests there is knowledge that can be turned into educational content.");
+    strengths.push("There is teaching value in the business that can become stronger educational content");
   }
   if (hasChannels) {
-    strengths.push("The business has at least some detectable public-channel footprint beyond the core website.");
+    strengths.push("The business has at least some visible footprint beyond the website");
   }
 
-  if (weakVoice) weakPoints.push("Founder voice is still thin, so the brand risks sounding more product-led than person-led.");
-  if (offers.length === 0) weakPoints.push("The scan could not detect enough clear offers or services from the current source material.");
-  if (audience.length === 0) weakPoints.push("The audience is not being signalled clearly enough yet.");
-  if (lifeMoments.length === 0) weakPoints.push("The business is not showing enough lived-use moments on the current source material.");
-  if (!hasChannels) weakPoints.push("The public ecosystem currently visible to YEVIB looks limited outside the website.");
+  if (weakVoice) weakPoints.push("Founder voice is still too thin, so the public brand risks sounding more product-led than person-led");
+  if (offers.length === 0) weakPoints.push("The offer is not yet clear enough in the current source set");
+  if (audience.length === 0) weakPoints.push("Audience signal is still too weak to guide communication confidently");
+  if (lifeMoments.length === 0) weakPoints.push("The business is not yet showing enough real-life use signal");
+  if (!hasChannels) weakPoints.push("The public footprint still looks narrow outside the website");
   if (founderVisibilitySignals.some((s) => /limited/i.test(s))) {
-    weakPoints.push("Founder visibility still appears limited in the public-facing brand signal.");
+    weakPoints.push("Founder presence is still not doing enough visible work in public");
   }
 
-  if (weakVoice) blindSpots.push("The founder may have more signal and perspective than the current website is showing.");
+  if (weakVoice) blindSpots.push("The founder may have more perspective than the public-facing brand currently shows");
   if (offers.length > 0 && lifeMoments.length === 0) {
-    blindSpots.push("The business may explain what it is, but not enough about how it fits into real life.");
+    blindSpots.push("The business may explain what it is, but not yet where it fits in everyday life");
   }
   if (audience.length > 0 && outcomes.length === 0) {
-    blindSpots.push("The brand may know who it serves, but not yet be showing enough proof of the change it creates.");
+    blindSpots.push("The brand may know who it serves, but not yet show enough visible proof of the result");
   }
-  if (facts.length > 0 && !/Standards and Care|Everyday Ritual|Product in Real Life/i.test(suggestedCategory)) {
-    blindSpots.push("There may be underused standards, process, or craft content hidden inside the business.");
+  if (facts.length > 0) {
+    blindSpots.push("There may be more standards, process, or product truth available than the public brand is currently using");
   }
   if (activitySignals.length > 0) {
-    blindSpots.push("There may be public activity signal that is not yet being turned into clear content or positioning.");
-  }
-  if (educationSignals.length > 0 && (discoveryProfile?.sourcePages?.blogPages || []).length === 0) {
-    blindSpots.push("The business appears to have educational substance even if it is not yet organized into a clear content system.");
+    blindSpots.push("The business appears more active than its current public presentation suggests");
   }
 
-  if (suggestedCategory) {
-    opportunities.push(`Build a repeatable content pillar around ${suggestedCategory}.`);
-  }
-  if (suggestedIdea) {
-    opportunities.push(`Use this as a strong early content direction: ${suggestedIdea}`);
-  }
-  if (offers.length > 0) {
-    opportunities.push("Turn offers and services into clearer lived-use, educational, and proof-based content.");
-  }
-  if (audience.length > 0) {
-    opportunities.push("Speak more directly to the audience the brand already appears to serve.");
+  if (facts.length > 0) {
+    opportunities.push("Turn the strongest product or service truth into clearer public-facing content");
   }
   if (lifeMoments.length > 0) {
-    opportunities.push("Use real customer-life moments as stronger post openings and not just product description.");
-  }
-  if (weakVoice) {
-    opportunities.push("Add more founder-written material so the brand can sound more human-led and distinct.");
+    opportunities.push("Use real customer-life situations as stronger content openings");
   }
   if (trustSignals.length > 0) {
-    opportunities.push("Surface existing trust and proof signals faster so they do more work for the brand.");
+    opportunities.push("Bring trust and proof signal forward so it carries more weight publicly");
   }
   if (educationSignals.length > 0) {
-    opportunities.push("Turn detected knowledge and explanation signal into a clearer educational content system.");
+    opportunities.push("Convert existing knowledge into clearer educational content");
   }
   if (activitySignals.length > 0) {
-    opportunities.push("Convert public activity and collaboration signals into stronger visible brand momentum.");
+    opportunities.push("Make visible business activity do more public work for the brand");
   }
-  if (hasChannels) {
-    opportunities.push("Use the wider public channel footprint to create a more connected brand story.");
-  }
-
-  if (/posting consistency/i.test(goal)) {
-    opportunities.push("Create a tighter recurring post system so the business is easier to keep active each week.");
-  } else if (/clarify brand voice/i.test(goal)) {
-    opportunities.push("Sharpen founder language and reduce generic product-first phrasing.");
-  } else if (/educational/i.test(goal)) {
-    opportunities.push("Turn facts, process, and common questions into clearer educational content.");
-  } else if (/trust/i.test(goal)) {
-    opportunities.push("Lean harder into proof, standards, process, and behind-the-scenes credibility.");
-  } else if (/promote products or services/i.test(goal)) {
-    opportunities.push("Make the offer easier to understand in real-life use, not just by listing features.");
-  } else if (/founder presence/i.test(goal)) {
-    opportunities.push("Increase founder-led reflections, decisions, and first-hand business perspective.");
+  if (weakVoice) {
+    opportunities.push("Add more founder-led language so the business feels more distinct and human");
   }
 
-  let recommendedFocus = "Strengthen the brand snapshot and use it to generate more relevant content.";
-  if (/posting consistency/i.test(goal)) {
-    recommendedFocus = "Build a repeatable weekly content rhythm from the strongest detected business themes.";
-  } else if (/clarify brand voice/i.test(goal)) {
-    recommendedFocus = "Strengthen founder-led voice so the brand sounds more distinct and less generic.";
-  } else if (/educational/i.test(goal)) {
-    recommendedFocus = "Turn product truth and process into simpler educational content that teaches while selling.";
-  } else if (/trust/i.test(goal)) {
-    recommendedFocus = "Use standards, process, and practical proof to make the business feel more credible.";
-  } else if (/promote products or services/i.test(goal)) {
-    recommendedFocus = "Make the offer clearer in lived-use terms so people understand why it matters faster.";
-  } else if (/founder presence/i.test(goal)) {
-    recommendedFocus = "Bring the founder forward so the business feels more human, distinct, and trustworthy.";
-  } else if (activitySignals.length > 0) {
-    recommendedFocus = "Turn existing public activity and brand signal into a more obvious, better-organized content advantage.";
-  } else if (educationSignals.length > 0) {
-    recommendedFocus = "Organize the brand’s existing knowledge into clearer educational and trust-building content.";
-  } else if (weakVoice) {
-    recommendedFocus = "Strengthen founder voice and make the business feel more human-led.";
-  }
+  const recommendedFocus = buildRecommendedFocus({
+    founderGoal,
+    contentProfile,
+    discoveryProfile,
+    brandProductTruth,
+    customerOutcome,
+    sourceProfile,
+  });
 
   return {
-    strengths: cleanSentenceList(strengths, [
-      "The business shows at least some real substance that can be turned into stronger content.",
-    ]),
-    weakPoints: cleanSentenceList(weakPoints, [
-      "The current source material still leaves some business and communication gaps.",
-    ]),
-    blindSpots: cleanSentenceList(blindSpots, [
-      "There may be underused business signal that is not yet being turned into content clearly enough.",
-    ]),
-    opportunities: cleanSentenceList(opportunities, [
-      "Turn the strongest business truths into clearer, more repeatable content directions.",
-    ]),
+    strengths: uniqueStrings(strengths, 5),
+    weakPoints: uniqueStrings(weakPoints, 5),
+    blindSpots: uniqueStrings(blindSpots, 5),
+    opportunities: uniqueStrings(opportunities, 5),
     recommendedFocus,
   };
+}
+
+function buildIntelligenceRead({
+  businessProfile = {},
+  advisorSnapshot = {},
+  discoveryProfile = {},
+  sourceProfile = {},
+}) {
+  const confidence = discoveryProfile?.sourceConfidence || "medium";
+  const lead = confidencePrefix(confidence);
+  const strong = pickFirst(advisorSnapshot?.strengths, "the business has at least one credible signal to build from");
+  const weak = pickFirst(advisorSnapshot?.weakPoints, "parts of the public signal are still thinner than they should be");
+  const focus = advisorSnapshot?.recommendedFocus || "clarify the strongest current business truth and use it more consistently";
+
+  const sentence1 = `${lead} that ${strong.toLowerCase()}.`;
+  const sentence2 = `What looks weaker right now is that ${weak.toLowerCase()}.`;
+  const sentence3 = `${confidenceActionLead(confidence)} ${focus.replace(/\.$/, "").toLowerCase()}.`;
+
+  return `${sentence1} ${sentence2} ${sentence3}`;
+}
+
+function qualitySentenceList(items = [], maxItems = 3) {
+  return uniqueStrings(
+    normalizeStringArray(items, maxItems).map((item) => ensureSentence(sentenceCase(item))),
+    maxItems
+  );
+}
+
+function limitWeaknesses(items = [], maxItems = 2) {
+  return uniqueStrings(
+    normalizeStringArray(items, maxItems).map((item) => ensureSentence(sentenceCase(item))),
+    maxItems
+  );
 }
 
 function buildBrandCoreGroup({
@@ -1340,64 +1315,73 @@ function buildBrandCoreGroup({
   const weakVoice = Boolean(sourceProfile?.weakVoiceSource);
   const founderSignals = normalizeStringArray(discoveryProfile?.founderVisibilitySignals, 6);
   const hasFounderPage = founderSignals.some((s) => /page|story/i.test(s));
-  const hasFounderPresence = founderSignals.some((s) => /present|includes/i.test(s));
   const founderLimited = founderSignals.some((s) => /limited/i.test(s));
   const doRules = normalizeStringArray(founderVoice?.doRules, 6);
+  const confidence = discoveryProfile?.sourceConfidence || "medium";
 
   if (businessSummary.length >= 80) {
     score += 8;
-    strengths.push("The brand summary is clear enough to anchor the scan.");
+    strengths.push("The business identity is clear enough to anchor the scan");
   } else {
-    weaknesses.push("The core business summary is still a bit thin.");
+    weaknesses.push("The core business story is still too thin");
   }
 
   if (voiceSummary.length >= 60 && !weakVoice) {
     score += 8;
-    strengths.push("Founder voice is usable and gives the brand a clearer identity.");
+    strengths.push("Founder voice is strong enough to make the brand feel more distinct");
   } else if (voiceSummary.length >= 30) {
     score += 4;
-    weaknesses.push("There is some voice signal, but it is not strong enough yet.");
+    weaknesses.push("There is some founder voice, but it is not yet carrying enough weight");
   } else {
-    weaknesses.push("Founder voice is still too weak or generic.");
+    weaknesses.push("Founder voice is still too weak or too generic");
   }
 
   if (String(founderGoal || "").trim()) {
     score += 4;
-    strengths.push("The founder goal gives YEVIB a clear direction.");
+    strengths.push("The founder goal gives the scan a clear direction");
   } else {
-    weaknesses.push("No founder goal was provided, so guidance is more general.");
+    weaknesses.push("The scan is working without a clear founder goal");
   }
 
-  if (hasFounderPage || hasFounderPresence) {
+  if (hasFounderPage) {
     score += 5;
-    strengths.push("Founder or story presence is visible in the public signal.");
+    strengths.push("Founder or story pages are visible publicly");
   } else if (founderLimited) {
     score += 1;
-    weaknesses.push("Founder visibility appears limited in public-facing material.");
+    weaknesses.push("Founder presence is still limited in the public-facing brand");
   } else {
-    weaknesses.push("Founder visibility is not clearly surfacing yet.");
+    weaknesses.push("Founder visibility is not yet clear enough");
   }
 
   if (doRules.length >= 2) {
     score += 5;
-    strengths.push("The brand has enough voice behavior to feel human-led.");
+    strengths.push("The brand already carries some founder-led behavior in its language");
   } else {
-    weaknesses.push("The brand identity still risks feeling more generic than distinct.");
+    weaknesses.push("The public brand still risks sounding more generic than founder-led");
   }
 
   score = clampNumber(score, 0, max);
   const state = getGroupState(score, max);
-  const summary =
-    score >= 21
-      ? "YEVIB can see a usable identity, a workable voice, and enough founder-led shape to build from."
-      : score >= 12
-      ? "The brand core is developing. There is a recognizable center, but founder visibility or voice strength still needs work."
-      : "The brand core is weak right now. The business may have substance, but its human-led identity is not surfacing strongly enough yet.";
+  const lead = confidencePrefix(confidence);
 
-  const nextMove =
-    weakVoice || founderLimited
-      ? "Strengthen founder-led language and make the human side of the brand more visible."
-      : "Keep building from the existing voice and sharpen the brand’s core message.";
+  let summary = "";
+  if (score >= 21) {
+    summary = `${lead} a workable brand identity, a visible founder signal, and enough shape to build from confidently.`;
+  } else if (score >= 12) {
+    summary = `${lead} a recognizable brand core, but founder presence or message clarity is still not doing enough public work.`;
+  } else {
+    summary = `${lead} only a partial brand core right now, which makes the business feel less distinct than it could.`;
+  }
+
+  let nextMove = "";
+  const goal = String(founderGoal || "").toLowerCase();
+  if (/founder presence/.test(goal) || weakVoice || founderLimited) {
+    nextMove = "Make the founder more visible in the public-facing language of the brand.";
+  } else if (/clarify brand voice/.test(goal)) {
+    nextMove = "Tighten the public language so the founder voice carries more clearly across the business.";
+  } else {
+    nextMove = "Strengthen the founder-led side of the brand so the public identity feels more legible and consistent.";
+  }
 
   return {
     key: "brandCore",
@@ -1406,14 +1390,15 @@ function buildBrandCoreGroup({
     max,
     stateLabel: state.label,
     colorKey: state.colorKey,
-    summary,
-    strengths: cleanSentenceList(strengths, ["There is at least some core brand identity visible."]),
-    weaknesses: cleanSentenceList(weaknesses, ["The brand core still has room to become more distinct."]),
-    nextMove,
+    summary: ensureSentence(summary),
+    strengths: qualitySentenceList(strengths, 3),
+    weaknesses: limitWeaknesses(weaknesses, 2),
+    nextMove: ensureSentence(nextMove),
   };
 }
 
 function buildMarketSignalGroup({
+  founderGoal = "",
   brandProductTruth = {},
   customerOutcome = {},
   discoveryProfile = {},
@@ -1429,55 +1414,67 @@ function buildMarketSignalGroup({
   const educationSignals = normalizeStringArray(discoveryProfile?.educationSignals, 6);
   const activitySignals = normalizeStringArray(discoveryProfile?.activitySignals, 6);
   const lifeMoments = normalizeStringArray(customerOutcome?.lifeMoments, 6);
+  const confidence = discoveryProfile?.sourceConfidence || "medium";
 
   if (offers.length > 0) {
     score += 6;
-    strengths.push("The scan can see what the business offers.");
+    strengths.push("The offer is visible enough to work with");
   } else {
-    weaknesses.push("Offer clarity is still weak in the visible source set.");
+    weaknesses.push("The offer is not yet clear enough in public-facing material");
   }
 
   if (audience.length > 0) {
     score += 5;
-    strengths.push("The business gives at least some audience clues.");
+    strengths.push("The audience is legible enough to shape clearer messaging");
   } else {
-    weaknesses.push("Audience clarity is not strong enough yet.");
+    weaknesses.push("Audience signal is still too weak");
   }
 
   if (trustSignals.length > 0) {
     score += 5;
-    strengths.push("Trust and proof markers are visible.");
+    strengths.push("Trust and proof markers are already present");
   } else {
-    weaknesses.push("Trust signal is not surfacing strongly enough.");
+    weaknesses.push("Trust signal is still too hidden or too thin");
   }
 
   if (educationSignals.length > 0) {
     score += 4;
-    strengths.push("There is educational or process signal available.");
+    strengths.push("The business has educational signal it can use more clearly");
   } else {
-    weaknesses.push("Education signal is limited or not well exposed.");
+    weaknesses.push("Educational signal is not yet clearly surfaced");
   }
 
   if (activitySignals.length > 0 || lifeMoments.length > 0) {
     score += 5;
-    strengths.push("There are signs of real-world activity or lived-use value.");
+    strengths.push("There are enough real-world cues to make the brand feel believable");
   } else {
-    weaknesses.push("Public activity and lived-use signal still looks thin.");
+    weaknesses.push("The public brand still lacks enough real-world context");
   }
 
   score = clampNumber(score, 0, max);
   const state = getGroupState(score, max);
-  const summary =
-    score >= 18
-      ? "The market signal is strong enough for YEVIB to understand the offer, trust markers, and practical value reasonably well."
-      : score >= 10
-      ? "The market signal is developing. The business has some usable offer and trust signal, but parts of it are still under-surfaced."
-      : "The market signal is weak right now. YEVIB cannot yet see enough offer clarity, trust, or public value signal.";
+  const lead = confidencePrefix(confidence);
 
-  const nextMove =
-    offers.length === 0 || audience.length === 0
-      ? "Clarify who the business serves and what it offers in more obvious real-life terms."
-      : "Use the existing offer and proof signal to create clearer public-facing value content.";
+  let summary = "";
+  if (score >= 18) {
+    summary = `${lead} enough offer, audience, and trust signal to understand how the business lands publicly.`;
+  } else if (score >= 10) {
+    summary = `${lead} a developing market signal, but some of the business value is still not visible enough yet.`;
+  } else {
+    summary = `${lead} only a thin market signal right now, which makes the public read less clear than it should be.`;
+  }
+
+  let nextMove = "";
+  const goal = String(founderGoal || "").toLowerCase();
+  if (/promote products or services/.test(goal)) {
+    nextMove = "Explain the offer through real-life use and practical value instead of relying on feature description alone.";
+  } else if (/build more trust/.test(goal)) {
+    nextMove = "Bring proof, process, and standards forward so the business feels more credible at first glance.";
+  } else if (/educational/.test(goal) && educationSignals.length > 0) {
+    nextMove = "Turn the business knowledge already visible here into clearer educational content.";
+  } else {
+    nextMove = "Make the offer and its real-world value easier to understand in public-facing content.";
+  }
 
   return {
     key: "marketSignal",
@@ -1486,17 +1483,17 @@ function buildMarketSignalGroup({
     max,
     stateLabel: state.label,
     colorKey: state.colorKey,
-    summary,
-    strengths: cleanSentenceList(strengths, ["There is at least some visible market-facing signal."]),
-    weaknesses: cleanSentenceList(weaknesses, ["The market-facing signal still has visible gaps."]),
-    nextMove,
+    summary: ensureSentence(summary),
+    strengths: qualitySentenceList(strengths, 3),
+    weaknesses: limitWeaknesses(weaknesses, 2),
+    nextMove: ensureSentence(nextMove),
   };
 }
 
 function buildOptimizationGroup({
+  founderGoal = "",
   advisorSnapshot = {},
   contentProfile = {},
-  founderGoal = "",
   discoveryProfile = {},
 }) {
   let score = 0;
@@ -1509,62 +1506,67 @@ function buildOptimizationGroup({
   const recommendedFocus = String(advisorSnapshot?.recommendedFocus || "").trim();
   const suggestedCategory = String(contentProfile?.suggestedCategory || "").trim();
   const suggestedIdea = String(contentProfile?.suggestedIdea || "").trim();
-  const hasDiscoverySignal =
-    normalizeStringArray(discoveryProfile?.trustSignals, 6).length > 0 ||
-    normalizeStringArray(discoveryProfile?.educationSignals, 6).length > 0 ||
-    normalizeStringArray(discoveryProfile?.activitySignals, 6).length > 0;
+  const confidence = discoveryProfile?.sourceConfidence || "medium";
 
   if (opportunities.length >= 2) {
     score += 8;
-    strengths.push("YEVIB can identify specific content or optimization opportunities.");
+    strengths.push("YEVIB can already point to specific improvement opportunities");
   } else if (opportunities.length === 1) {
     score += 4;
-    weaknesses.push("There is at least one useful opportunity, but the optimization layer is still light.");
+    weaknesses.push("There is one useful opportunity, but the diagnosis is not fully developed yet");
   } else {
-    weaknesses.push("Optimization opportunities are still too generic.");
+    weaknesses.push("Optimization guidance is still too general");
   }
 
   if (recommendedFocus.length >= 40) {
     score += 6;
-    strengths.push("There is a usable recommended focus for next steps.");
+    strengths.push("There is a clear direction for what the business should do next");
   } else {
-    weaknesses.push("Recommended focus is still weak or unclear.");
+    weaknesses.push("The next direction is still too soft or too broad");
   }
 
   if (blindSpots.length > 0) {
     score += 5;
-    strengths.push("YEVIB can see some underused or hidden areas of the business signal.");
+    strengths.push("The scan can already see underused areas of the business signal");
   } else {
-    weaknesses.push("Blind-spot detection is still limited.");
+    weaknesses.push("Blind-spot detection is still limited");
   }
 
   if (suggestedCategory || suggestedIdea) {
     score += 3;
-    strengths.push("The scan can suggest a practical content direction.");
+    strengths.push("The scan can suggest a practical content direction");
   } else {
-    weaknesses.push("The content direction is not clear enough yet.");
+    weaknesses.push("The content direction is not yet sharp enough");
   }
 
-  if (String(founderGoal || "").trim() || hasDiscoverySignal) {
+  if (String(founderGoal || "").trim()) {
     score += 3;
-    strengths.push("The optimization advice is being shaped by real scan context.");
+    strengths.push("The advice is being shaped by the founder goal rather than only generic scan logic");
   } else {
-    weaknesses.push("The optimization advice is still relying on narrower context than ideal.");
+    weaknesses.push("Advice would improve with a clearer founder goal");
   }
 
   score = clampNumber(score, 0, max);
   const state = getGroupState(score, max);
-  const summary =
-    score >= 18
-      ? "YEVIB has enough substance to give useful next-step guidance rather than only generic advice."
-      : score >= 10
-      ? "The optimization layer is developing. Some grounded next moves are visible, but deeper diagnosis is still limited."
-      : "The optimization layer is weak right now. The scan still needs stronger signal before advice becomes consistently sharp.";
+  const lead = confidencePrefix(confidence);
 
-  const nextMove =
-    opportunities.length > 0
-      ? opportunities[0]
-      : "Increase signal depth so YEVIB can move from general guidance to sharper optimization advice.";
+  let summary = "";
+  if (score >= 18) {
+    summary = `${lead} enough business signal to give useful next-step guidance rather than only broad suggestions.`;
+  } else if (score >= 10) {
+    summary = `${lead} some grounded direction, but parts of the diagnosis still need stronger signal underneath them.`;
+  } else {
+    summary = `${lead} only an early optimization read right now, so the advice is still lighter than it could be.`;
+  }
+
+  let nextMove = "";
+  if (recommendedFocus) {
+    nextMove = recommendedFocus;
+  } else if (/posting consistency/i.test(founderGoal || "")) {
+    nextMove = "Turn the strongest current business theme into one repeatable weekly format.";
+  } else {
+    nextMove = "Use the clearest current strength and make it do more visible work for the brand.";
+  }
 
   return {
     key: "optimization",
@@ -1573,17 +1575,19 @@ function buildOptimizationGroup({
     max,
     stateLabel: state.label,
     colorKey: state.colorKey,
-    summary,
-    strengths: cleanSentenceList(strengths, ["There is at least some optimization direction available."]),
-    weaknesses: cleanSentenceList(weaknesses, ["Optimization advice is still not as grounded as it could be."]),
-    nextMove,
+    summary: ensureSentence(summary),
+    strengths: qualitySentenceList(strengths, 3),
+    weaknesses: limitWeaknesses(weaknesses, 2),
+    nextMove: ensureSentence(nextMove),
   };
 }
 
 function buildSourceMixGroup({
+  founderGoal = "",
   sourceProfile = {},
   discoveryProfile = {},
   debug = {},
+  hasOwnerWriting = false,
 }) {
   let score = 0;
   const max = 20;
@@ -1605,57 +1609,64 @@ function buildSourceMixGroup({
 
   if (sourceProfile?.urlUsed) {
     score += 4;
-    strengths.push("The scan has a direct website source to work from.");
+    strengths.push("The scan has a direct website source to work from");
   } else {
-    weaknesses.push("No website source was available for the scan.");
+    weaknesses.push("The scan does not have a direct website source");
   }
 
-  if (sourceProfile?.pastedTextUsed) {
+  if (sourceProfile?.pastedTextUsed || hasOwnerWriting) {
     score += 4;
-    strengths.push("Owner writing was provided, which strengthens the local signal.");
+    strengths.push("Owner-written material strengthens the local signal");
   } else {
-    weaknesses.push("No owner writing was provided, so some signal remains inferred.");
+    weaknesses.push("The scan is working without enough owner-written source material");
   }
 
   if (hasChannels) {
     score += 4;
-    strengths.push("YEVIB detected at least some broader public-channel signal.");
+    strengths.push("There is at least some wider public signal beyond the site");
   } else {
-    weaknesses.push("Very little public-channel signal was detected.");
+    weaknesses.push("The wider public signal is still narrow");
   }
 
   if (broaderDiscovery || pagesScanned >= 3) {
     score += 4;
-    strengths.push("The scan reached beyond a single page and found a wider source base.");
+    strengths.push("The scan is drawing from more than one page or page type");
   } else {
-    weaknesses.push("The source base is still narrow.");
+    weaknesses.push("The source base is still too narrow");
   }
 
   if (sourceConfidence === "high") {
     score += 4;
-    strengths.push("The scan confidence is high.");
+    strengths.push("The current source base gives YEVIB a stronger read");
   } else if (sourceConfidence === "medium") {
     score += 2;
-    strengths.push("The scan confidence is usable, but not broad yet.");
+    strengths.push("The current source base is enough for a workable first pass");
   } else {
-    weaknesses.push("The current scan confidence is low.");
+    weaknesses.push("The current read is still running on partial signal");
   }
 
   score = clampNumber(score, 0, max);
   const state = getGroupState(score, max);
-  const summary =
-    score >= 14
-      ? "The source mix is strong enough that YEVIB can work from both direct and discovered signal with reasonable confidence."
-      : score >= 8
-      ? "The source mix is developing. YEVIB has enough to work with, but the scan still depends on a somewhat limited source base."
-      : "The source mix is weak right now. The scan is relying on too little signal to be fully confident.";
 
-  const nextMove =
-    !sourceProfile?.pastedTextUsed
-      ? "Add more owner-written material to deepen the local signal."
-      : !hasChannels
-      ? "Strengthen discoverable public signal so the scan has more to work with."
-      : "Keep building a broader source base so the scan becomes more confident and grounded.";
+  let summary = "";
+  if (score >= 14) {
+    summary = "YEVIB is working from a broad enough source mix to make the current scan feel more grounded.";
+  } else if (score >= 8) {
+    summary = "The source mix is workable, but the scan would feel stronger with more direct and public signal.";
+  } else {
+    summary = "The current diagnosis is still constrained by a narrow source mix.";
+  }
+
+  let nextMove = "";
+  if (!sourceProfile?.pastedTextUsed && !hasOwnerWriting) {
+    nextMove = "Add more owner-written material so the business sounds more distinct and less inferred.";
+  } else if (!hasChannels) {
+    nextMove = "Strengthen the discoverable public footprint so YEVIB can read the business from a broader source base.";
+  } else if (/founder presence/i.test(founderGoal || "")) {
+    nextMove = "Use more founder-led public signal so the source base reflects the human side of the business better.";
+  } else {
+    nextMove = "Keep widening the source base so the next diagnosis carries more confidence and more precision.";
+  }
 
   return {
     key: "sourceMix",
@@ -1664,10 +1675,10 @@ function buildSourceMixGroup({
     max,
     stateLabel: state.label,
     colorKey: state.colorKey,
-    summary,
-    strengths: cleanSentenceList(strengths, ["There is at least some source variety behind the scan."]),
-    weaknesses: cleanSentenceList(weaknesses, ["The source base is still narrower than ideal."]),
-    nextMove,
+    summary: ensureSentence(summary),
+    strengths: qualitySentenceList(strengths, 3),
+    weaknesses: limitWeaknesses(weaknesses, 2),
+    nextMove: ensureSentence(nextMove),
   };
 }
 
@@ -1682,6 +1693,7 @@ function buildGroupedSnapshotScoring({
   discoveryProfile = {},
   advisorSnapshot = {},
   debug = {},
+  hasOwnerWriting = false,
 }) {
   const brandCore = buildBrandCoreGroup({
     businessProfile,
@@ -1692,22 +1704,25 @@ function buildGroupedSnapshotScoring({
   });
 
   const marketSignal = buildMarketSignalGroup({
+    founderGoal,
     brandProductTruth,
     customerOutcome,
     discoveryProfile,
   });
 
   const optimization = buildOptimizationGroup({
+    founderGoal,
     advisorSnapshot,
     contentProfile,
-    founderGoal,
     discoveryProfile,
   });
 
   const sourceMix = buildSourceMixGroup({
+    founderGoal,
     sourceProfile,
     discoveryProfile,
     debug,
+    hasOwnerWriting,
   });
 
   const totalScore = clampNumber(
@@ -2479,10 +2494,10 @@ You must correct this now:
 - make each first sentence clearly distinct in structure and wording
 - do not reuse the same opener word family
 - ${
-          category === "Quiet Value"
-            ? `the word "quiet" may appear in at most one post in the batch`
-            : `do not use any of these words anywhere in the posts: quiet, calm, gentle, subtle, steady, small`
-        }
+            category === "Quiet Value"
+              ? `the word "quiet" may appear in at most one post in the batch`
+              : `do not use any of these words anywhere in the posts: quiet, calm, gentle, subtle, steady, small`
+          }
 - one opener should be direct
 - one opener should be scene-based
 - one opener should be insight/decision/truth-based
@@ -2669,8 +2684,6 @@ app.post("/build-profile", async (req, res) => {
       brandProductTruth?.productType ||
       "Unknown Business";
 
-    const weakVoiceSource = isWeakVoiceSource(safeVoiceSourceText);
-
     const contentProfile = {
       suggestedCategory:
         sourceProfile?.contentProfile?.suggestedCategory || "Product in Real Life",
@@ -2678,6 +2691,8 @@ app.post("/build-profile", async (req, res) => {
         sourceProfile?.contentProfile?.suggestedIdea ||
         "How this business makes everyday life feel easier or better",
     };
+
+    const weakVoiceSource = isWeakVoiceSource(safeVoiceSourceText);
 
     const sourceProfileData = {
       dominantSource: sourceProfile?.sourceProfile?.dominantSource || "mixed",
@@ -2744,6 +2759,7 @@ app.post("/build-profile", async (req, res) => {
         channelsFound: laneGather?.socialLinks || {},
         groupedPages: laneGather?.groupedPages || {},
         pagesScanned: laneGather?.pages?.length || 0,
+        hasOwnerWriting: Boolean(pastedSourceText),
       }),
     };
 
@@ -2754,6 +2770,17 @@ app.post("/build-profile", async (req, res) => {
       customerOutcome,
       sourceProfile: sourceProfileData,
       discoveryProfile,
+      contentProfile,
+    });
+
+    const intelligenceRead = buildIntelligenceRead({
+      businessProfile: {
+        name: finalBusinessName,
+        summary: sourceProfile?.businessProfile?.summary || "",
+      },
+      advisorSnapshot,
+      discoveryProfile,
+      sourceProfile: sourceProfileData,
     });
 
     const debug = {
@@ -2775,6 +2802,7 @@ app.post("/build-profile", async (req, res) => {
       discoveryProfile,
       advisorSnapshot,
       debug,
+      hasOwnerWriting: Boolean(pastedSourceText),
     });
 
     const profile = {
@@ -2793,7 +2821,10 @@ app.post("/build-profile", async (req, res) => {
       customerOutcome,
       brandProductTruth,
       discoveryProfile,
-      advisorSnapshot,
+      advisorSnapshot: {
+        ...advisorSnapshot,
+        intelligenceRead,
+      },
       groupedSnapshot,
       ownerKbMeta: getBusinessKbMeta(finalBusinessName),
       debug,
