@@ -182,21 +182,34 @@ function setupContinueButton() {
 function setupIntelligenceDrawer() {
   if (!toggleBrandIntelligenceBtn || !brandIntelligenceDrawer) return;
 
-  toggleBrandIntelligenceBtn.addEventListener("click", () => {
-    const isOpen = brandIntelligenceDrawer.style.display === "block";
-    brandIntelligenceDrawer.style.display = isOpen ? "none" : "block";
-    toggleBrandIntelligenceBtn.innerText = isOpen
-      ? "Open Brand Intelligence"
-      : "Hide Brand Intelligence";
+  toggleBrandIntelligenceBtn.type = "button";
 
-    if (!isOpen) {
+  toggleBrandIntelligenceBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const isHidden =
+      brandIntelligenceDrawer.style.display === "none" ||
+      brandIntelligenceDrawer.style.display === "";
+
+    if (isHidden) {
+      brandIntelligenceDrawer.style.display = "block";
+      toggleBrandIntelligenceBtn.innerText = "Hide Brand Intelligence";
+
       setTimeout(() => {
-        brandIntelligenceDrawer.scrollIntoView({ behavior: "smooth", block: "start" });
+        brandIntelligenceDrawer.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
       }, 80);
+    } else {
+      brandIntelligenceDrawer.style.display = "none";
+      toggleBrandIntelligenceBtn.innerText = "Open Brand Intelligence";
     }
   });
 }
 
+  
 function setupCloseSliceButton() {
   if (!closeActiveSliceBtn) return;
   closeActiveSliceBtn.addEventListener("click", () => {
@@ -663,7 +676,7 @@ function renderBrandSnapshot(profile) {
     "No clear founder visibility signals were detected yet."
   );
 
-  intelligenceSummaryDisplay.innerText = buildIntelligenceSummary({
+   intelligenceSummaryDisplay.innerText = buildIntelligenceSummary({
     ...profile,
     groupedSnapshot: normalizedSnapshot,
   });
@@ -671,15 +684,25 @@ function renderBrandSnapshot(profile) {
   if (voiceInput) {
     voiceInput.value = profile?.sourceProfile?.voiceSourceText || "";
   }
-}
-if (profile?.chosenMove) {
-  if (selectedLensPrompt) {
-    selectedLensPrompt.innerText = `Chosen move ready: ${profile.chosenMove.title}.`;
+
+  if (profile?.chosenMove) {
+    if (selectedLensPrompt) {
+      selectedLensPrompt.innerText = `Chosen move ready: ${profile.chosenMove.title}.`;
+    }
+
+    generatePrompt.innerText =
+      profile?.chosenMove?.instruction ||
+      "Chosen move ready. Press Generate Posts.";
   }
 
-  generatePrompt.innerText =
-    profile?.chosenMove?.instruction ||
-    "Chosen move ready. Press Generate Posts.";
+  if (toggleBrandIntelligenceBtn) {
+    toggleBrandIntelligenceBtn.style.display = "inline-flex";
+    toggleBrandIntelligenceBtn.innerText = "Open Brand Intelligence";
+  }
+
+  if (brandIntelligenceDrawer) {
+    brandIntelligenceDrawer.style.display = "none";
+  }
 }
 
 function clearSnapshotDisplays() {
