@@ -5,24 +5,63 @@ const imageStatus = document.getElementById("imageStatus");
 
 const intakeStatus = document.getElementById("intakeStatus");
 const ownerKbStatus = document.getElementById("ownerKbStatus");
+const sourceChangePrompt = document.getElementById("sourceChangePrompt");
 const profilePrompt = document.getElementById("profilePrompt");
 const postsPrompt = document.getElementById("postsPrompt");
+const generatePrompt = document.getElementById("generatePrompt");
 
 const founderGoalInput = document.getElementById("founderGoal");
 const businessSummaryInput = document.getElementById("businessSummary");
+const pastedSourceTextInput = document.getElementById("pastedSourceText");
+const businessUrlInput = document.getElementById("businessUrl");
 
 const generatePostsBtn = document.getElementById("generatePostsBtn");
-const buildProfileBtn = document.getElementById("buildProfileBtn"); // <-- make sure this id exists in index.html
+
+const founderGoalDisplay = document.getElementById("founderGoalDisplay");
+const brandSignalScore = document.getElementById("brandSignalScore");
+const brandSignalLabel = document.getElementById("brandSignalLabel");
+
+const toggleBrandIntelligenceBtn = document.getElementById("toggleBrandIntelligenceBtn");
+const continueToGenerateBtn = document.getElementById("continueToGenerateBtn");
+const brandIntelligenceDrawer = document.getElementById("brandIntelligenceDrawer");
+
+const intelligenceSummaryDisplay = document.getElementById("intelligenceSummaryDisplay");
+const voiceSummaryDisplay = document.getElementById("voiceSummaryDisplay");
+const recommendedFocusDisplay = document.getElementById("recommendedFocusDisplay");
+const offersDisplay = document.getElementById("offersDisplay");
+const audienceDisplay = document.getElementById("audienceDisplay");
+const opportunitiesDisplay = document.getElementById("opportunitiesDisplay");
+const channelsDisplay = document.getElementById("channelsDisplay");
+const trustSignalsDisplay = document.getElementById("trustSignalsDisplay");
+const educationSignalsDisplay = document.getElementById("educationSignalsDisplay");
+const activitySignalsDisplay = document.getElementById("activitySignalsDisplay");
+const founderVisibilitySignalsDisplay = document.getElementById("founderVisibilitySignalsDisplay");
+const voiceInput = document.getElementById("voiceInput");
+
+const activeSliceWrap = document.getElementById("activeSliceWrap");
+const activeSliceTitle = document.getElementById("activeSliceTitle");
+const activeSliceMeta = document.getElementById("activeSliceMeta");
+const activeSliceSummary = document.getElementById("activeSliceSummary");
+const activeSliceNextMove = document.getElementById("activeSliceNextMove");
+const activeSliceStrengths = document.getElementById("activeSliceStrengths");
+const activeSliceWeaknesses = document.getElementById("activeSliceWeaknesses");
+const closeActiveSliceBtn = document.getElementById("closeActiveSliceBtn");
+
+const lensButtons = document.querySelectorAll(".lens-btn");
+const feelingButtons = document.querySelectorAll(".feeling-btn");
+const selectedLensPrompt = document.getElementById("selectedLensPrompt");
+const feelingPrompt = document.getElementById("feelingPrompt");
+const customFeelingInput = document.getElementById("customFeeling");
 
 let initialProfile = null;
 let selectedPost = "";
+let selectedLens = "";
+let selectedFeeling = "";
+let snapshotChart = null;
+let activeSliceIndex = null;
 
 /* ------------------ CORE HELPERS ------------------ */
 
-function safeJoin(items, fallback = "Not enough signal yet.") {
-  if (!Array.isArray(items) || items.length === 0) return fallback;
-  return "• " + items.join("\n• ");
-}
 function getFounderGoal() {
   return founderGoalInput?.value?.trim() || "";
 }
@@ -31,46 +70,314 @@ function getBusinessSummary() {
   return businessSummaryInput?.value?.trim() || "";
 }
 
+function getPastedSourceText() {
+  return pastedSourceTextInput?.value?.trim() || "";
+}
+
+function getBusinessUrl() {
+  return businessUrlInput?.value?.trim() || "";
+}
+
+function getOwnerFeeling() {
+  const custom = customFeelingInput?.value?.trim();
+  return custom || selectedFeeling || "";
+}
+
+function safeJoin(items, fallback = "Not enough signal yet.") {
+  if (!Array.isArray(items) || items.length === 0) return fallback;
+  return "• " + items.join("\n• ");
+}
+
+function safeText(value, fallback = "Not enough signal yet.") {
+  const text = String(value || "").trim();
+  return text || fallback;
+}
+
 function clearOutputs() {
   postsDiv.innerHTML = "";
   selectedPostBox.innerText = "";
   generatedImage.style.display = "none";
   generatedImage.src = "";
   imageStatus.innerText = "";
+  postsPrompt.innerText = "";
   selectedPost = "";
+}
+
+function clearSnapshotUI() {
+  founderGoalDisplay.innerText = "No goal selected yet.";
+  brandSignalScore.innerText = "-- / 100";
+  brandSignalLabel.innerText = "Not scanned yet";
+
+  intelligenceSummaryDisplay.innerText = "Brand intelligence summary will appear here after the scan.";
+  voiceSummaryDisplay.innerText = "Voice summary will appear here after the scan.";
+  recommendedFocusDisplay.innerText = "Recommended focus will appear here after the scan.";
+  offersDisplay.innerText = "Offers and services will appear here after the scan.";
+  audienceDisplay.innerText = "Audience clues will appear here after the scan.";
+  opportunitiesDisplay.innerText = "Opportunities will appear here after the scan.";
+  channelsDisplay.innerText = "Detected channels will appear here after the scan.";
+  trustSignalsDisplay.innerText = "Trust and proof signals will appear here after the scan.";
+  educationSignalsDisplay.innerText = "Education signals will appear here after the scan.";
+  activitySignalsDisplay.innerText = "Public activity signals will appear here after the scan.";
+  founderVisibilitySignalsDisplay.innerText = "Founder visibility signals will appear here after the scan.";
+  voiceInput.value = "";
+
+  toggleBrandIntelligenceBtn.style.display = "none";
+  continueToGenerateBtn.style.display = "none";
+  brandIntelligenceDrawer.style.display = "none";
+
+  closeActiveSlice();
+  destroySnapshotChart();
+}
+
+function destroySnapshotChart() {
+  if (snapshotChart) {
+    snapshotChart.destroy();
+    snapshotChart = null;
+  }
+}
+
+function scrollToGenerateSection() {
+  const section = document.getElementById("section-generate");
+  if (section) {
+    section.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+function formatChannelList(channels = {}) {
+  const found = [];
+
+  if (channels.instagram) found.push("Instagram");
+  if (channels.facebook) found.push("Facebook");
+  if (channels.tiktok) found.push("TikTok");
+  if (channels.youtube) found.push("YouTube");
+  if (channels.x) found.push("X");
+  if (channels.linkedin) found.push("LinkedIn");
+
+  return found.length ? "• " + found.join("\n• ") : "No public channels detected yet.";
+}
+
+/* ------------------ LENS + FEELING ------------------ */
+
+lensButtons.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    lensButtons.forEach((b) => b.classList.remove("selected"));
+    btn.classList.add("selected");
+    selectedLens = btn.dataset.type || "";
+    selectedLensPrompt.innerText = selectedLens
+      ? `Selected lens: ${selectedLens}`
+      : "";
+  });
+});
+
+feelingButtons.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    feelingButtons.forEach((b) => b.classList.remove("selected"));
+    btn.classList.add("selected");
+    selectedFeeling = btn.dataset.feeling || "";
+    if (customFeelingInput) customFeelingInput.value = "";
+    feelingPrompt.innerText = selectedFeeling
+      ? `Selected feeling: ${selectedFeeling}`
+      : "";
+  });
+});
+
+if (customFeelingInput) {
+  customFeelingInput.addEventListener("input", () => {
+    if (customFeelingInput.value.trim()) {
+      feelingButtons.forEach((b) => b.classList.remove("selected"));
+      selectedFeeling = "";
+      feelingPrompt.innerText = `Custom feeling: ${customFeelingInput.value.trim()}`;
+    } else {
+      feelingPrompt.innerText = "";
+    }
+  });
+}
+
+/* ------------------ PIE CHART / SNAPSHOT ------------------ */
+
+function closeActiveSlice() {
+  activeSliceIndex = null;
+  activeSliceWrap.style.display = "none";
+  activeSliceTitle.innerText = "Snapshot Detail";
+  activeSliceMeta.innerText = "";
+  activeSliceSummary.innerText = "";
+  activeSliceNextMove.innerText = "";
+  activeSliceStrengths.innerText = "";
+  activeSliceWeaknesses.innerText = "";
+}
+
+function openActiveSlice(group, index) {
+  activeSliceIndex = index;
+  activeSliceWrap.style.display = "block";
+
+  activeSliceTitle.innerText = group.title || "Snapshot Detail";
+  activeSliceMeta.innerText = `${group.score || 0}/${group.max || 0} • ${group.stateLabel || "Unknown"}`;
+  activeSliceSummary.innerText = safeText(group.summary, "No summary yet.");
+  activeSliceNextMove.innerText = safeText(group.nextMove, "No next move yet.");
+  activeSliceStrengths.innerText = `Strengths\n${safeJoin(group.strengths, "• Not enough strengths detected yet.")}`;
+  activeSliceWeaknesses.innerText = `Weaknesses\n${safeJoin(group.weaknesses, "• No clear weaknesses detected yet.")}`;
+}
+
+function renderSnapshotChart(groupedSnapshot) {
+  const canvas = document.getElementById("snapshotPieChart");
+  if (!canvas || !groupedSnapshot || !Array.isArray(groupedSnapshot.groups)) return;
+
+  destroySnapshotChart();
+
+  const groups = groupedSnapshot.groups;
+  const labels = groups.map((g) => g.title || "Group");
+  const data = groups.map((g) => g.score || 0);
+
+  snapshotChart = new Chart(canvas, {
+    type: "pie",
+    data: {
+      labels,
+      datasets: [
+        {
+          data
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: "bottom"
+        },
+        tooltip: {
+          callbacks: {
+            label: function (context) {
+              const group = groups[context.dataIndex];
+              return `${group.title}: ${group.score}/${group.max} (${group.stateLabel})`;
+            }
+          }
+        }
+      },
+      onClick: (event, elements) => {
+        if (!elements || elements.length === 0) return;
+
+        const index = elements[0].index;
+
+        if (activeSliceIndex === index) {
+          closeActiveSlice();
+          return;
+        }
+
+        const group = groups[index];
+        openActiveSlice(group, index);
+      }
+    }
+  });
+}
+
+function populateSnapshot(profile) {
+  const groupedSnapshot = profile?.groupedSnapshot || {};
+  const advisorSnapshot = profile?.advisorSnapshot || {};
+  const founderVoice = profile?.founderVoice || {};
+  const brandProductTruth = profile?.brandProductTruth || {};
+  const discoveryProfile = profile?.discoveryProfile || {};
+  const sourceProfile = profile?.sourceProfile || {};
+
+  businessSummaryInput.value = safeText(profile?.businessProfile?.summary, "");
+  founderGoalDisplay.innerText = getFounderGoal() || "No goal selected yet.";
+
+  brandSignalScore.innerText = `${groupedSnapshot?.overallPct ?? "--"} / 100`;
+  brandSignalLabel.innerText = groupedSnapshot?.overallStateLabel || "Not scanned yet";
+
+  intelligenceSummaryDisplay.innerText = safeText(
+    profile?.intelligenceRead,
+    "Brand intelligence summary will appear here after the scan."
+  );
+
+  voiceSummaryDisplay.innerText = safeText(
+    founderVoice?.voiceSummary,
+    "Voice summary will appear here after the scan."
+  );
+
+  recommendedFocusDisplay.innerText = safeText(
+    groupedSnapshot?.recommendedFocus || advisorSnapshot?.recommendedFocus,
+    "Recommended focus will appear here after the scan."
+  );
+
+  offersDisplay.innerText = safeJoin(
+    brandProductTruth?.offers,
+    "Offers and services will appear here after the scan."
+  );
+
+  audienceDisplay.innerText = safeJoin(
+    brandProductTruth?.audience,
+    "Audience clues will appear here after the scan."
+  );
+
+  opportunitiesDisplay.innerText = safeJoin(
+    advisorSnapshot?.opportunities,
+    "Opportunities will appear here after the scan."
+  );
+
+  channelsDisplay.innerText = formatChannelList(discoveryProfile?.channelsFound || {});
+  trustSignalsDisplay.innerText = safeJoin(
+    discoveryProfile?.trustSignals,
+    "Trust and proof signals will appear here after the scan."
+  );
+
+  educationSignalsDisplay.innerText = safeJoin(
+    discoveryProfile?.educationSignals,
+    "Education signals will appear here after the scan."
+  );
+
+  activitySignalsDisplay.innerText = safeJoin(
+    discoveryProfile?.activitySignals,
+    "Public activity signals will appear here after the scan."
+  );
+
+  founderVisibilitySignalsDisplay.innerText = safeJoin(
+    discoveryProfile?.founderVisibilitySignals,
+    "Founder visibility signals will appear here after the scan."
+  );
+
+  voiceInput.value = safeText(
+    sourceProfile?.voiceSourceText,
+    ""
+  );
+
+  toggleBrandIntelligenceBtn.style.display = "inline-flex";
+  continueToGenerateBtn.style.display = "inline-flex";
+
+  renderSnapshotChart(groupedSnapshot);
 }
 
 /* ------------------ BUILD PROFILE ------------------ */
 
 async function buildInitialProfile() {
-  const businessUrl = document.getElementById("businessUrl")?.value?.trim() || "";
-  const pastedSourceText = document.getElementById("pastedSourceText")?.value?.trim() || "";
+  const businessUrl = getBusinessUrl();
+  const pastedSourceText = getPastedSourceText();
 
   clearOutputs();
-  initialProfile = null;
+  clearSnapshotUI();
 
   if (!businessUrl && !pastedSourceText) {
     intakeStatus.innerText = "Add a website or text first.";
     return;
   }
 
-  intakeStatus.innerText = "Scanning and building execution plan...";
+  intakeStatus.innerText = "Scanning brand...";
   profilePrompt.innerText = "";
-  postsPrompt.innerText = "";
+  generatePrompt.innerText = "";
 
   try {
     const res = await fetch("/build-profile", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        mode: businessUrl && pastedSourceText ? "hybrid" : businessUrl ? "express" : "manual",
+        mode: "hybrid",
         businessUrl,
         pastedSourceText,
-        manualBusinessContext: getBusinessSummary(),
         founderGoal: getFounderGoal(),
-      }),
+        ownerWritingSample: pastedSourceText
+      })
     });
 
     const data = await res.json();
@@ -82,84 +389,41 @@ async function buildInitialProfile() {
 
     initialProfile = data.profile;
 
-renderSnapshot(initialProfile);
+    populateSnapshot(initialProfile);
 
-intakeStatus.innerText = "Execution plan ready.";
+    intakeStatus.innerText = "Brand scan complete.";
+    profilePrompt.innerText = "Snapshot ready. Open Brand Intelligence or continue to content action.";
 
-profilePrompt.innerText =
-  initialProfile?.executionPlan?.summary ||
-  "Press generate to execute your plan.";
+    if (initialProfile?.ownerKbMeta?.entryCount) {
+      ownerKbStatus.innerText = `Owner KB entries found for this business: ${initialProfile.ownerKbMeta.entryCount}`;
+    } else {
+      ownerKbStatus.innerText = "No owner KB history detected for this business yet.";
+    }
   } catch (err) {
     intakeStatus.innerText = "Error: " + err.message;
   }
 }
-/* ------------------ SNAPSHOT RENDER ------------------ */
 
-function renderSnapshot(profile) {
-  if (!profile) return;
+/* ------------------ BRAND INTELLIGENCE TOGGLE ------------------ */
 
-  const grouped = profile.groupedSnapshot || {};
-  const advisor = profile.advisorSnapshot || {};
-  const discovery = profile.discoveryProfile || {};
-  const business = profile.businessProfile || {};
-  const founderVoice = profile.founderVoice || {};
-  const productTruth = profile.brandProductTruth || {};
+if (toggleBrandIntelligenceBtn) {
+  toggleBrandIntelligenceBtn.addEventListener("click", () => {
+    const isOpen = brandIntelligenceDrawer.style.display === "block";
+    brandIntelligenceDrawer.style.display = isOpen ? "none" : "block";
+    toggleBrandIntelligenceBtn.innerText = isOpen
+      ? "Open Brand Intelligence"
+      : "Close Brand Intelligence";
+  });
+}
 
-  document.getElementById("businessSummary").value = business.summary || "";
+if (continueToGenerateBtn) {
+  continueToGenerateBtn.addEventListener("click", () => {
+    scrollToGenerateSection();
+  });
+}
 
-  document.getElementById("founderGoalDisplay").innerText =
-    getFounderGoal() || "No goal selected yet.";
-
-  document.getElementById("brandSignalScore").innerText =
-    `${grouped.overallPct || 0} / 100`;
-
-  document.getElementById("brandSignalLabel").innerText =
-    grouped.overallStateLabel || "Not scanned yet";
-
-  document.getElementById("voiceSummaryDisplay").innerText =
-    founderVoice.voiceSummary || "No voice summary available yet.";
-
-  document.getElementById("recommendedFocusDisplay").innerText =
-    grouped.recommendedFocus ||
-    advisor.recommendedFocus ||
-    "No recommended focus yet.";
-
-  document.getElementById("offersDisplay").innerText =
-    safeJoin(productTruth.offers, "No clear offers detected yet.");
-
-  document.getElementById("audienceDisplay").innerText =
-    safeJoin(productTruth.audience, "No clear audience signal detected yet.");
-
-  document.getElementById("opportunitiesDisplay").innerText =
-    safeJoin(advisor.opportunities, "No clear opportunities detected yet.");
-
-  const channels = Object.entries(discovery.channelsFound || {})
-    .filter(([, url]) => url)
-    .map(([name, url]) => `${name}: ${url}`);
-
-  document.getElementById("channelsDisplay").innerText =
-    channels.length ? "• " + channels.join("\n• ") : "No channels detected.";
-
-  document.getElementById("trustSignalsDisplay").innerText =
-    safeJoin(discovery.trustSignals, "No strong trust signals.");
-
-  document.getElementById("educationSignalsDisplay").innerText =
-    safeJoin(discovery.educationSignals, "No education signals.");
-
-  document.getElementById("activitySignalsDisplay").innerText =
-    safeJoin(discovery.activitySignals, "No activity signals.");
-
-  document.getElementById("founderVisibilitySignalsDisplay").innerText =
-    safeJoin(discovery.founderVisibilitySignals, "No founder presence detected.");
-
-  document.getElementById("intelligenceSummaryDisplay").innerText =
-    profile.intelligenceRead || "No intelligence summary yet.";
-
-  document.getElementById("voiceInput").value =
-    profile.sourceProfile?.voiceSourceText || "";
-
-  document.getElementById("toggleBrandIntelligenceBtn").style.display = "inline-flex";
-  document.getElementById("continueToGenerateBtn").style.display = "inline-flex";
+if (closeActiveSliceBtn) {
+  closeActiveSliceBtn.addEventListener("click", closeActiveSlice);
 }
 
 /* ------------------ EXECUTION ENGINE ------------------ */
@@ -170,58 +434,59 @@ async function handleGeneratePostsClick() {
     return;
   }
 
-  if (!initialProfile.executionPlan) {
-    alert("No execution plan found.");
+  if (!selectedLens) {
+    alert("Choose a lens first.");
     return;
   }
 
+  generatePrompt.innerText = "Generating posts...";
   await generateExecutionPlan();
 }
 
 async function generateExecutionPlan() {
-  const plan = initialProfile.executionPlan;
-
-  postsDiv.innerHTML = "Executing plan...";
-  postsPrompt.innerText = "YEVIB is executing your plan.";
+  postsDiv.innerHTML = "Generating...";
+  postsPrompt.innerText = "YEVIB is generating your posts.";
 
   try {
     const res = await fetch("/generate", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
         mode: "execution",
-        idea: `
-EXECUTE EXACTLY:
-
-${(plan.actions || []).join("\n")}
-
-CONSTRAINT:
-${plan.constraint || ""}
-
-SCHEDULE:
-${plan.schedule || ""}
-        `.trim(),
+        idea: initialProfile?.executionPlan?.instruction || initialProfile?.groupedSnapshot?.recommendedFocus || "Best next move",
         category: initialProfile?.contentProfile?.suggestedCategory || "Product in Real Life",
-        founderGoal: getFounderGoal(),
+        businessUrl: getBusinessUrl(),
+        pastedSourceText: getPastedSourceText(),
         businessSummary: getBusinessSummary(),
+        manualVoiceInput: getPastedSourceText(),
+        voiceProfile: initialProfile?.founderVoice || null,
         initialProfile,
-      }),
+        quickType: selectedLens,
+        ownerNudge: getOwnerFeeling(),
+        founderGoal: getFounderGoal(),
+        weeklyPosts: [
+          initialProfile?.executionPlan?.summary || "",
+          ...(initialProfile?.executionPlan?.actions || [])
+        ].filter(Boolean).join("\n")
+      })
     });
 
     const data = await res.json();
 
     if (!res.ok) {
       postsDiv.innerHTML = "Error: " + (data.error || "Failed.");
+      generatePrompt.innerText = "Post generation failed.";
       return;
     }
 
     const posts = data.text.split("\n\n\n").filter(Boolean);
     renderPostChoices(posts);
-
+    generatePrompt.innerText = "Posts ready. Choose the one that feels most right.";
   } catch (err) {
     postsDiv.innerHTML = "Error: " + err.message;
+    generatePrompt.innerText = "Post generation failed.";
   }
 }
 
@@ -247,7 +512,6 @@ function renderPostChoices(posts) {
       selectedPostBox.innerText = post;
 
       imageStatus.innerText = "Generating image...";
-
       await generateImage(post);
     };
 
@@ -372,9 +636,9 @@ NON-NEGOTIABLE SAFETY / VISUAL RULES:
     const res = await fetch("/generate-image", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": "application/json"
       },
-      body: JSON.stringify({ imagePrompt }),
+      body: JSON.stringify({ imagePrompt })
     });
 
     const data = await res.json();
@@ -391,13 +655,5 @@ NON-NEGOTIABLE SAFETY / VISUAL RULES:
     imageStatus.innerText = "Error: " + err.message;
   }
 }
-
-/* ------------------ INIT ------------------ */
-
-if (buildProfileBtn) {
-  buildProfileBtn.addEventListener("click", buildInitialProfile);
-}
-
-if (generatePostsBtn) {
-  generatePostsBtn.addEventListener("click", handleGeneratePostsClick);
-}
+window.buildInitialProfile = buildInitialProfile;
+window.handleGeneratePostsClick = handleGeneratePostsClick;
