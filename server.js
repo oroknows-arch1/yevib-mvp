@@ -1425,14 +1425,17 @@ function buildIntelligenceRead({
   );
   const focus =
     advisorSnapshot?.recommendedFocus ||
-    "clarify the strongest current business truth and use it more consistently";
+    "Clarify the strongest current business truth and use it more consistently.";
+
+  const cleanFocus = ensureSentence(sentenceCase(focus));
 
   const sentence1 = `${lead} that ${strong.toLowerCase()}.`;
   const sentence2 = `What looks underbuilt right now is that ${weak.toLowerCase()}.`;
-  const sentence3 = `${confidenceActionLead(confidence)} ${focus.replace(/\.$/, "").toLowerCase()}.`;
+  const sentence3 = `Best next step: ${cleanFocus.charAt(0).toLowerCase()}${cleanFocus.slice(1)}`;
 
   return `${sentence1} ${sentence2} ${sentence3}`;
 }
+
 
 function qualitySentenceList(items = [], maxItems = 3) {
   return uniqueStrings(
@@ -3095,6 +3098,8 @@ app.post("/build-profile", async (req, res) => {
       initialProfile: profile,
       hasOwnerWriting: Boolean(ownerWritingSample || manualBusinessContext || pastedSourceText),
     });
+
+    profile.chosenMove = buildChosenMove(profile);
 
     res.json({ profile });
   } catch (err) {
