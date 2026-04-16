@@ -108,39 +108,39 @@ function pickFirst(items = [], fallback = "") {
 }
 
 function getOverallState(score = 0) {
-  if (score >= 70) return { label: "Strong", colorKey: "green" };
-  if (score >= 40) return { label: "Developing", colorKey: "amber" };
-  return { label: "Weak", colorKey: "red" };
+  if (score >= 78) return { label: "Strong", colorKey: "green" };
+  if (score >= 52) return { label: "Developing", colorKey: "amber" };
+  return { label: "Limited", colorKey: "red" };
 }
 
 function getGroupState(score = 0, max = 100) {
   const pct = max > 0 ? (score / max) * 100 : 0;
-  if (pct >= 70) return { label: "Strong", colorKey: "green" };
-  if (pct >= 40) return { label: "Developing", colorKey: "amber" };
-  return { label: "Weak", colorKey: "red" };
+  if (pct >= 78) return { label: "Strong", colorKey: "green" };
+  if (pct >= 52) return { label: "Developing", colorKey: "amber" };
+  return { label: "Limited", colorKey: "red" };
 }
 
 function getScoreBand(score = 0, max = 100, groupKey = "") {
   if (groupKey === "brandCore") {
-    if (score >= 21) return "strong";
-    if (score >= 12) return "developing";
-    return "weak";
+    if (score >= 24) return "strong";
+    if (score >= 15) return "developing";
+    return "limited";
   }
   if (groupKey === "marketSignal" || groupKey === "optimization") {
-    if (score >= 18) return "strong";
-    if (score >= 10) return "developing";
-    return "weak";
+    if (score >= 20) return "strong";
+    if (score >= 12) return "developing";
+    return "limited";
   }
   if (groupKey === "sourceMix") {
-    if (score >= 14) return "strong";
-    if (score >= 8) return "developing";
-    return "weak";
+    if (score >= 16) return "strong";
+    if (score >= 10) return "developing";
+    return "limited";
   }
 
   const pct = max > 0 ? (score / max) * 100 : 0;
-  if (pct >= 70) return "strong";
-  if (pct >= 40) return "developing";
-  return "weak";
+  if (pct >= 78) return "strong";
+  if (pct >= 52) return "developing";
+  return "limited";
 }
 
 function confidencePrefix(confidence = "medium") {
@@ -150,9 +150,9 @@ function confidencePrefix(confidence = "medium") {
 }
 
 function confidenceActionLead(confidence = "medium") {
-  if (confidence === "high") return "The strongest current direction is to";
-  if (confidence === "low") return "A sensible next step would be to";
-  return "The most useful next move is to";
+  if (confidence === "high") return "The most useful move now is to";
+  if (confidence === "low") return "A sensible next step is to";
+  return "The clearest next move is to";
 }
 
 function ensureOwnerKbFile() {
@@ -1157,26 +1157,26 @@ function buildRecommendedFocus({
   const activitySignals = normalizeStringArray(discoveryProfile?.activitySignals, 5);
 
   if (/posting consistency/.test(goal)) {
-    return "The business already has enough material to post from more regularly. Turn the strongest current theme into one repeatable weekly format.";
+    return "The business has enough material to post from more regularly. Turn the strongest current theme into one repeatable weekly format.";
   }
   if (/clarify brand voice/.test(goal)) {
     return weakVoice
-      ? "Bring more founder-written language into the public brand so the business sounds more distinct and less generic."
+      ? "Bring more founder-written language into the public brand so the business sounds less generic and more recognisable."
       : "Tighten the public-facing language so the founder voice carries more clearly across the business.";
   }
   if (/educational/.test(goal)) {
     return educationSignals.length > 0
-      ? "The business already shows useful teaching signal. Turn that into clearer educational content that explains why the work matters."
-      : "Use product truth and process detail to create simple educational content the audience can learn from quickly.";
+      ? "The business already shows usable teaching signal. Turn that into clearer educational content that explains why the work matters."
+      : "Use product truth and process detail to build simple educational content people can understand quickly.";
   }
   if (/trust/.test(goal)) {
     return trustSignals.length > 0
-      ? "The business already has trust signal. Surface it more clearly so it does more public work."
-      : "Make standards, proof, and process more visible so the business feels more credible faster.";
+      ? "The business already has trust signal. Put it where people can see it more clearly."
+      : "Make standards, proof, and process more visible so the business feels credible faster.";
   }
   if (/promote products or services/.test(goal)) {
     return offers.length > 0
-      ? "Make the offer easier to understand through real-life use cases instead of relying on feature description alone."
+      ? "Make the offer easier to understand through real-life use cases instead of feature description alone."
       : "Clarify the offer in practical terms so people can understand what the business does and why it matters.";
   }
   if (/founder presence/.test(goal)) {
@@ -1184,16 +1184,16 @@ function buildRecommendedFocus({
   }
 
   if (category === "Everyday Ritual" || lifeMoments.length > 0) {
-    return "Your business already lends itself to repeat-use content. Turn that into one steady content theme built around real daily use.";
+    return "The business already lends itself to repeat-use content. Turn that into one steady content theme built around real daily use.";
   }
   if (educationSignals.length > 0) {
     return "There is already enough knowledge in the business to support clearer educational content. Turn that into a repeatable public asset.";
   }
   if (activitySignals.length > 0) {
-    return "Use the business activity that already exists and make it more visible so the brand feels more active and current.";
+    return "Use the activity already visible in the business and make it more public so the brand feels more current.";
   }
   if (audience.length > 0) {
-    return "Speak more directly to the audience the business already appears to serve so the public signal becomes more legible.";
+    return "Speak more directly to the audience the business already appears to serve so the public signal becomes easier to read.";
   }
 
   return "Take the clearest existing business truth and turn it into one repeatable public-facing theme the brand can return to consistently.";
@@ -1203,23 +1203,23 @@ function adaptRecommendedFocusByBand(focus = "", band = "developing", founderGoa
   const clean = String(focus || "").trim();
   if (!clean) return "";
 
-  if (band === "weak") return clean;
+  if (band === "limited") return clean;
 
   const lower = clean.toLowerCase();
   const goal = String(founderGoal || "").toLowerCase();
 
   if (band === "strong") {
-    if (lower.includes("already has trust signal") || lower.includes("surface it more clearly")) {
-      return "Use the trust signal already present in the business more deliberately so it carries more public weight.";
+    if (lower.includes("already has trust signal") || lower.includes("put it where people can see it more clearly")) {
+      return "Use the trust signal already present more deliberately so it does more public work.";
     }
-    if (lower.includes("already shows useful teaching signal")) {
-      return "Turn the teaching signal already present in the business into a stronger public advantage through clearer educational content.";
+    if (lower.includes("already shows usable teaching signal")) {
+      return "Turn the teaching signal already present into a stronger public advantage through clearer educational content.";
     }
     if (lower.includes("enough material to post from more regularly")) {
       return "Use the strongest current theme as a repeatable weekly advantage so the business posts with more momentum and less friction.";
     }
     if (lower.includes("bring more founder-written language")) {
-      return "Use more founder-led language deliberately so the business feels even more distinct and human in public.";
+      return "Use more founder-led language deliberately so the business feels more distinct and human in public.";
     }
     if (lower.includes("tighten the public-facing language")) {
       return "Carry the founder voice more consistently across the public-facing language so it becomes a stronger brand advantage.";
@@ -1236,8 +1236,8 @@ function adaptRecommendedFocusByBand(focus = "", band = "developing", founderGoa
     if (lower.includes("already enough knowledge")) {
       return "Use the knowledge already present in the business as a stronger public advantage through repeatable educational content.";
     }
-    if (lower.includes("use the business activity that already exists")) {
-      return "Turn the business activity already present into more visible public momentum so it does more work for the brand.";
+    if (lower.includes("use the activity already visible")) {
+      return "Turn the activity already present into more visible public momentum so it does more work for the brand.";
     }
     if (lower.includes("speak more directly to the audience")) {
       return "Use the audience signal already present to make the public message land more clearly and carry more weight.";
@@ -1254,11 +1254,11 @@ function adaptRecommendedFocusByBand(focus = "", band = "developing", founderGoa
   }
 
   if (band === "developing") {
-    if (lower.includes("already has trust signal") || lower.includes("surface it more clearly")) {
-      return "Bring the trust signal already present in the business forward more clearly so it does more public work.";
+    if (lower.includes("already has trust signal") || lower.includes("put it where people can see it more clearly")) {
+      return "Bring the trust signal already present forward more clearly so it does more public work.";
     }
-    if (lower.includes("already shows useful teaching signal")) {
-      return "Sharpen the teaching signal already present in the business into clearer educational content.";
+    if (lower.includes("already shows usable teaching signal")) {
+      return "Sharpen the teaching signal already present into clearer educational content.";
     }
     if (lower.includes("enough material to post from more regularly")) {
       return "Structure the strongest current theme into a repeatable weekly format so posting becomes easier to sustain.";
@@ -1279,10 +1279,10 @@ function adaptRecommendedFocusByBand(focus = "", band = "developing", founderGoa
       return "Build the repeat-use nature of the business into one clearer recurring content theme.";
     }
     if (lower.includes("already enough knowledge")) {
-      return "Turn the knowledge already present in the business into clearer educational content people can follow easily.";
+      return "Turn the knowledge already present into clearer educational content people can follow easily.";
     }
-    if (lower.includes("use the business activity that already exists")) {
-      return "Make the business activity already present more visible so the brand feels more current and active.";
+    if (lower.includes("use the activity already visible")) {
+      return "Make the activity already present more visible so the brand feels more current and active.";
     }
     if (lower.includes("speak more directly to the audience")) {
       return "Speak more directly to the audience already visible in the business signal so the message lands more clearly.";
@@ -1349,7 +1349,7 @@ function inferAdvisorSnapshot({
     strengths.push("The business has at least some visible footprint beyond the website");
   }
 
-  if (weakVoice) weakPoints.push("Founder voice is still too thin, so the public brand risks sounding more product-led than person-led");
+  if (weakVoice) weakPoints.push("Founder voice is still thin, so the public brand risks sounding more product-led than person-led");
   if (offers.length === 0) weakPoints.push("The offer is not yet clear enough in the current source set");
   if (audience.length === 0) weakPoints.push("Audience signal is still too weak to guide communication confidently");
   if (lifeMoments.length === 0) weakPoints.push("The business is not yet showing enough real-life use signal");
@@ -1428,7 +1428,7 @@ function buildIntelligenceRead({
     "clarify the strongest current business truth and use it more consistently";
 
   const sentence1 = `${lead} that ${strong.toLowerCase()}.`;
-  const sentence2 = `What looks weaker right now is that ${weak.toLowerCase()}.`;
+  const sentence2 = `What looks underbuilt right now is that ${weak.toLowerCase()}.`;
   const sentence3 = `${confidenceActionLead(confidence)} ${focus.replace(/\.$/, "").toLowerCase()}.`;
 
   return `${sentence1} ${sentence2} ${sentence3}`;
@@ -1469,26 +1469,34 @@ function buildBrandCoreGroup({
   const doRules = normalizeStringArray(founderVoice?.doRules, 6);
   const confidence = discoveryProfile?.sourceConfidence || "medium";
 
-  if (businessSummary.length >= 80) {
-    score += 8;
+  if (businessSummary.length >= 120) {
+    score += 7;
     strengths.push("The business identity is clear enough to anchor the scan");
+  } else if (businessSummary.length >= 80) {
+    score += 4;
+    strengths.push("The business identity is partly clear");
+    weaknesses.push("The core business story still needs sharper wording");
   } else {
     weaknesses.push("The core business story is still too thin");
   }
 
-  if (voiceSummary.length >= 60 && !weakVoice) {
-    score += 8;
-    strengths.push("Founder voice is strong enough to make the brand feel more distinct");
-  } else if (voiceSummary.length >= 30) {
+  if (voiceSummary.length >= 90 && !weakVoice) {
+    score += 7;
+    strengths.push("Founder voice is strong enough to make the brand feel distinct");
+  } else if (voiceSummary.length >= 60 && !weakVoice) {
     score += 4;
+    strengths.push("There is some founder voice to work with");
+    weaknesses.push("Founder voice is present but not yet carrying enough weight");
+  } else if (voiceSummary.length >= 30) {
+    score += 2;
     weaknesses.push("There is some founder voice, but it is not yet carrying enough weight");
   } else {
     weaknesses.push("Founder voice is still too weak or too generic");
   }
 
   if (String(founderGoal || "").trim()) {
-    score += 4;
-    strengths.push("The founder goal gives the scan a clear direction");
+    score += 3;
+    strengths.push("The founder goal gives the scan a usable direction");
   } else {
     weaknesses.push("The scan is working without a clear founder goal");
   }
@@ -1503,9 +1511,13 @@ function buildBrandCoreGroup({
     weaknesses.push("Founder visibility is not yet clear enough");
   }
 
-  if (doRules.length >= 2) {
+  if (doRules.length >= 4) {
     score += 5;
-    strengths.push("The brand already carries some founder-led behavior in its language");
+    strengths.push("The brand already carries founder-led behavior in its language");
+  } else if (doRules.length >= 2) {
+    score += 3;
+    strengths.push("The brand carries some founder-led behavior in its language");
+    weaknesses.push("The language rules are still not strong enough to hold the voice consistently");
   } else {
     weaknesses.push("The public brand still risks sounding more generic than founder-led");
   }
@@ -1518,11 +1530,11 @@ function buildBrandCoreGroup({
 
   let summary = "";
   if (band === "strong") {
-    summary = `${lead} a clear brand core that is already doing useful public work. The founder signal is visible enough to be used more deliberately, not rebuilt from scratch.`;
+    summary = `${lead} a clear brand core that is already doing useful public work. The founder signal is visible enough to use more deliberately, not rebuild from scratch.`;
   } else if (band === "developing") {
-    summary = `${lead} a recognizable brand core, but founder presence or message clarity is still not carrying enough weight consistently.`;
+    summary = `${lead} a recognisable brand core, but founder presence or message clarity is still not carrying enough weight consistently.`;
   } else {
-    summary = `${lead} only a partial brand core right now, which makes the business feel less distinct than it could.`;
+    summary = `${lead} only a partial brand core right now, which makes the business feel less distinct than it should.`;
   }
 
   let nextMove = "";
@@ -1532,7 +1544,7 @@ function buildBrandCoreGroup({
     } else if (/clarify brand voice/.test(goal)) {
       nextMove = "Carry the founder voice more consistently across the public-facing language so the brand feels even more distinct.";
     } else {
-      nextMove = "Turn the founder-led side of the brand into an even clearer public advantage.";
+      nextMove = "Turn the founder-led side of the brand into a clearer public advantage.";
     }
   } else if (band === "developing") {
     if (/founder presence/.test(goal) || weakVoice || founderLimited) {
@@ -1540,7 +1552,7 @@ function buildBrandCoreGroup({
     } else if (/clarify brand voice/.test(goal)) {
       nextMove = "Tighten the public language so the founder voice carries more clearly across the business.";
     } else {
-      nextMove = "Sharpen the founder-led side of the brand so the public identity feels more legible and consistent.";
+      nextMove = "Sharpen the founder-led side of the brand so the public identity feels easier to read.";
     }
   } else {
     if (/founder presence/.test(goal) || weakVoice || founderLimited) {
@@ -1585,37 +1597,57 @@ function buildMarketSignalGroup({
   const lifeMoments = normalizeStringArray(customerOutcome?.lifeMoments, 6);
   const confidence = discoveryProfile?.sourceConfidence || "medium";
 
-  if (offers.length > 0) {
-    score += 6;
+  if (offers.length >= 2) {
+    score += 5;
     strengths.push("The offer is visible enough to work with");
+  } else if (offers.length === 1) {
+    score += 3;
+    strengths.push("The offer is partly visible");
+    weaknesses.push("The offer still needs clearer framing");
   } else {
     weaknesses.push("The offer is not yet clear enough in public-facing material");
   }
 
-  if (audience.length > 0) {
+  if (audience.length >= 2) {
     score += 5;
     strengths.push("The audience is legible enough to shape clearer messaging");
+  } else if (audience.length === 1) {
+    score += 3;
+    strengths.push("There is some audience signal");
+    weaknesses.push("Audience signal is still too light");
   } else {
     weaknesses.push("Audience signal is still too weak");
   }
 
-  if (trustSignals.length > 0) {
+  if (trustSignals.length >= 2) {
     score += 5;
     strengths.push("Trust and proof markers are already present");
+  } else if (trustSignals.length === 1) {
+    score += 3;
+    strengths.push("There is some trust signal");
+    weaknesses.push("Trust signal is still not strong enough yet");
   } else {
     weaknesses.push("Trust signal is still too hidden or too thin");
   }
 
-  if (educationSignals.length > 0) {
+  if (educationSignals.length >= 2) {
     score += 4;
     strengths.push("The business has educational signal it can use more clearly");
+  } else if (educationSignals.length === 1) {
+    score += 2;
+    strengths.push("There is some educational signal");
+    weaknesses.push("Educational signal is not yet clearly surfaced");
   } else {
     weaknesses.push("Educational signal is not yet clearly surfaced");
   }
 
-  if (activitySignals.length > 0 || lifeMoments.length > 0) {
-    score += 5;
+  if (activitySignals.length > 0 && lifeMoments.length > 0) {
+    score += 4;
     strengths.push("There are enough real-world cues to make the brand feel believable");
+  } else if (activitySignals.length > 0 || lifeMoments.length > 0) {
+    score += 2;
+    strengths.push("There is some real-world context to work with");
+    weaknesses.push("The public brand still needs more lived context");
   } else {
     weaknesses.push("The public brand still lacks enough real-world context");
   }
@@ -1628,7 +1660,7 @@ function buildMarketSignalGroup({
 
   let summary = "";
   if (band === "strong") {
-    summary = `${lead} enough offer, audience, and trust signal to understand how the business lands publicly. This part of the brand is already visible enough to be leveraged further.`;
+    summary = `${lead} enough offer, audience, and trust signal to understand how the business lands publicly. This part of the brand is visible enough to leverage further.`;
   } else if (band === "developing") {
     summary = `${lead} a developing market signal, but some of the business value is still not visible enough yet.`;
   } else {
@@ -1700,40 +1732,53 @@ function buildOptimizationGroup({
   const suggestedIdea = String(contentProfile?.suggestedIdea || "").trim();
   const confidence = discoveryProfile?.sourceConfidence || "medium";
 
-  if (opportunities.length >= 2) {
-    score += 8;
+  if (opportunities.length >= 3) {
+    score += 7;
     strengths.push("YEVIB can already point to specific improvement opportunities");
-  } else if (opportunities.length === 1) {
+  } else if (opportunities.length >= 1) {
     score += 4;
-    weaknesses.push("There is one useful opportunity, but the diagnosis is not fully developed yet");
+    strengths.push("There is at least one usable opportunity");
+    weaknesses.push("The opportunity map is still not broad enough yet");
   } else {
     weaknesses.push("Optimization guidance is still too general");
   }
 
-  if (recommendedFocus.length >= 40) {
+  if (recommendedFocus.length >= 60) {
     score += 6;
     strengths.push("There is a clear direction for what the business should do next");
+  } else if (recommendedFocus.length >= 40) {
+    score += 4;
+    strengths.push("There is a workable next direction");
+    weaknesses.push("The next direction still needs tighter prioritisation");
   } else {
     weaknesses.push("The next direction is still too soft or too broad");
   }
 
-  if (blindSpots.length > 0) {
+  if (blindSpots.length >= 2) {
     score += 5;
     strengths.push("The scan can already see underused areas of the business signal");
+  } else if (blindSpots.length === 1) {
+    score += 3;
+    strengths.push("The scan can see at least one underused area");
+    weaknesses.push("Blind-spot detection is still limited");
   } else {
     weaknesses.push("Blind-spot detection is still limited");
   }
 
-  if (suggestedCategory || suggestedIdea) {
-    score += 3;
+  if (suggestedCategory && suggestedIdea) {
+    score += 4;
     strengths.push("The scan can suggest a practical content direction");
+  } else if (suggestedCategory || suggestedIdea) {
+    score += 2;
+    strengths.push("There is a partial content direction");
+    weaknesses.push("The content direction is not yet sharp enough");
   } else {
     weaknesses.push("The content direction is not yet sharp enough");
   }
 
   if (String(founderGoal || "").trim()) {
     score += 3;
-    strengths.push("The advice is being shaped by the founder goal rather than only generic scan logic");
+    strengths.push("The advice is being shaped by the founder goal rather than generic scan logic");
   } else {
     weaknesses.push("Advice would improve with a clearer founder goal");
   }
@@ -1745,7 +1790,7 @@ function buildOptimizationGroup({
 
   let summary = "";
   if (band === "strong") {
-    summary = `${lead} enough business signal to give useful next-step guidance rather than only broad suggestions. This part of the diagnosis is ready to be used as leverage, not just correction.`;
+    summary = `${lead} enough business signal to give useful next-step guidance rather than broad suggestions. This part of the diagnosis is ready to be used as leverage, not just correction.`;
   } else if (band === "developing") {
     summary = `${lead} some grounded direction, but parts of the diagnosis still need stronger signal underneath them.`;
   } else {
@@ -1835,24 +1880,28 @@ function buildSourceMixGroup({
   }
 
   if (hasChannels) {
-    score += 4;
+    score += 3;
     strengths.push("There is at least some wider public signal beyond the site");
   } else {
     weaknesses.push("The wider public signal is still narrow");
   }
 
-  if (broaderDiscovery || pagesScanned >= 3) {
+  if (broaderDiscovery || pagesScanned >= 4) {
     score += 4;
     strengths.push("The scan is drawing from more than one page or page type");
+  } else if (pagesScanned >= 2) {
+    score += 2;
+    strengths.push("The scan has more than a single page to work from");
+    weaknesses.push("The source base is still narrower than it should be");
   } else {
     weaknesses.push("The source base is still too narrow");
   }
 
   if (sourceConfidence === "high") {
-    score += 4;
+    score += 5;
     strengths.push("The current source base gives YEVIB a stronger read");
   } else if (sourceConfidence === "medium") {
-    score += 2;
+    score += 3;
     strengths.push("The current source base is enough for a workable first pass");
   } else {
     weaknesses.push("The current read is still running on partial signal");
@@ -1864,7 +1913,7 @@ function buildSourceMixGroup({
 
   let summary = "";
   if (band === "strong") {
-    summary = "YEVIB is working from a broad enough source mix to make the current scan feel more grounded. This base can now be extended for sharper reads, not just basic reliability.";
+    summary = "YEVIB is working from a broad enough source mix to make the current scan feel grounded. This base can now be extended for sharper reads, not just basic reliability.";
   } else if (band === "developing") {
     summary = "The source mix is workable, but the scan would feel stronger with more direct and public signal.";
   } else {
@@ -2758,6 +2807,136 @@ app.post("/save-owner-choice", async (req, res) => {
     res.status(500).json({ error: err.message || "Failed to save owner choice." });
   }
 });
+function buildChosenMove(profile = {}) {
+  const offers = profile?.brandProductTruth?.offers || [];
+  const audience = profile?.brandProductTruth?.audience || [];
+  const founderVoice = profile?.founderVoice?.voiceSummary || "";
+  const weakVoice = profile?.sourceProfile?.weakVoiceSource;
+  const trustSignals = profile?.discoveryProfile?.trustSignals || [];
+  const educationSignals = profile?.discoveryProfile?.educationSignals || [];
+  const activitySignals = profile?.discoveryProfile?.activitySignals || [];
+  const founderVisibility = profile?.discoveryProfile?.founderVisibilitySignals || [];
+
+  // --- DECISION TREE (FORCES ONE MOVE) ---
+
+  // 1. STRONG BASE → USE PROOF (MOST POWERFUL STATE)
+  if (offers.length > 0 && !weakVoice && trustSignals.length > 0) {
+    return {
+      mediaType: "post_image_combo",
+      title: "Founder-led real-life proof",
+      instruction:
+        "Create a founder-led post and matching image showing a real-life moment where your offer makes a clear difference.",
+      reason:
+        "You already have offer clarity, trust signal, and a strong voice. The missing leverage is turning that into visible real-life proof.",
+      executionSteps: [
+        "Pick one real situation where your product/service is used",
+        "Describe what changed in plain language",
+        "Add one founder sentence explaining why that matters",
+        "Generate an image that visually represents that moment"
+      ],
+      approvalPrompt:
+        "This is the strongest next move based on your scan. Approve to generate."
+    };
+  }
+
+  // 2. OFFER CLEAR BUT TRUST WEAK → BUILD PROOF
+  if (offers.length > 0 && trustSignals.length === 0) {
+    return {
+      mediaType: "post",
+      title: "Standards / proof post",
+      instruction:
+        "Create a post showing your process, standards, or sourcing so people can trust the offer.",
+      reason:
+        "The offer is visible but trust is not doing enough work yet. This move builds credibility.",
+      executionSteps: [
+        "Pick one part of your process or standard",
+        "Explain it simply",
+        "Show why you do it that way",
+        "Keep it real, not polished"
+      ],
+      approvalPrompt:
+        "This move builds trust around your offer. Approve to generate."
+    };
+  }
+
+  // 3. WEAK FOUNDER VOICE → BUILD IDENTITY
+  if (weakVoice || founderVoice.length < 60) {
+    return {
+      mediaType: "post",
+      title: "Founder perspective post",
+      instruction:
+        "Write a post where you explain one decision, belief, or standard from your point of view.",
+      reason:
+        "The brand needs a stronger human voice to feel distinct and real.",
+      executionSteps: [
+        "Think of one decision you made in the business",
+        "Explain why you made it",
+        "Keep the language simple and direct",
+        "Make it feel like a real thought, not a speech"
+      ],
+      approvalPrompt:
+        "This move strengthens your brand identity. Approve to generate."
+    };
+  }
+
+  // 4. EDUCATION SIGNAL → TEACH
+  if (educationSignals.length > 0) {
+    return {
+      mediaType: "post",
+      title: "Educational post",
+      instruction:
+        "Create a post that teaches something simple about your product or process.",
+      reason:
+        "You already have knowledge in the business. This turns it into value people can understand.",
+      executionSteps: [
+        "Pick one simple thing people don’t understand",
+        "Explain it clearly",
+        "Keep it short and useful",
+        "Avoid over-explaining"
+      ],
+      approvalPrompt:
+        "This move turns your knowledge into content. Approve to generate."
+    };
+  }
+
+  // 5. ACTIVITY SIGNAL → SHOW MOMENTUM
+  if (activitySignals.length > 0) {
+    return {
+      mediaType: "post_image_combo",
+      title: "Activity / momentum post",
+      instruction:
+        "Show something happening in your business right now.",
+      reason:
+        "The business has movement, but it is not visible enough publicly.",
+      executionSteps: [
+        "Pick something real happening right now",
+        "Explain it simply",
+        "Show the environment or action visually",
+        "Keep it natural, not staged"
+      ],
+      approvalPrompt:
+        "This move shows your business in motion. Approve to generate."
+    };
+  }
+
+  // 6. DEFAULT → REAL-LIFE USE (SAFE + STRONG)
+  return {
+    mediaType: "post_image_combo",
+    title: "Real-life use case",
+    instruction:
+      "Create a post and image showing how your product/service fits into everyday life.",
+    reason:
+      "When in doubt, showing real-life use is the most reliable way to create value.",
+    executionSteps: [
+      "Pick a normal daily situation",
+      "Place your product/service inside it",
+      "Show what improves",
+      "Keep it believable"
+    ],
+    approvalPrompt:
+      "This is the safest high-value move. Approve to generate."
+  };
+}
 
 app.post("/build-profile", async (req, res) => {
   const { mode, businessUrl, pastedSourceText, manualBusinessContext, founderGoal, ownerWritingSample } = req.body;
@@ -3348,4 +3527,4 @@ NON-NEGOTIABLE IMAGE SAFETY RULES:
 app.listen(PORT, () => {
   ensureOwnerKbFile();
   console.log(`Server running on port ${PORT}`);
-});
+}); 
