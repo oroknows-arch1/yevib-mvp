@@ -3325,87 +3325,377 @@ function buildStrategyCatalog() {
   ];
 }
 
-function buildChosenMove(profile = {}) {
-  const groupMap = getGroupMap(profile);
-  const strategyLibrary = buildStrategyLibrary(profile, groupMap);
+function buildExecutionLayers(strategy = {}, profile = {}) {
+  const businessName = profile?.businessProfile?.name || "the business";
+  const offers = normalizeStringArray(profile?.brandProductTruth?.offers || [], 4);
+  const trustSignals = normalizeStringArray(profile?.discoveryProfile?.trustSignals || [], 4);
+  const educationSignals = normalizeStringArray(profile?.discoveryProfile?.educationSignals || [], 4);
+  const activitySignals = normalizeStringArray(profile?.discoveryProfile?.activitySignals || [], 4);
+  const founderSignals = normalizeStringArray(
+    profile?.discoveryProfile?.founderVisibilitySignals || [],
+    4
+  );
+  const opportunities = normalizeStringArray(profile?.advisorSnapshot?.opportunities || [], 6);
+  const recommendedFocus =
+    profile?.groupedSnapshot?.recommendedFocus ||
+    profile?.advisorSnapshot?.recommendedFocus ||
+    "";
 
-  const primaryKey = choosePrimaryStrategy(profile, groupMap);
-  const secondaryKeys = buildSecondaryStrategies(primaryKey, profile, groupMap);
+  const primaryOffer = firstNonEmpty(offers, "the clearest current offer");
+  const primaryTrust = firstNonEmpty(trustSignals, "visible proof and standards");
+  const primaryEducation = firstNonEmpty(educationSignals, "the clearest teachable business truth");
+  const primaryActivity = firstNonEmpty(activitySignals, "audience-relevant public activity");
+  const primaryFounder = firstNonEmpty(founderSignals, "stronger founder-led public signal");
+  const primaryOpportunity = firstNonEmpty(opportunities, recommendedFocus || "the clearest current opportunity");
 
-  const primary = strategyLibrary[primaryKey];
-  const secondary = secondaryKeys
-    .map((key) => strategyLibrary[key])
-    .filter(Boolean)
-    .map((item) => ({
-      key: item.key,
-      title: item.title,
-      reason: item.reason,
-    }));
+  switch (strategy?.key) {
+    case "trust_build":
+      return {
+        core: `Run a 30-day trust build system for ${businessName} around ${primaryTrust}.`,
+        content: [
+          "Create 3 trust-led posts per week.",
+          "Create matching proof-led images for every trust post.",
+          "Show standards, process, result, and reassurance repeatedly."
+        ],
+        distribution: [
+          "Publish across the main public channel consistently for 4 weeks.",
+          "Repeat the strongest trust angle more than once so it sticks."
+        ],
+        trust: [
+          `Turn ${primaryTrust} into visible public proof.`,
+          "Collect testimonials, screenshots, process proof, or before/after assets during the campaign."
+        ],
+        reciprocity: [
+          "Reward strong audience engagement with useful replies, recognition, or value-led follow-up.",
+          "Use goodwill to deepen trust instead of leaving engagement cold."
+        ],
+        conversion: [
+          `Connect trust content back to ${primaryOffer}.`,
+          "Rewrite one offer explanation so the business feels safer and easier to buy from."
+        ]
+      };
+
+    case "visibility_push":
+      return {
+        core: `Run a 30-day visibility push for ${businessName} using one repeated campaign theme.`,
+        content: [
+          "Create 4 visibility-led posts per week.",
+          "Create a matching image for each post.",
+          "Keep one clear repeated angle across the month instead of switching themes constantly."
+        ],
+        distribution: [
+          "Push the same campaign into main channel posting plus relevant community spaces.",
+          "Use comments and replies as part of distribution, not as an afterthought."
+        ],
+        trust: [
+          "Attach proof, standards, or real-life use to the best-performing visibility posts.",
+          "Make visibility also carry credibility."
+        ],
+        reciprocity: [
+          "Follow up strong engagement with direct conversation, useful replies, or low-friction collaboration openings.",
+          "Use audience response as an expansion path."
+        ],
+        conversion: [
+          "Attach a simple next step to the strongest posts.",
+          "Turn repeated attention into profile visits, inquiry, or offer awareness."
+        ]
+      };
+
+    case "founder_presence_campaign":
+      return {
+        core: `Run a founder presence campaign for ${businessName} so the business feels more human-led and recognisable.`,
+        content: [
+          "Create 3 founder-led posts per week.",
+          "Create matching visuals that show effort, judgment, standards, or lived business reality.",
+          `Use ${primaryFounder} as the main signal to strengthen.`
+        ],
+        distribution: [
+          "Use founder comments, replies, and follow-up posts to reinforce identity.",
+          "Make the founder visible in public-facing brand moments repeatedly."
+        ],
+        trust: [
+          "Tie founder presence to standards and real decision-making.",
+          "Do not let founder content become empty personality content."
+        ],
+        reciprocity: [
+          "Use audience interaction to deepen relationship with the human behind the brand.",
+          "Turn replies into recognisable founder-led signal."
+        ],
+        conversion: [
+          "Update one public-facing brand explanation so the founder is visible in the offer and message.",
+          "Use founder credibility to strengthen conversion confidence."
+        ]
+      };
+
+    case "education_authority_series":
+      return {
+        core: `Run a 30-day education authority series for ${businessName} around ${primaryEducation}.`,
+        content: [
+          "Create 3 educational posts per week.",
+          "Create matching explanatory visuals.",
+          "Turn repeated business knowledge into audience clarity."
+        ],
+        distribution: [
+          "Post the teaching series consistently and reuse the best topic angles.",
+          "Adapt the clearest education content for public and community-facing use."
+        ],
+        trust: [
+          "Use teaching to build authority and reduce buyer doubt.",
+          "Make every lesson reinforce competence."
+        ],
+        reciprocity: [
+          "Answer audience questions publicly where possible.",
+          "Turn engagement into topic expansion for future educational posts."
+        ],
+        conversion: [
+          `Use education to make ${primaryOffer} easier to understand and trust.`,
+          "Bridge the gap between explanation and buying confidence."
+        ]
+      };
+
+    case "offer_clarification_run":
+      return {
+        core: `Run an offer clarification campaign for ${businessName} focused on ${primaryOffer}.`,
+        content: [
+          "Create 3 offer-clarity posts per week.",
+          "Create matching visuals that show the offer in real life.",
+          "Explain the problem, use moment, and result more clearly."
+        ],
+        distribution: [
+          "Repeat the clearest offer message across posts, replies, and public-facing brand touchpoints.",
+          "Keep the same value message visible long enough to land."
+        ],
+        trust: [
+          "Use proof and standards to support the clarified offer.",
+          "Make the offer feel both clear and credible."
+        ],
+        reciprocity: [
+          "Use audience questions and confusion as fuel for better offer explanation.",
+          "Reply with real examples, not generic pitch language."
+        ],
+        conversion: [
+          "Rewrite one homepage, caption, or offer explanation block.",
+          "Make the next buying step easier to understand."
+        ]
+      };
+
+    case "community_penetration_play":
+      return {
+        core: `Run a community penetration play for ${businessName} using ${primaryActivity}.`,
+        content: [
+          "Create a community-suited post pack for relevant groups and audience spaces.",
+          "Adapt main posts into more discussion-friendly versions.",
+          "Use useful relevance, not spam."
+        ],
+        distribution: [
+          "Place content into audience-relevant groups, circles, and niche spaces.",
+          "Treat distribution as relationship-building, not dumping content."
+        ],
+        trust: [
+          "Use proof and relevance to avoid looking random or intrusive.",
+          "Make the brand feel worth listening to inside the community."
+        ],
+        reciprocity: [
+          "Use collaboration, support, replies, referrals, or mutual promotion to deepen entry.",
+          "Turn attention into relationship."
+        ],
+        conversion: [
+          "Guide the right people back toward the offer or brand page after relevance is built.",
+          "Use community trust before conversion pressure."
+        ]
+      };
+
+    case "proof_harvest_campaign":
+      return {
+        core: `Run a proof harvest campaign for ${businessName} and build a reusable credibility bank.`,
+        content: [
+          "Turn collected proof into posts and images.",
+          "Organise proof by standards, outcomes, trust, and result.",
+          "Use proof-led content repeatedly during the cycle."
+        ],
+        distribution: [
+          "Publish proof across normal posting and supporting brand touchpoints.",
+          "Reuse the strongest proof in more than one format."
+        ],
+        trust: [
+          "Collect screenshots, testimonials, outcomes, process evidence, and result signals.",
+          "Make hidden proof visible and reusable."
+        ],
+        reciprocity: [
+          "Thank customers or supporters who help generate proof assets.",
+          "Turn proof collection into stronger brand goodwill."
+        ],
+        conversion: [
+          "Move the best proof into offer-supporting language.",
+          "Use evidence to reduce buying hesitation."
+        ]
+      };
+
+    default:
+      return {
+        core: `Run a 30-day strategic campaign for ${businessName} around ${primaryOpportunity}.`,
+        content: [
+          "Create a consistent post and image pack under one theme.",
+          "Keep all outputs under the same campaign direction."
+        ],
+        distribution: [
+          "Distribute consistently across public channels.",
+          "Repeat the best angle enough times to matter."
+        ],
+        trust: [
+          "Support the campaign with proof, standards, or result where possible."
+        ],
+        reciprocity: [
+          "Use engagement as a relationship and growth lever."
+        ],
+        conversion: [
+          "Connect the campaign back to a clear offer or next step."
+        ]
+      };
+  }
+}
+
+function buildExecutionAssets(strategy = {}, layers = {}) {
+  const contentCount = Array.isArray(layers?.content) ? layers.content.length : 0;
+  const distributionCount = Array.isArray(layers?.distribution) ? layers.distribution.length : 0;
 
   return {
-    strategyKey: primary.key,
-    title: primary.title,
-    operatorRole: primary.operatorRole,
-    instruction: primary.strategySummary,
-    reason: primary.reason,
-    actions: primary.actions,
-    supportActions: primary.supportActions,
-    tools: primary.tools,
+    campaignName: strategy?.title || "Campaign System",
+    primaryOutputs: [
+      "post pack",
+      "image pack",
+      "distribution actions",
+      "trust/proof actions",
+      "conversion support"
+    ],
+    minimumDeliverables: [
+      "3 campaign-aligned posts",
+      "3 matching campaign-aligned images",
+      "1 supporting distribution action",
+      "1 trust/proof action",
+      "1 conversion-support action"
+    ],
+    campaignRhythm: `${contentCount || 3} content actions + ${distributionCount || 2} distribution actions per cycle`
+  };
+}
+
+function buildChosenMove(profile = {}) {
+  const strategyEngine = profile?.strategyEngine || buildStrategyEngine(profile);
+  const primary = strategyEngine?.primaryStrategy || null;
+  const supporting = Array.isArray(strategyEngine?.supportingStrategies)
+    ? strategyEngine.supportingStrategies
+    : [];
+
+  const strategyLibrary = buildStrategyLibrary(profile, getGroupMap(profile));
+  const selectedStrategy = strategyLibrary[primary?.key] || null;
+
+  if (!primary || !selectedStrategy) {
+    return {
+      strategyKey: "general",
+      title: "General Strategy System",
+      operatorRole: "YEVIB acts as a digital strategy operator across content, visibility, and conversion.",
+      instruction: "Run one clear campaign direction instead of scattered activity.",
+      reason: "No stronger strategy signal was available, so YEVIB selected a general execution path.",
+      actions: [
+        "Choose one campaign direction.",
+        "Create posts and images under that one direction.",
+        "Distribute consistently enough for the market to feel it."
+      ],
+      supportActions: [
+        "Keep message consistency.",
+        "Use proof where possible.",
+        "Turn attention into next-step movement."
+      ],
+      tools: ["social posts", "images"],
+      constraint: "Do not split focus across too many unrelated themes.",
+      schedule: "30 days",
+      campaignType: "general",
+      successSignal: "Clearer public signal and more coordinated business movement.",
+      secondaryStrategies: []
+    };
+  }
+
+  return {
+    strategyKey: selectedStrategy.key,
+    title: selectedStrategy.title,
+    operatorRole: selectedStrategy.operatorRole,
+    instruction: selectedStrategy.strategySummary,
+    reason: selectedStrategy.reason,
+    actions: selectedStrategy.actions,
+    supportActions: selectedStrategy.supportActions,
+    tools: selectedStrategy.tools,
     constraint:
       "Keep the strategy grounded in the real business, execute one clear system at a time, and make every output serve the same campaign direction.",
-    schedule: `${primary.duration} • ${primary.cadence}`,
-    campaignType: primary.campaignType,
-    successSignal: primary.successSignal,
-    secondaryStrategies: secondary,
+    schedule: `${selectedStrategy.duration} • ${selectedStrategy.cadence}`,
+    campaignType: selectedStrategy.campaignType,
+    successSignal: selectedStrategy.successSignal,
+    secondaryStrategies: supporting.map((item) => ({
+      key: item.key,
+      title: item.name,
+      reason: item.objective
+    }))
   };
 }
 
 function buildExecutionPlan(profile = {}) {
   const chosenMove = profile?.chosenMove || buildChosenMove(profile);
-  const businessName = profile?.businessProfile?.name || "the business";
+  const strategyLibrary = buildStrategyLibrary(profile, getGroupMap(profile));
+  const selectedStrategy = strategyLibrary[chosenMove?.strategyKey] || {};
+  const layers = buildExecutionLayers(selectedStrategy, profile);
+  const assets = buildExecutionAssets(selectedStrategy, layers);
 
   return {
     title: chosenMove?.title || "Execution Plan",
     summary:
       chosenMove?.instruction ||
-      `YEVIB has selected a strategy system for ${businessName}.`,
+      "Run one clear campaign system instead of scattered outputs.",
     reason:
       chosenMove?.reason ||
       "This strategy was chosen because it gives the business the strongest practical next move.",
     operatorRole:
       chosenMove?.operatorRole ||
       "YEVIB acts as a digital operator across the selected strategy.",
-    actions:
-      Array.isArray(chosenMove?.actions) && chosenMove.actions.length
-        ? chosenMove.actions
-        : [
-            "Choose one campaign system.",
-            "Build the outputs around that system.",
-            "Execute consistently enough for the market to feel it."
-          ],
-    supportActions:
-      Array.isArray(chosenMove?.supportActions) && chosenMove.supportActions.length
-        ? chosenMove.supportActions
-        : [
-            "Support the main campaign with aligned actions.",
-            "Keep the message consistent.",
-            "Use repetition strategically."
-          ],
+    campaignType:
+      chosenMove?.campaignType || "general",
+    schedule:
+      chosenMove?.schedule || "30 days",
+    successSignal:
+      chosenMove?.successSignal ||
+      "The business should become clearer, stronger, and more effective in public.",
     tools:
       Array.isArray(chosenMove?.tools) && chosenMove.tools.length
         ? chosenMove.tools
         : ["social posts", "images"],
+
+    coreCampaign: layers.core || "",
+    campaignLayers: {
+      content: layers.content || [],
+      distribution: layers.distribution || [],
+      trust: layers.trust || [],
+      reciprocity: layers.reciprocity || [],
+      conversion: layers.conversion || [],
+    },
+
+    actions: [
+      layers.core,
+      ...(layers.content || []),
+      ...(layers.distribution || []),
+      ...(layers.trust || []),
+      ...(layers.reciprocity || []),
+      ...(layers.conversion || []),
+    ].filter(Boolean),
+
+    supportActions:
+      Array.isArray(chosenMove?.supportActions) && chosenMove.supportActions.length
+        ? chosenMove.supportActions
+        : [],
+
+    assets,
+
     constraint:
       chosenMove?.constraint ||
-      "Keep the move practical, specific, and directly tied to the real business.",
-    schedule:
-      chosenMove?.schedule ||
-      "Run the selected strategy over a defined cycle.",
-    campaignType:
-      chosenMove?.campaignType || "general",
-    successSignal:
-      chosenMove?.successSignal ||
-      "The business should become clearer, stronger, and more effective in public.",
+      "Keep every output under one campaign theme and do not dilute the direction.",
+
     secondaryStrategies:
       chosenMove?.secondaryStrategies || [],
   };
