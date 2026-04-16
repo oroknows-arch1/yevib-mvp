@@ -259,14 +259,122 @@ function renderPostChoices(posts) {
 
 async function generateImage(post) {
   try {
+    const businessName = initialProfile?.businessProfile?.name || "the business";
+    const businessSummary = initialProfile?.businessProfile?.summary || "";
+    const recommendedFocus =
+      initialProfile?.groupedSnapshot?.recommendedFocus ||
+      initialProfile?.advisorSnapshot?.recommendedFocus ||
+      "";
+
+    const offers = (initialProfile?.brandProductTruth?.offers || []).join(", ");
+    const audience = (initialProfile?.brandProductTruth?.audience || []).join(", ");
+    const lifeMoments = (initialProfile?.customerOutcome?.lifeMoments || []).join(", ");
+
+    const trustSignals = (initialProfile?.discoveryProfile?.trustSignals || []).join(", ");
+    const educationSignals = (initialProfile?.discoveryProfile?.educationSignals || []).join(", ");
+    const activitySignals = (initialProfile?.discoveryProfile?.activitySignals || []).join(", ");
+    const founderSignals = (initialProfile?.discoveryProfile?.founderVisibilitySignals || []).join(", ");
+
+    const visualDirections = (initialProfile?.visualProfile?.visualDirections || []).join(", ");
+    const avoidRules = (initialProfile?.visualProfile?.avoidRules || []).join(", ");
+
+    const imagePrompt = `
+Create a documentary-realistic 4-panel collage image that visually matches this exact post as closely as possible.
+
+BUSINESS:
+${businessName}
+
+BUSINESS SUMMARY:
+${businessSummary}
+
+POST TO VISUALISE:
+${post}
+
+RECOMMENDED FOCUS:
+${recommendedFocus}
+
+OFFERS / SERVICES:
+${offers || "Not enough signal yet"}
+
+AUDIENCE:
+${audience || "Not enough signal yet"}
+
+CUSTOMER LIFE MOMENTS:
+${lifeMoments || "Not enough signal yet"}
+
+TRUST SIGNALS:
+${trustSignals || "Not enough signal yet"}
+
+EDUCATION SIGNALS:
+${educationSignals || "Not enough signal yet"}
+
+ACTIVITY SIGNALS:
+${activitySignals || "Not enough signal yet"}
+
+FOUNDER VISIBILITY SIGNALS:
+${founderSignals || "Not enough signal yet"}
+
+WEBSITE VISUAL DIRECTIONS:
+${visualDirections || "Use the website's visible tone, colour mood, and styling where possible"}
+
+WEBSITE VISUAL AVOID RULES:
+${avoidRules || "Avoid anything that clashes with the website identity"}
+
+STRICT IMAGE GOAL:
+- the viewer should be able to understand the post through the image alone
+- do not make a generic brand collage
+- make the image specifically about the selected post
+- each of the 4 panels must represent a different visual part, beat, or implication of the post
+- if the post suggests effort, standards, routine, pressure, relief, community, education, or founder presence, show those things visually
+- if the post contains a real-life situation, build the collage around that real-life situation
+- if the post is reflective, still show visible real-world scenes, not abstract mood only
+- if the post implies before/after, process/result, pressure/relief, or work/value, use the panels to show that progression
+- if the business is service-based, show people, process, environment, and real use
+- if the business is product-based, show the product naturally inside lived situations, not like an ad
+- make the post feel visible in the image
+
+WEBSITE ALIGNMENT RULE:
+- where possible, match the imagery style, colours, materials, atmosphere, and theme of the website
+- if the website feels earthy, natural, minimal, luxurious, clinical, family-oriented, bold, soft, premium, handcrafted, industrial, or modern, carry that into the image
+- keep the image visually consistent with the business identity already detected from the site
+- do not force random colours that clash with the website feel
+- let the collage feel like it belongs to the same business world as the website
+
+STRICT COLLAGE RULES:
+- exactly 4 clearly separate panels
+- all 4 panels should feel connected to the same post
+- no single-scene image
+- no random unrelated panels
+- documentary realism
+- warm natural lighting unless the website identity clearly suggests a cooler or cleaner tone
+- grounded, believable, human scenes
+- visually rich but not fantasy-like
+- no over-stylised ad look
+- no polished stock-photo feeling
+- the founder / human being behind the business may appear where appropriate
+- where possible, show action, environment, effort, and result
+
+AVOID:
+${avoidRules || "Anything visually off-brand or unrelated to the business"}
+
+NON-NEGOTIABLE SAFETY / VISUAL RULES:
+- no readable text anywhere in the image
+- no captions
+- no signage words
+- no logos
+- no fake brand names
+- no letters on clothing
+- no packaging text
+- no UI screenshots
+- no social media post text inside the image
+`;
+
     const res = await fetch("/generate-image", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        imagePrompt: post, // <-- fixed to match server.js
-      }),
+      body: JSON.stringify({ imagePrompt }),
     });
 
     const data = await res.json();
@@ -279,7 +387,6 @@ async function generateImage(post) {
     generatedImage.src = data.imageUrl;
     generatedImage.style.display = "block";
     imageStatus.innerText = "Execution complete.";
-
   } catch (err) {
     imageStatus.innerText = "Error: " + err.message;
   }

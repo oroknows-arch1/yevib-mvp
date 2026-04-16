@@ -1725,7 +1725,7 @@ function buildOptimizationGroup({
   let score = 0;
   const max = 25;
   const strengths = [];
-  const weaknesses = [];
+  let weaknesses = [];
 
   const opportunities = normalizeStringArray(advisorSnapshot?.opportunities, 6);
   const blindSpots = normalizeStringArray(advisorSnapshot?.blindSpots, 6);
@@ -1783,6 +1783,10 @@ function buildOptimizationGroup({
     strengths.push("The advice is being shaped by the founder goal rather than generic scan logic");
   } else {
     weaknesses.push("Advice would improve with a clearer founder goal");
+  }
+
+  if (weaknesses.length === 0) {
+    weaknesses.push("No clear execution has been carried out yet.");
   }
 
   score = clampNumber(score, 0, max);
@@ -3516,8 +3520,29 @@ app.post("/generate-image", async (req, res) => {
   const { imagePrompt } = req.body;
 
   try {
+    
     const hardenedPrompt = `
 ${clipText(imagePrompt || "", 3500)}
+
+NON-NEGOTIABLE IMAGE MATCH RULES:
+- the image must align closely with the post meaning
+- do not generate a generic business collage
+- the final image must feel like a visual translation of the selected post
+- each panel should reveal a different part of the post's meaning, scene, effort, or outcome
+- if a real-life moment is implied, show that real-life moment clearly
+- if the post is about standards, care, routine, pressure, community, education, or founder presence, show those things visibly
+- the post should feel recognisable through the image even without words
+
+NON-NEGOTIABLE WEBSITE ALIGNMENT RULES:
+- where possible, match the website's imagery style, colour palette, visual tone, atmosphere, textures, and overall theme
+- keep the image feeling like it belongs to the same business identity as the website
+- do not use random colours, props, or moods that clash with the website
+- if the website feels minimal, earthy, luxurious, warm, clinical, handcrafted, industrial, soft, family-led, or modern, reflect that visually
+
+NON-NEGOTIABLE COLLAGE RULES:
+- create exactly 4 clearly distinct panels
+- do not return a single-scene image
+- all 4 panels must feel part of the same visual story
 
 NON-NEGOTIABLE IMAGE SAFETY RULES:
 - no readable words anywhere in the image
