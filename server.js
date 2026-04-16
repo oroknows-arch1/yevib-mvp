@@ -3411,6 +3411,552 @@ function buildExecutionPlan(profile = {}) {
   };
 }
 
+function getStrategyCatalog() {
+  return [
+    {
+      key: "trust_build",
+      name: "Trust Build",
+      objective: "Increase buyer confidence through proof, standards, process, and credibility signals.",
+      triggers: [
+        "low_trust_signal",
+        "unclear_proof",
+        "hidden_standards",
+        "weak_conversion_confidence"
+      ],
+      primaryOutputs: [
+        "proof-led social post pack",
+        "standards and process content series",
+        "testimonial/proof collection plan",
+        "trust-focused homepage copy direction"
+      ]
+    },
+    {
+      key: "visibility_push",
+      name: "Visibility Push",
+      objective: "Increase consistent brand visibility across public channels and relevant audiences.",
+      triggers: [
+        "low_public_presence",
+        "weak_channel_activity",
+        "low_attention",
+        "inconsistent_posting"
+      ],
+      primaryOutputs: [
+        "30-day visibility post plan",
+        "community posting direction",
+        "repeatable awareness content pack",
+        "channel consistency schedule"
+      ]
+    },
+    {
+      key: "founder_presence_campaign",
+      name: "Founder Presence Campaign",
+      objective: "Make the founder more visible so the brand feels more human, distinct, and memorable.",
+      triggers: [
+        "weak_founder_visibility",
+        "generic_brand_voice",
+        "thin_founder_signal"
+      ],
+      primaryOutputs: [
+        "founder-led post series",
+        "founder story prompts",
+        "founder presence content calendar",
+        "about-page strengthening direction"
+      ]
+    },
+    {
+      key: "education_authority_series",
+      name: "Education Authority Series",
+      objective: "Build authority by teaching clearly and repeatedly from real business knowledge.",
+      triggers: [
+        "education_signal_present",
+        "knowledge_rich_business",
+        "needs_authority_build"
+      ],
+      primaryOutputs: [
+        "educational content series",
+        "explanation-first post pack",
+        "FAQ-to-content conversion plan",
+        "authority-building content prompts"
+      ]
+    },
+    {
+      key: "offer_clarification_run",
+      name: "Offer Clarification Run",
+      objective: "Make the offer easier to understand so people know what is sold, who it is for, and why it matters.",
+      triggers: [
+        "unclear_offer",
+        "weak_market_signal",
+        "confused_positioning"
+      ],
+      primaryOutputs: [
+        "offer clarification post pack",
+        "value proposition rewrite direction",
+        "real-life use-case series",
+        "homepage/service explanation copy"
+      ]
+    },
+    {
+      key: "reactivation_sequence",
+      name: "Reactivation Sequence",
+      objective: "Reconnect with warm audiences, past buyers, or quiet followers using simple value-led touchpoints.",
+      triggers: [
+        "stale_audience",
+        "inactive_customer_base",
+        "needs_return_attention"
+      ],
+      primaryOutputs: [
+        "reactivation email ideas",
+        "return-customer offer prompts",
+        "warm audience post sequence",
+        "re-engagement content direction"
+      ]
+    },
+    {
+      key: "community_penetration_play",
+      name: "Community Penetration Play",
+      objective: "Place the business deeper into relevant communities, circles, and audience environments.",
+      triggers: [
+        "community_fit",
+        "local_or_niche_brand",
+        "weak_external_reach"
+      ],
+      primaryOutputs: [
+        "community-first post pack",
+        "group/community outreach angle",
+        "local relevance campaign",
+        "comment and reciprocity direction"
+      ]
+    },
+    {
+      key: "referral_reciprocity_loop",
+      name: "Referral / Reciprocity Loop",
+      objective: "Create growth through goodwill, referrals, collaboration, and exchanged value.",
+      triggers: [
+        "good_customer_sentiment",
+        "partnership_potential",
+        "community_brand",
+        "word_of_mouth_fit"
+      ],
+      primaryOutputs: [
+        "referral prompt pack",
+        "give-to-get campaign ideas",
+        "reciprocity content direction",
+        "collaboration incentive prompts"
+      ]
+    },
+    {
+      key: "proof_harvest_campaign",
+      name: "Proof Harvest Campaign",
+      objective: "Actively collect stronger proof assets the business can reuse in content and sales material.",
+      triggers: [
+        "not_enough_proof_assets",
+        "hidden_results",
+        "weak_social_proof"
+      ],
+      primaryOutputs: [
+        "proof collection checklist",
+        "customer result capture prompts",
+        "testimonial gathering plan",
+        "before/after or process proof direction"
+      ]
+    },
+    {
+      key: "partnership_outreach_pack",
+      name: "Partnership Outreach Pack",
+      objective: "Open collaboration, stockist, creator, or business partnership opportunities.",
+      triggers: [
+        "partnership_potential",
+        "ecosystem_fit",
+        "expansion_ready"
+      ],
+      primaryOutputs: [
+        "partnership outreach angles",
+        "collaboration message pack",
+        "cross-promotion direction",
+        "relationship-building campaign prompts"
+      ]
+    }
+  ];
+}
+
+function scoreStrategy(strategy = {}, profile = {}) {
+  const groupedSnapshot = profile?.groupedSnapshot || {};
+  const advisorSnapshot = profile?.advisorSnapshot || {};
+  const discoveryProfile = profile?.discoveryProfile || {};
+  const sourceProfile = profile?.sourceProfile || {};
+  const contentProfile = profile?.contentProfile || {};
+  const brandProductTruth = profile?.brandProductTruth || {};
+  const customerOutcome = profile?.customerOutcome || {};
+
+  const founderGoal = String(profile?.founderGoal || "").toLowerCase();
+  const recommendedFocus = String(
+    groupedSnapshot?.recommendedFocus || advisorSnapshot?.recommendedFocus || ""
+  ).toLowerCase();
+
+  const trustSignals = normalizeStringArray(discoveryProfile?.trustSignals, 6);
+  const educationSignals = normalizeStringArray(discoveryProfile?.educationSignals, 6);
+  const activitySignals = normalizeStringArray(discoveryProfile?.activitySignals, 6);
+  const founderVisibilitySignals = normalizeStringArray(discoveryProfile?.founderVisibilitySignals, 6);
+
+  const offers = normalizeStringArray(brandProductTruth?.offers, 6);
+  const audience = normalizeStringArray(brandProductTruth?.audience, 6);
+  const lifeMoments = normalizeStringArray(customerOutcome?.lifeMoments, 6);
+
+  const scoreBreakdown = [];
+  let score = 0;
+
+  const weakVoice = Boolean(sourceProfile?.weakVoiceSource);
+  const lowTrust = trustSignals.length === 0;
+  const lowEducation = educationSignals.length === 0;
+  const lowActivity = activitySignals.length === 0;
+  const lowFounderVisibility =
+    founderVisibilitySignals.some((s) => /limited/i.test(s)) ||
+    founderVisibilitySignals.length === 0 ||
+    weakVoice;
+
+  const unclearOffer = offers.length === 0;
+  const hasAudience = audience.length > 0;
+  const hasLifeMoment = lifeMoments.length > 0;
+  const hasTrust = trustSignals.length > 0;
+  const hasEducation = educationSignals.length > 0;
+  const hasActivity = activitySignals.length > 0;
+
+  function add(points, reason) {
+    score += points;
+    scoreBreakdown.push({ points, reason });
+  }
+
+  switch (strategy.key) {
+    case "trust_build":
+      if (lowTrust) add(30, "Trust signal is weak or missing.");
+      if (/trust/.test(founderGoal)) add(30, "Founder goal is trust-related.");
+      if (recommendedFocus.includes("credible") || recommendedFocus.includes("proof") || recommendedFocus.includes("standards")) {
+        add(20, "Recommended focus points toward trust, proof, or standards.");
+      }
+      if (offers.length > 0) add(8, "There is enough offer clarity to support trust-building content.");
+      if (hasAudience) add(6, "Audience signal exists, so trust-building has a target.");
+      break;
+
+    case "visibility_push":
+      if (lowActivity) add(26, "Public activity signal is weak.");
+      if (/posting consistency/.test(founderGoal)) add(30, "Founder goal is posting consistency.");
+      if (recommendedFocus.includes("repeatable") || recommendedFocus.includes("public") || recommendedFocus.includes("visible")) {
+        add(20, "Recommended focus suggests stronger public visibility is needed.");
+      }
+      if (hasAudience) add(10, "Audience signal exists for visibility work.");
+      if (hasLifeMoment) add(8, "There are enough real-life angles to support consistent posting.");
+      break;
+
+    case "founder_presence_campaign":
+      if (lowFounderVisibility) add(32, "Founder visibility is weak.");
+      if (/founder presence/.test(founderGoal)) add(34, "Founder goal is founder presence.");
+      if (/clarify brand voice/.test(founderGoal)) add(16, "Founder voice clarity often needs stronger founder presence.");
+      if (recommendedFocus.includes("founder") || recommendedFocus.includes("human")) {
+        add(18, "Recommended focus points toward founder-led signal.");
+      }
+      break;
+
+    case "education_authority_series":
+      if (hasEducation) add(28, "Education signal already exists.");
+      if (/educational/.test(founderGoal)) add(32, "Founder goal is educational content.");
+      if (recommendedFocus.includes("educational") || recommendedFocus.includes("teaching") || recommendedFocus.includes("knowledge")) {
+        add(18, "Recommended focus points toward education.");
+      }
+      if (hasTrust) add(8, "Trust signal can support authority-building.");
+      break;
+
+    case "offer_clarification_run":
+      if (unclearOffer) add(34, "Offer clarity is weak.");
+      if (/promote products or services/.test(founderGoal)) add(30, "Founder goal is offer promotion.");
+      if (recommendedFocus.includes("offer") || recommendedFocus.includes("value") || recommendedFocus.includes("understand")) {
+        add(18, "Recommended focus points toward offer clarity.");
+      }
+      if (hasLifeMoment) add(10, "Real-life use moments can make offer clarification stronger.");
+      break;
+
+    case "reactivation_sequence":
+      if (hasAudience) add(14, "There is at least some audience to reactivate.");
+      if (hasTrust) add(8, "Trust signal supports warm reactivation.");
+      if (hasActivity === false) add(10, "Low activity can make reactivation useful.");
+      break;
+
+    case "community_penetration_play":
+      if (hasAudience) add(16, "There is audience signal for community positioning.");
+      if (hasLifeMoment) add(14, "Real-life relevance supports community entry.");
+      if (hasActivity) add(12, "Existing activity supports deeper community work.");
+      if (recommendedFocus.includes("public") || recommendedFocus.includes("audience")) {
+        add(12, "Recommended focus supports broader community presence.");
+      }
+      break;
+
+    case "referral_reciprocity_loop":
+      if (hasTrust) add(18, "Trust signal supports reciprocity and referral.");
+      if (hasAudience) add(12, "Audience signal gives referral logic somewhere to travel.");
+      if (hasLifeMoment) add(10, "Real-world usefulness supports word of mouth.");
+      break;
+
+    case "proof_harvest_campaign":
+      if (lowTrust) add(24, "Proof signal is too thin.");
+      if (offers.length > 0) add(12, "The business has something clear enough to gather proof around.");
+      if (recommendedFocus.includes("proof") || recommendedFocus.includes("trust") || recommendedFocus.includes("credible")) {
+        add(18, "Recommended focus points toward proof collection.");
+      }
+      break;
+
+    case "partnership_outreach_pack":
+      if (hasAudience) add(10, "Audience signal supports partnership targeting.");
+      if (hasActivity) add(14, "Activity signal suggests collaboration potential.");
+      if (hasTrust) add(10, "Trust signal helps partnership readiness.");
+      if (recommendedFocus.includes("public") || recommendedFocus.includes("activity")) {
+        add(10, "Recommended focus suggests outward-facing growth.");
+      }
+      break;
+
+    default:
+      break;
+  }
+
+  return {
+    key: strategy.key,
+    name: strategy.name,
+    objective: strategy.objective,
+    triggers: strategy.triggers || [],
+    primaryOutputs: strategy.primaryOutputs || [],
+    score,
+    scoreBreakdown
+  };
+}
+
+function buildStrategyEngine(profile = {}) {
+  const catalog = getStrategyCatalog();
+  const scored = catalog
+    .map((strategy) => scoreStrategy(strategy, profile))
+    .sort((a, b) => b.score - a.score);
+
+  const primary = scored[0] || null;
+  const supporting = scored.slice(1, 3);
+
+  return {
+    primaryStrategy: primary,
+    supportingStrategies: supporting,
+    rankedStrategies: scored
+  };
+}
+app.post("/build-profile", async (req, res) => {
+  const {
+    mode,
+    businessUrl,
+    pastedSourceText,
+    manualBusinessContext,
+    founderGoal,
+    ownerWritingSample,
+  } = req.body;
+
+  try {
+    let laneGather = null;
+    const normalizedUrl = normalizeUrl(businessUrl);
+
+    if (normalizedUrl) {
+      laneGather = await gatherLaneSources(normalizedUrl);
+    }
+
+    const founderText = laneText(
+      laneGather?.lanes?.founderVoice || [],
+      manualBusinessContext || pastedSourceText || ownerWritingSample || ""
+    );
+
+    const customerText = laneText(
+      laneGather?.lanes?.customerOutcome || [],
+      ""
+    );
+
+    const productText = laneText(
+      laneGather?.lanes?.brandProductTruth || [],
+      ""
+    );
+
+    const founderSourceInput = clipText(
+      mode === "manual"
+        ? manualBusinessContext || pastedSourceText || ownerWritingSample
+        : mode === "hybrid"
+        ? pastedSourceText || manualBusinessContext || ownerWritingSample || founderText
+        : founderText || pastedSourceText || manualBusinessContext || ownerWritingSample || productText,
+      5000
+    );
+
+    const [sourceProfile, customerOutcome, brandProductTruth] = await Promise.all([
+      runJsonChat(
+        sourceProfilePrompt({
+          mode,
+          founderText,
+          customerText,
+          productText,
+          pastedSourceText,
+          manualBusinessContext,
+        })
+      ),
+      runJsonChat(
+        customerOutcomePrompt(
+          clipText(customerText || pastedSourceText || "", 3000)
+        )
+      ),
+      runJsonChat(
+        productTruthPrompt(
+          clipText(productText || founderText || pastedSourceText || "", 3000)
+        )
+      ),
+    ]);
+
+    const safeVoiceSourceText = chooseVoiceSourceText({
+      mode,
+      founderText,
+      customerText,
+      productText,
+      pastedSourceText,
+      manualBusinessContext,
+      sourceProfileSummary: sourceProfile?.businessProfile?.summary || "",
+    });
+
+    const safeFounderVoice = await runJsonChat(
+      voiceAgentPrompt(
+        clipText(safeVoiceSourceText || founderSourceInput || "", 5000)
+      )
+    );
+
+    const finalBusinessName =
+      sourceProfile?.businessProfile?.name ||
+      brandProductTruth?.productType ||
+      "Unknown Business";
+
+    const socialLinks = laneGather?.socialLinks || {};
+    const groupedPages = laneGather?.groupedPages || {
+      aboutPages: [],
+      blogPages: [],
+      faqPages: [],
+      reviewPages: [],
+      activityPages: [],
+      pressPages: [],
+      productPages: [],
+    };
+
+    const discoveryProfile = {
+      channelsFound: socialLinks,
+      sourcePages: groupedPages,
+      trustSignals: inferTrustSignals({
+        groupedPages,
+        lanes: laneGather?.lanes || {},
+        pages: laneGather?.pages || [],
+      }),
+      educationSignals: inferEducationSignals({
+        groupedPages,
+        lanes: laneGather?.lanes || {},
+        pages: laneGather?.pages || [],
+      }),
+      activitySignals: inferActivitySignals({
+        groupedPages,
+        pages: laneGather?.pages || [],
+      }),
+      founderVisibilitySignals: inferFounderVisibilitySignals({
+        groupedPages,
+        founderText,
+        pages: laneGather?.pages || [],
+      }),
+      sourceConfidence: inferSourceConfidence({
+        channelsFound: socialLinks,
+        groupedPages,
+        pagesScanned: laneGather?.pages?.length || 0,
+        hasOwnerWriting: Boolean(
+          ownerWritingSample || manualBusinessContext || pastedSourceText
+        ),
+      }),
+    };
+
+    const profile = {
+      founderGoal: founderGoal || "",
+      businessProfile: {
+        name: finalBusinessName,
+        summary: sourceProfile?.businessProfile?.summary || "",
+      },
+      contentProfile: {
+        suggestedCategory:
+          sourceProfile?.contentProfile?.suggestedCategory || "Product in Real Life",
+        suggestedIdea:
+          sourceProfile?.contentProfile?.suggestedIdea ||
+          "How this business makes everyday life feel easier or better",
+      },
+      visualProfile: {
+        visualDirections: sourceProfile?.visualProfile?.visualDirections || [],
+        avoidRules: sourceProfile?.visualProfile?.avoidRules || [],
+      },
+      sourceProfile: {
+        dominantSource: sourceProfile?.sourceProfile?.dominantSource || "mixed",
+        voiceSourceText: safeVoiceSourceText,
+        voiceSourceLane:
+          mode === "manual"
+            ? "manual"
+            : safeVoiceSourceText === founderText
+            ? "founder"
+            : safeVoiceSourceText === pastedSourceText
+            ? "pasted"
+            : safeVoiceSourceText === manualBusinessContext
+            ? "manual"
+            : "fallback",
+        weakVoiceSource: isWeakVoiceSource(safeVoiceSourceText),
+        founderLanePreview: founderText,
+        customerLanePreview: customerText,
+        productLanePreview: productText,
+        urlUsed: Boolean(normalizedUrl),
+        pastedTextUsed: Boolean(pastedSourceText),
+        manualContextUsed: Boolean(manualBusinessContext),
+      },
+      founderVoice: safeFounderVoice,
+      customerOutcome,
+      brandProductTruth,
+      discoveryProfile,
+      ownerKbMeta: getBusinessKbMeta(finalBusinessName),
+      debug: {
+        pagesScanned: laneGather?.pages?.length || 0,
+      },
+    };
+
+    profile.advisorSnapshot = inferAdvisorSnapshot({
+      founderGoal,
+      founderVoice: profile.founderVoice,
+      brandProductTruth: profile.brandProductTruth,
+      customerOutcome: profile.customerOutcome,
+      sourceProfile: profile.sourceProfile,
+      discoveryProfile: profile.discoveryProfile,
+      contentProfile: profile.contentProfile,
+    });
+
+    profile.intelligenceRead = buildIntelligenceRead({
+      advisorSnapshot: profile.advisorSnapshot,
+      discoveryProfile: profile.discoveryProfile,
+    });
+
+    profile.groupedSnapshot = buildGroupedSnapshot({
+      founderGoal,
+      initialProfile: profile,
+      hasOwnerWriting: Boolean(
+        ownerWritingSample || manualBusinessContext || pastedSourceText
+      ),
+    });
+
+    profile.strategyEngine = buildStrategyEngine(profile);
+    profile.chosenMove = buildChosenMove(profile);
+    profile.executionPlan = buildExecutionPlan(profile);
+
+    return res.json({
+      profile,
+    });
+  } catch (err) {
+    console.error("BUILD PROFILE ERROR:", err);
+    res.status(500).json({
+      error: err.message || "Failed to build profile.",
+    });
+  }
+});
+
 app.post("/analyze-voice", async (req, res) => {
   const { input } = req.body;
 
