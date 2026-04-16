@@ -261,12 +261,108 @@ function setupGeneratePostsButton() {
 }
 
 function handleGeneratePostsClick() {
+  if (!initialProfile) {
+    alert("Scan the brand first.");
+    return;
+  }
+
+  if (sourceChangedSinceBuild) {
+    alert("Inputs changed after the last scan. Scan brand again first.");
+    return;
+  }
+
+  if (initialProfile?.chosenMove) {
+    generateChosenMove();
+    return;
+  }
+
   if (!selectedLensType) {
     alert("Choose the lens first.");
     return;
   }
 
   quickGenerate(selectedLensType);
+}
+
+async function generateChosenMove() {
+  if (!initialProfile?.chosenMove) {
+    alert("No chosen move found yet.");
+    return;
+  }
+
+  const ownerFeeling = getFeelingInput();
+  const chosenMove = initialProfile.chosenMove;
+
+  currentQuickType = chosenMove.title || "Chosen Move";
+  currentCategory =
+    initialProfile?.contentProfile?.suggestedCategory || "Product in Real Life";
+  selectedPost = "";
+
+  selectedPostBox.innerText = "";
+  generatedImage.style.display = "none";
+  generatedImage.src = "";
+  imageStatus.innerText = "";
+  postsDiv.innerHTML = "Generating from chosen move...";
+  postsPrompt.innerText = ownerFeeling
+    ? `Generating from chosen move with feeling: ${ownerFeeling}.`
+    : "Generating from the chosen move.";
+
+  if (selectedLensPrompt) {
+    selectedLensPrompt.innerText = `Chosen move: ${chosenMove.title || "Best next move"}.`;
+  }
+
+  generatePrompt.innerText =
+    chosenMove.instruction || "Generating from the chosen move.";
+
+  try {
+    const res = await fetch("/generate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        mode: "hybrid",
+        idea: chosenMove.title || chosenMove.instruction || "best next move",
+        quickType: chosenMove.title || "Chosen Move",
+        ownerNudge: ownerFeeling,
+        category:
+          initialProfile?.contentProfile?.suggestedCategory || "Product in Real Life",
+        founderGoal: getFounderGoal(),
+        businessName: getCurrentBusinessName(),
+        businessSummary: getCurrentBusinessSummary(),
+        manualVoiceInput: voiceInput?.value.trim() || "",
+        voiceProfile,
+        initialProfile,
+      }),
+    });
+
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      const text = await res.text();
+      console.error("Non-JSON response from /generate:", text);
+      postsDiv.innerHTML = "Generate failed: server returned HTML instead of JSON.";
+      return;
+    }
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      postsDiv.innerHTML = "Error: " + (data.error || "Generate failed.");
+      return;
+    }
+
+    if (!data.text) {
+      postsDiv.innerHTML = "No posts returned.";
+      return;
+    }
+
+    const posts = data.text.split("\n\n\n").filter(Boolean);
+    renderPostChoices(posts, chosenMove.title || "Chosen Move", ownerFeeling);
+    scrollToSection("section-posts");
+  } catch (error) {
+    console.error(error);
+    postsDiv.innerHTML = "Error: " + error.message;
+  }
 }
 
 function getFeelingInput() {
@@ -575,6 +671,15 @@ function renderBrandSnapshot(profile) {
   if (voiceInput) {
     voiceInput.value = profile?.sourceProfile?.voiceSourceText || "";
   }
+}
+if (profile?.chosenMove) {
+  if (selectedLensPrompt) {
+    selectedLensPrompt.innerText = `Chosen move ready: ${profile.chosenMove.title}.`;
+  }
+
+  generatePrompt.innerText =
+    profile?.chosenMove?.instruction ||
+    "Chosen move ready. Press Generate Posts.";
 }
 
 function clearSnapshotDisplays() {
