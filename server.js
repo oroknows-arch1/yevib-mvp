@@ -1436,7 +1436,6 @@ function buildIntelligenceRead({
   return `${sentence1} ${sentence2} ${sentence3}`;
 }
 
-
 function qualitySentenceList(items = [], maxItems = 3) {
   return uniqueStrings(
     normalizeStringArray(items, maxItems).map((item) => ensureSentence(sentenceCase(item))),
@@ -2810,134 +2809,152 @@ app.post("/save-owner-choice", async (req, res) => {
     res.status(500).json({ error: err.message || "Failed to save owner choice." });
   }
 });
+
 function buildChosenMove(profile = {}) {
-  const offers = profile?.brandProductTruth?.offers || [];
-  const audience = profile?.brandProductTruth?.audience || [];
-  const founderVoice = profile?.founderVoice?.voiceSummary || "";
-  const weakVoice = profile?.sourceProfile?.weakVoiceSource;
-  const trustSignals = profile?.discoveryProfile?.trustSignals || [];
-  const educationSignals = profile?.discoveryProfile?.educationSignals || [];
-  const activitySignals = profile?.discoveryProfile?.activitySignals || [];
-  const founderVisibility = profile?.discoveryProfile?.founderVisibilitySignals || [];
+  const groupedSnapshot = profile?.groupedSnapshot || {};
+  const groups = Array.isArray(groupedSnapshot?.groups) ? groupedSnapshot.groups : [];
+  const recommendedFocus =
+    groupedSnapshot?.recommendedFocus ||
+    profile?.advisorSnapshot?.recommendedFocus ||
+    "";
+  const founderGoal = profile?.advisorSnapshot?.founderGoal || "";
+  const offers = normalizeStringArray(profile?.brandProductTruth?.offers || [], 3);
+  const trustSignals = normalizeStringArray(profile?.discoveryProfile?.trustSignals || [], 3);
+  const educationSignals = normalizeStringArray(profile?.discoveryProfile?.educationSignals || [], 3);
+  const founderSignals = normalizeStringArray(
+    profile?.discoveryProfile?.founderVisibilitySignals || [],
+    3
+  );
 
-  // --- DECISION TREE (FORCES ONE MOVE) ---
+  const weakestGroup =
+    groups.length > 0
+      ? [...groups].sort((a, b) => {
+          const aPct = a?.max ? a.score / a.max : 0;
+          const bPct = b?.max ? b.score / b.max : 0;
+          return aPct - bPct;
+        })[0]
+      : null;
 
-  // 1. STRONG BASE → USE PROOF (MOST POWERFUL STATE)
-  if (offers.length > 0 && !weakVoice && trustSignals.length > 0) {
-    return {
-      mediaType: "post_image_combo",
-      title: "Founder-led real-life proof",
-      instruction:
-        "Create a founder-led post and matching image showing a real-life moment where your offer makes a clear difference.",
-      reason:
-        "You already have offer clarity, trust signal, and a strong voice. The missing leverage is turning that into visible real-life proof.",
-      executionSteps: [
-        "Pick one real situation where your product/service is used",
-        "Describe what changed in plain language",
-        "Add one founder sentence explaining why that matters",
-        "Generate an image that visually represents that moment"
-      ],
-      approvalPrompt:
-        "This is the strongest next move based on your scan. Approve to generate."
-    };
+  let title = "Best Next Move";
+  let instruction =
+    recommendedFocus ||
+    "Turn the clearest business truth into one useful public-facing content direction.";
+  let reason =
+    "This is the most useful move because it pushes the brand forward in the area that needs the most weight.";
+  let actions = [];
+  let constraint = "Keep it practical, public-facing, and easy to execute.";
+  let schedule = "Do this in the next 7 days.";
+
+  if (weakestGroup?.key === "sourceMix") {
+    title = "Strengthen Source Base";
+    instruction =
+      "Add more direct founder-written material and clearer public-facing source material so the next scan has stronger inputs.";
+    reason =
+      "YEVIB is still working with a source base that is too narrow, so better inputs will improve everything downstream.";
+    actions = [
+      "Write 3 short founder paragraphs explaining what the business does, why it matters, and what standards matter most.",
+      "Add or improve one public-facing About/Story section on the website or main public page.",
+      "Collect 3 proof points already visible in the business and make them easy to reference in future content."
+    ];
+    constraint = "Do not add filler. Only add source material that reflects the real business.";
+    schedule = "Complete this before the next full brand scan.";
+  } else if (weakestGroup?.key === "brandCore") {
+    title = "Clarify Brand Core";
+    instruction =
+      "Make the founder voice and business identity easier to recognise in public-facing language.";
+    reason =
+      "The business needs stronger identity and clearer founder-led language so it reads as distinct, not generic.";
+    actions = [
+      "Rewrite the main business summary in plain language so it clearly says what the business is, who it helps, and why it matters.",
+      "Write 3 founder-led statements the brand can reuse: what we care about, what we do properly, and what we refuse to compromise on.",
+      "Update one public-facing section so the founder voice is visible instead of generic business wording."
+    ];
+    constraint = "Use real language the owner would actually say.";
+    schedule = "Do this before generating the next batch of content.";
+  } else if (weakestGroup?.key === "marketSignal") {
+    title = "Make Value More Visible";
+    instruction =
+      "Tie the offer more clearly to real-life value so people understand why it matters faster.";
+    reason =
+      "The business needs stronger public signal around offer clarity, trust, and lived value.";
+    actions = [
+      `Choose the clearest offer${offers[0] ? `: ${offers[0]}` : ""} and describe it through one real-life use case.`,
+      trustSignals.length > 0
+        ? `Turn one trust signal into public-facing content${trustSignals[0] ? `: ${trustSignals[0]}` : ""}.`
+        : "Add one public-facing trust asset: proof, standard, process, or clear result.",
+      "Write one post and one homepage-style sentence that explain what changes for the customer after using the business."
+    ];
+    constraint = "Lead with practical value, not features alone.";
+    schedule = "Publish or use this in the next content cycle.";
+  } else if (weakestGroup?.key === "optimization") {
+    title = "Turn Insight Into Output";
+    instruction =
+      recommendedFocus ||
+      "Take the clearest current opportunity and turn it into a repeatable public-facing action.";
+    reason =
+      "The scan already sees a direction, but it needs to be turned into something executable.";
+    actions = [
+      "Choose one repeatable content angle from the scan and commit to it.",
+      educationSignals.length > 0
+        ? `Create one educational post based on what the business already teaches${educationSignals[0] ? `: ${educationSignals[0]}` : ""}.`
+        : "Create one content asset that explains the business more clearly.",
+      founderSignals.length > 0
+        ? "Make the founder more visible inside that content so the brand feels human-led."
+        : "Use owner language so the content sounds like a real person behind the business."
+    ];
+    constraint = "Pick one direction only. Do not split effort across multiple themes.";
+    schedule = "Execute this in the next 3 posts.";
+  } else {
+    actions = [
+      "Choose the strongest truth already visible in the business.",
+      "Turn it into one public-facing message people can understand quickly.",
+      "Use that same direction across the next 3 pieces of content."
+    ];
   }
 
-  // 2. OFFER CLEAR BUT TRUST WEAK → BUILD PROOF
-  if (offers.length > 0 && trustSignals.length === 0) {
-    return {
-      mediaType: "post",
-      title: "Standards / proof post",
-      instruction:
-        "Create a post showing your process, standards, or sourcing so people can trust the offer.",
-      reason:
-        "The offer is visible but trust is not doing enough work yet. This move builds credibility.",
-      executionSteps: [
-        "Pick one part of your process or standard",
-        "Explain it simply",
-        "Show why you do it that way",
-        "Keep it real, not polished"
-      ],
-      approvalPrompt:
-        "This move builds trust around your offer. Approve to generate."
-    };
-  }
-
-  // 3. WEAK FOUNDER VOICE → BUILD IDENTITY
-  if (weakVoice || founderVoice.length < 60) {
-    return {
-      mediaType: "post",
-      title: "Founder perspective post",
-      instruction:
-        "Write a post where you explain one decision, belief, or standard from your point of view.",
-      reason:
-        "The brand needs a stronger human voice to feel distinct and real.",
-      executionSteps: [
-        "Think of one decision you made in the business",
-        "Explain why you made it",
-        "Keep the language simple and direct",
-        "Make it feel like a real thought, not a speech"
-      ],
-      approvalPrompt:
-        "This move strengthens your brand identity. Approve to generate."
-    };
-  }
-
-  // 4. EDUCATION SIGNAL → TEACH
-  if (educationSignals.length > 0) {
-    return {
-      mediaType: "post",
-      title: "Educational post",
-      instruction:
-        "Create a post that teaches something simple about your product or process.",
-      reason:
-        "You already have knowledge in the business. This turns it into value people can understand.",
-      executionSteps: [
-        "Pick one simple thing people don’t understand",
-        "Explain it clearly",
-        "Keep it short and useful",
-        "Avoid over-explaining"
-      ],
-      approvalPrompt:
-        "This move turns your knowledge into content. Approve to generate."
-    };
-  }
-
-  // 5. ACTIVITY SIGNAL → SHOW MOMENTUM
-  if (activitySignals.length > 0) {
-    return {
-      mediaType: "post_image_combo",
-      title: "Activity / momentum post",
-      instruction:
-        "Show something happening in your business right now.",
-      reason:
-        "The business has movement, but it is not visible enough publicly.",
-      executionSteps: [
-        "Pick something real happening right now",
-        "Explain it simply",
-        "Show the environment or action visually",
-        "Keep it natural, not staged"
-      ],
-      approvalPrompt:
-        "This move shows your business in motion. Approve to generate."
-    };
-  }
-
-  // 6. DEFAULT → REAL-LIFE USE (SAFE + STRONG)
   return {
-    mediaType: "post_image_combo",
-    title: "Real-life use case",
-    instruction:
-      "Create a post and image showing how your product/service fits into everyday life.",
+    title,
+    instruction,
+    reason,
+    actions,
+    constraint,
+    schedule,
+  };
+}
+
+function buildExecutionPlan(profile = {}) {
+  const chosenMove = profile?.chosenMove || buildChosenMove(profile);
+  const businessName = profile?.businessProfile?.name || "the business";
+  const recommendedFocus =
+    profile?.groupedSnapshot?.recommendedFocus ||
+    profile?.advisorSnapshot?.recommendedFocus ||
+    chosenMove?.instruction ||
+    "";
+
+  const actions = Array.isArray(chosenMove?.actions) ? chosenMove.actions : [];
+
+  return {
+    title: chosenMove?.title || "Execution Plan",
+    summary: `YEVIB's current best move for ${businessName} is to ${String(
+      recommendedFocus || "push the clearest opportunity into execution"
+    ).replace(/\.$/, "").toLowerCase()}.`,
     reason:
-      "When in doubt, showing real-life use is the most reliable way to create value.",
-    executionSteps: [
-      "Pick a normal daily situation",
-      "Place your product/service inside it",
-      "Show what improves",
-      "Keep it believable"
-    ],
-    approvalPrompt:
-      "This is the safest high-value move. Approve to generate."
+      chosenMove?.reason ||
+      "This move was chosen because it gives the business the strongest practical next step.",
+    actions:
+      actions.length > 0
+        ? actions
+        : [
+            "Choose the clearest business truth already visible.",
+            "Turn it into one concrete public-facing action.",
+            "Use that action in the next content cycle."
+          ],
+    constraint:
+      chosenMove?.constraint ||
+      "Keep the move practical, specific, and directly tied to the real business.",
+    schedule:
+      chosenMove?.schedule ||
+      "Start now and apply it in the next 7 days.",
   };
 }
 
@@ -3036,6 +3053,7 @@ app.post("/build-profile", async (req, res) => {
         name: finalBusinessName,
         summary: sourceProfile?.businessProfile?.summary || "",
       },
+
       contentProfile: {
         suggestedCategory:
           sourceProfile?.contentProfile?.suggestedCategory || "Product in Real Life",
@@ -3101,7 +3119,14 @@ app.post("/build-profile", async (req, res) => {
 
     profile.chosenMove = buildChosenMove(profile);
 
-    res.json({ profile });
+    const executionPlan = buildExecutionPlan(profile);
+
+    return res.json({
+      profile: {
+        ...profile,
+        executionPlan
+      }
+    });
   } catch (err) {
     console.error("BUILD PROFILE ERROR:", err);
     res.status(500).json({ error: err.message || "Failed to build profile." });
