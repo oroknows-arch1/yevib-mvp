@@ -2814,328 +2814,602 @@ app.post("/save-owner-choice", async (req, res) => {
   }
 });
 
-function buildChosenMove(profile = {}) {
-  const groupedSnapshot = profile?.groupedSnapshot || {};
-  const groups = Array.isArray(groupedSnapshot?.groups) ? groupedSnapshot.groups : [];
-  const recommendedFocus =
-    groupedSnapshot?.recommendedFocus ||
-    profile?.advisorSnapshot?.recommendedFocus ||
-    "";
-  const founderGoal = profile?.advisorSnapshot?.founderGoal || "";
-  const offers = normalizeStringArray(profile?.brandProductTruth?.offers || [], 3);
-  const trustSignals = normalizeStringArray(profile?.discoveryProfile?.trustSignals || [], 3);
-  const educationSignals = normalizeStringArray(profile?.discoveryProfile?.educationSignals || [], 3);
+function getGroupPct(group = {}) {
+  if (!group?.max) return 0;
+  return Math.round((group.score / group.max) * 100);
+}
+
+function getGroupMap(profile = {}) {
+  const groups = Array.isArray(profile?.groupedSnapshot?.groups)
+    ? profile.groupedSnapshot.groups
+    : [];
+
+  const map = {};
+  for (const group of groups) {
+    map[group.key] = {
+      ...group,
+      pct: getGroupPct(group),
+    };
+  }
+  return map;
+}
+
+function firstNonEmpty(items = [], fallback = "") {
+  for (const item of items) {
+    const text = String(item || "").trim();
+    if (text) return text;
+  }
+  return fallback;
+}
+
+function buildStrategyLibrary(profile = {}, groupMap = {}) {
+  const businessName = profile?.businessProfile?.name || "the business";
+  const offers = normalizeStringArray(profile?.brandProductTruth?.offers || [], 4);
+  const audience = normalizeStringArray(profile?.brandProductTruth?.audience || [], 4);
+  const trustSignals = normalizeStringArray(profile?.discoveryProfile?.trustSignals || [], 4);
+  const educationSignals = normalizeStringArray(profile?.discoveryProfile?.educationSignals || [], 4);
+  const activitySignals = normalizeStringArray(profile?.discoveryProfile?.activitySignals || [], 4);
   const founderSignals = normalizeStringArray(
     profile?.discoveryProfile?.founderVisibilitySignals || [],
-    3
+    4
   );
-
-  const weakestGroup =
-    groups.length > 0
-      ? [...groups].sort((a, b) => {
-          const aPct = a?.max ? a.score / a.max : 0;
-          const bPct = b?.max ? b.score / b.max : 0;
-          return aPct - bPct;
-        })[0]
-      : null;
-
-  let title = "Best Next Move";
-  let instruction =
-    recommendedFocus ||
-    "Turn the clearest business truth into one useful public-facing content direction.";
-  let reason =
-    "This is the most useful move because it pushes the brand forward in the area that needs the most weight.";
-  let actions = [];
-  let constraint = "Keep it practical, public-facing, and easy to execute.";
-  let schedule = "Do this in the next 7 days.";
-
-  if (weakestGroup?.key === "sourceMix") {
-    title = "Strengthen Source Base";
-    instruction =
-      "Add more direct founder-written material and clearer public-facing source material so the next scan has stronger inputs.";
-    reason =
-      "YEVIB is still working with a source base that is too narrow, so better inputs will improve everything downstream.";
-    actions = [
-      "Write 3 short founder paragraphs explaining what the business does, why it matters, and what standards matter most.",
-      "Add or improve one public-facing About/Story section on the website or main public page.",
-      "Collect 3 proof points already visible in the business and make them easy to reference in future content."
-    ];
-    constraint = "Do not add filler. Only add source material that reflects the real business.";
-    schedule = "Complete this before the next full brand scan.";
-  } else if (weakestGroup?.key === "brandCore") {
-    title = "Clarify Brand Core";
-    instruction =
-      "Make the founder voice and business identity easier to recognise in public-facing language.";
-    reason =
-      "The business needs stronger identity and clearer founder-led language so it reads as distinct, not generic.";
-    actions = [
-      "Rewrite the main business summary in plain language so it clearly says what the business is, who it helps, and why it matters.",
-      "Write 3 founder-led statements the brand can reuse: what we care about, what we do properly, and what we refuse to compromise on.",
-      "Update one public-facing section so the founder voice is visible instead of generic business wording."
-    ];
-    constraint = "Use real language the owner would actually say.";
-    schedule = "Do this before generating the next batch of content.";
-  } else if (weakestGroup?.key === "marketSignal") {
-    title = "Make Value More Visible";
-    instruction =
-      "Tie the offer more clearly to real-life value so people understand why it matters faster.";
-    reason =
-      "The business needs stronger public signal around offer clarity, trust, and lived value.";
-    actions = [
-      `Choose the clearest offer${offers[0] ? `: ${offers[0]}` : ""} and describe it through one real-life use case.`,
-      trustSignals.length > 0
-        ? `Turn one trust signal into public-facing content${trustSignals[0] ? `: ${trustSignals[0]}` : ""}.`
-        : "Add one public-facing trust asset: proof, standard, process, or clear result.",
-      "Write one post and one homepage-style sentence that explain what changes for the customer after using the business."
-    ];
-    constraint = "Lead with practical value, not features alone.";
-    schedule = "Publish or use this in the next content cycle.";
-  } else if (weakestGroup?.key === "optimization") {
-    title = "Turn Insight Into Output";
-    instruction =
-      recommendedFocus ||
-      "Take the clearest current opportunity and turn it into a repeatable public-facing action.";
-    reason =
-      "The scan already sees a direction, but it needs to be turned into something executable.";
-    actions = [
-      "Choose one repeatable content angle from the scan and commit to it.",
-      educationSignals.length > 0
-        ? `Create one educational post based on what the business already teaches${educationSignals[0] ? `: ${educationSignals[0]}` : ""}.`
-        : "Create one content asset that explains the business more clearly.",
-      founderSignals.length > 0
-        ? "Make the founder more visible inside that content so the brand feels human-led."
-        : "Use owner language so the content sounds like a real person behind the business."
-    ];
-    constraint = "Pick one direction only. Do not split effort across multiple themes.";
-    schedule = "Execute this in the next 3 posts.";
-  } else {
-    actions = [
-      "Choose the strongest truth already visible in the business.",
-      "Turn it into one public-facing message people can understand quickly.",
-      "Use that same direction across the next 3 pieces of content."
-    ];
-  }
+  const opportunities = normalizeStringArray(profile?.advisorSnapshot?.opportunities || [], 6);
+  const lifeMoments = normalizeStringArray(profile?.customerOutcome?.lifeMoments || [], 4);
+  const recommendedFocus =
+    profile?.groupedSnapshot?.recommendedFocus ||
+    profile?.advisorSnapshot?.recommendedFocus ||
+    "";
 
   return {
-    title,
-    instruction,
-    reason,
-    actions,
-    constraint,
-    schedule,
+    trust_build: {
+      key: "trust_build",
+      title: "Trust Build System",
+      reason:
+        "The business needs stronger public proof, standards, and credibility so people trust it faster.",
+      operatorRole:
+        "YEVIB acts as trust builder, proof harvester, authority editor, and credibility marketer.",
+      strategySummary:
+        `Run a 4-week trust-building system for ${businessName} using proof-led posts, standards-led visuals, visible process, and public credibility signals.`,
+      actions: [
+        `Build a 4-week post and image pack focused on trust, standards, and proof${trustSignals[0] ? `, starting with ${trustSignals[0]}` : ""}.`,
+        "Turn one proof point each week into a social post, image, homepage statement, and comment/reply angle.",
+        "Show how the business works, what it does properly, and what standards it refuses to compromise on.",
+        "Use engagement reciprocity: reward strong audience interaction with samples, free value, collaboration offers, or relationship-building gestures.",
+        "Harvest testimonials, outcomes, before/after examples, screenshots, process proof, and visible trust assets for reuse."
+      ],
+      supportActions: [
+        "Turn hidden credibility into visible credibility.",
+        "Make trust easier to feel at first glance.",
+        "Use proof repeatedly, not once."
+      ],
+      tools: ["social posts", "image pack", "proof content", "offer messaging"],
+      campaignType: "trust",
+      duration: "4 weeks",
+      cadence: "3-5 trust-led outputs per week",
+      successSignal:
+        "Stronger trust-bearing engagement, better conversion conversations, and more confident public perception."
+    },
+
+    visibility_push: {
+      key: "visibility_push",
+      title: "Visibility Push System",
+      reason:
+        "The business may be strong enough already, but it is not showing up often enough or widely enough in public.",
+      operatorRole:
+        "YEVIB acts as visibility manager, distribution worker, content operator, and attention builder.",
+      strategySummary:
+        `Run a visibility push for ${businessName} so the brand becomes harder to miss in its niche, audience circles, and relevant communities.`,
+      actions: [
+        "Create a month-long high-frequency post and image run using one strong theme across all content.",
+        "Repurpose every strong idea into multiple forms: post, image, comment angle, reply angle, and group/community version.",
+        "Push content into audience-relevant spaces consistently instead of posting once and leaving it there.",
+        "Use founder comments, replies, and community interaction to multiply visibility around each post.",
+        "Turn the strongest content theme into repeated public exposure until the brand becomes familiar."
+      ],
+      supportActions: [
+        "Increase frequency without losing message consistency.",
+        "Use repetition strategically, not randomly.",
+        "Build familiarity through visible presence."
+      ],
+      tools: ["social posts", "image pack", "comment strategy", "community posting"],
+      campaignType: "visibility",
+      duration: "4 weeks",
+      cadence: "4-6 visibility outputs per week",
+      successSignal:
+        "More impressions, more repeated audience exposure, more profile visits, and more public familiarity."
+    },
+
+    founder_presence: {
+      key: "founder_presence",
+      title: "Founder Presence Campaign",
+      reason:
+        "The brand needs to feel more human-led, memorable, and connected to the person behind the operation.",
+      operatorRole:
+        "YEVIB acts as founder-positioning strategist, voice clarifier, and founder signal amplifier.",
+      strategySummary:
+        `Build a founder presence campaign for ${businessName} so the business feels clearly led by a real person with judgment, standards, and perspective.`,
+      actions: [
+        "Create a founder-led post and image series for one month.",
+        "Use posts that show decisions, beliefs, standards, effort, pressure, lessons, and real founder perspective.",
+        "Make the founder visible in the language, visuals, and public-facing brand explanations.",
+        "Turn business knowledge into founder-authored insight instead of faceless brand messaging.",
+        "Use comments, replies, and follow-up content to reinforce the founder as the recognisable voice behind the brand."
+      ],
+      supportActions: [
+        "Move the business away from faceless language.",
+        "Make the founder part of the signal, not hidden behind it.",
+        "Use human presence as brand advantage."
+      ],
+      tools: ["founder posts", "founder visuals", "voice-led messaging", "community interaction"],
+      campaignType: "founder_presence",
+      duration: "4 weeks",
+      cadence: "3-4 founder-led outputs per week",
+      successSignal:
+        "Stronger recognition, deeper connection, more memorable brand feel, and more human-led engagement."
+    },
+
+    education_authority: {
+      key: "education_authority",
+      title: "Education Authority Series",
+      reason:
+        "The business has usable knowledge and needs to turn that knowledge into authority, clarity, and audience trust.",
+      operatorRole:
+        "YEVIB acts as education marketer, authority builder, topic planner, and trust-through-teaching system.",
+      strategySummary:
+        `Run an education authority series for ${businessName} by teaching what the audience needs to understand, avoid, and do better.`,
+      actions: [
+        `Build a 4-week teaching series${educationSignals[0] ? ` starting from ${educationSignals[0]}` : ""}.`,
+        "Turn one business truth or misunderstood topic into a post, image, example, and follow-up explanation.",
+        "Teach using real-life context, plain language, and visual explanation where possible.",
+        "Repeat one educational theme long enough to earn authority, not just one-off attention.",
+        "Use the educational series to make the offer easier to understand and trust."
+      ],
+      supportActions: [
+        "Teach consistently enough to become associated with clarity.",
+        "Use education to reduce confusion and increase trust.",
+        "Turn expertise into recurring public signal."
+      ],
+      tools: ["educational posts", "educational visuals", "topic series", "explanatory content"],
+      campaignType: "education",
+      duration: "4 weeks",
+      cadence: "3 educational outputs per week",
+      successSignal:
+        "More saves, shares, clearer audience understanding, and stronger authority perception."
+    },
+
+    offer_clarification: {
+      key: "offer_clarification",
+      title: "Offer Clarification Run",
+      reason:
+        "People need to understand the offer faster, more clearly, and in real-life terms rather than vague business language.",
+      operatorRole:
+        "YEVIB acts as offer clarifier, conversion writer, use-case translator, and message sharpener.",
+      strategySummary:
+        `Run an offer clarification sequence for ${businessName} so people understand what it does, who it is for, and why it matters.`,
+      actions: [
+        `Choose the clearest current offer${offers[0] ? `: ${offers[0]}` : ""} and explain it through real-life use cases.`,
+        "Build a post and image pack that shows the offer in life, not just in description.",
+        "Write clearer homepage, bio, and caption-level language that explains what changes for the customer.",
+        "Show the problem, the use moment, and the result more directly.",
+        "Use repeated clarification posts until the offer lands faster."
+      ],
+      supportActions: [
+        "Replace vague wording with lived value.",
+        "Show where the offer fits into real life.",
+        "Make the result easier to picture."
+      ],
+      tools: ["offer posts", "offer visuals", "homepage messaging", "conversion language"],
+      campaignType: "offer_clarification",
+      duration: "3-4 weeks",
+      cadence: "3 clarification outputs per week",
+      successSignal:
+        "Faster understanding, better quality inquiries, clearer audience response, and stronger conversion readiness."
+    },
+
+    reactivation_sequence: {
+      key: "reactivation_sequence",
+      title: "Reactivation Sequence",
+      reason:
+        "The business needs a structured sequence to wake up colder, quieter, or less engaged parts of its audience.",
+      operatorRole:
+        "YEVIB acts as reactivation planner, re-engagement writer, and dormant-attention recovery system.",
+      strategySummary:
+        `Run a reactivation sequence for ${businessName} using reminders, renewed proof, renewed relevance, and low-friction re-entry points.`,
+      actions: [
+        "Create a 2-4 week reactivation content run aimed at quieter followers and colder audience layers.",
+        "Use reminder posts, renewed proof, customer outcome content, and simple return-entry offers.",
+        "Pair each reactivation message with an image that makes the business feel current and active again.",
+        "Use email, SMS, or direct-message variants where available in future paid tiers.",
+        "Give people a reason to look again through value, proof, clarity, or community invitation."
+      ],
+      supportActions: [
+        "Wake up colder attention without sounding desperate.",
+        "Make the brand feel active again.",
+        "Use relevance and timing to reopen engagement."
+      ],
+      tools: ["social reactivation posts", "image pack", "future email/SMS sequence"],
+      campaignType: "reactivation",
+      duration: "2-4 weeks",
+      cadence: "2-3 reactivation outputs per week",
+      successSignal:
+        "Renewed engagement from quieter followers, more returning interest, and re-opened conversation."
+    },
+
+    community_penetration: {
+      key: "community_penetration",
+      title: "Community Penetration Play",
+      reason:
+        "The business needs structured entry into relevant communities, not just isolated posting on its own page.",
+      operatorRole:
+        "YEVIB acts as niche penetration strategist, community operator, and relevance-distribution worker.",
+      strategySummary:
+        `Run a community penetration play for ${businessName} by shaping content for relevant groups, circles, and industry-adjacent spaces.`,
+      actions: [
+        "Identify the business's most relevant audience and niche communities.",
+        "Turn strong core content into community-suitable versions for group posting, discussion threads, or direct engagement.",
+        "Use useful, relevant, non-spam contribution to become visible in audience-heavy spaces.",
+        "Follow up engagement with reciprocity: useful advice, samples, collaborations, exhibitions, partnerships, or referral openings.",
+        "Use repeated community presence so the brand becomes known inside the right circles."
+      ],
+      supportActions: [
+        "Do not rely on owned audience only.",
+        "Meet the audience where it already gathers.",
+        "Turn relevance into entry."
+      ],
+      tools: ["community posts", "reply strategy", "group-adapted content", "partnership openings"],
+      campaignType: "community_penetration",
+      duration: "4 weeks",
+      cadence: "2-4 community-facing pushes per week",
+      successSignal:
+        "More relevant exposure, more inbound relationships, and deeper niche recognition."
+    },
+
+    referral_loop: {
+      key: "referral_loop",
+      title: "Referral / Reciprocity Loop",
+      reason:
+        "The business needs a system that turns engagement, satisfaction, and goodwill into repeated relationship growth.",
+      operatorRole:
+        "YEVIB acts as referral designer, reciprocity strategist, and relationship-growth operator.",
+      strategySummary:
+        `Build a referral and reciprocity loop for ${businessName} so engagement turns into stronger relationship-based growth.`,
+      actions: [
+        "Create a public-facing reciprocity sequence using gratitude, rewards, proof, and referral encouragement.",
+        "Use posts and images that acknowledge existing supporters and invite deeper participation.",
+        "Offer low-cost but high-value reciprocity: features, free product, collaborations, introductions, exhibitions, or useful visibility.",
+        "Turn satisfied attention into referrals instead of letting it sit inactive.",
+        "Repeat the loop enough that supporters know what happens when they engage."
+      ],
+      supportActions: [
+        "Turn good feeling into repeatable growth behavior.",
+        "Reward engagement strategically.",
+        "Create a loop, not a one-off ask."
+      ],
+      tools: ["social referral posts", "reward messaging", "proof content", "relationship-building content"],
+      campaignType: "referral",
+      duration: "4 weeks",
+      cadence: "2-3 reciprocity touches per week",
+      successSignal:
+        "More shares, more recommendations, more relationship-based growth, and stronger goodwill."
+    },
+
+    proof_harvest: {
+      key: "proof_harvest",
+      title: "Proof Harvest Campaign",
+      reason:
+        "The business likely has usable proof already, but it is scattered, hidden, or underused.",
+      operatorRole:
+        "YEVIB acts as proof collector, credibility organiser, and public evidence builder.",
+      strategySummary:
+        `Run a proof harvest campaign for ${businessName} so existing evidence becomes visible, reusable, and strategically deployed.`,
+      actions: [
+        "Collect screenshots, testimonials, outcomes, before/after examples, process evidence, and standards proof.",
+        "Sort them into reusable proof categories: trust, result, standards, transformation, and consistency.",
+        "Turn those proof assets into a month of post and image content.",
+        "Use proof across posts, comments, captions, and future email/SMS assets.",
+        "Repeat strong proof until it becomes part of public brand memory."
+      ],
+      supportActions: [
+        "Do not leave proof buried.",
+        "Organise proof into reusable assets.",
+        "Use evidence repeatedly, not accidentally."
+      ],
+      tools: ["proof library", "post pack", "image pack", "future CRM assets"],
+      campaignType: "proof_harvest",
+      duration: "3-4 weeks",
+      cadence: "2-4 proof outputs per week",
+      successSignal:
+        "More visible evidence, stronger trust, better response quality, and easier conversion support."
+    },
+
+    partnership_outreach: {
+      key: "partnership_outreach",
+      title: "Partnership Outreach Pack",
+      reason:
+        "The brand may be ready to grow faster through aligned partners, collaborators, exhibitions, or cross-exposure relationships.",
+      operatorRole:
+        "YEVIB acts as partnership scout, outreach writer, and collaboration-growth operator.",
+      strategySummary:
+        `Run a partnership outreach pack for ${businessName} to open aligned collaborations, exhibitions, co-promotions, and brand relationships.`,
+      actions: [
+        "Identify relevant businesses, creators, events, retailers, stockists, or communities worth approaching.",
+        "Build outreach-ready messaging that explains fit, value, and why collaboration makes sense.",
+        "Support outreach with visible public content that makes the brand look active and partnership-ready.",
+        "Use reciprocity-led offers rather than cold generic asks.",
+        "Turn successful partner contact into repeatable templates for future outreach."
+      ],
+      supportActions: [
+        "Approach with fit and value, not vague networking.",
+        "Use public signal to support private outreach.",
+        "Build reusable outreach assets."
+      ],
+      tools: ["outreach pack", "supporting social content", "future email templates"],
+      campaignType: "partnership",
+      duration: "2-4 weeks",
+      cadence: "5-15 targeted outreach attempts over cycle",
+      successSignal:
+        "More conversations, more warm partner responses, and more collaboration openings."
+    },
+
+    subscription_base: {
+      key: "subscription_base",
+      title: "Subscription Base Build",
+      reason:
+        "The business needs a repeatable owned-audience layer it can speak to directly beyond platform algorithms.",
+      operatorRole:
+        "YEVIB acts as retention builder, owned-audience strategist, and subscription-growth operator.",
+      strategySummary:
+        `Build a subscription base for ${businessName} so attention can be retained, revisited, and converted outside algorithm-only dependence.`,
+      actions: [
+        "Create a reason to subscribe: offer, insider value, early access, education, updates, or community relevance.",
+        "Use posts and visuals that move people from casual follower to owned audience member.",
+        "Build repeated subscription invitations into content instead of one-off asks.",
+        "Pair subscription growth with proof, founder presence, or education so the invitation feels earned.",
+        "Prepare future email/SMS continuity so subscription becomes a real business asset."
+      ],
+      supportActions: [
+        "Move from borrowed attention to owned attention.",
+        "Give subscription a clear reason, not just a form.",
+        "Build retention, not just reach."
+      ],
+      tools: ["subscription-focused posts", "offer language", "future email/SMS base"],
+      campaignType: "subscription",
+      duration: "4-6 weeks",
+      cadence: "2-3 subscription-led prompts per week",
+      successSignal:
+        "Growth in owned audience, more repeat contact potential, and stronger retention capacity."
+    }
+  };
+}
+
+function choosePrimaryStrategy(profile = {}, groupMap = {}) {
+  const founderGoal = String(profile?.advisorSnapshot?.founderGoal || "").toLowerCase();
+  const recommendedFocus = String(
+    profile?.groupedSnapshot?.recommendedFocus ||
+    profile?.advisorSnapshot?.recommendedFocus ||
+    ""
+  ).toLowerCase();
+
+  const trustSignals = normalizeStringArray(profile?.discoveryProfile?.trustSignals || [], 4);
+  const educationSignals = normalizeStringArray(profile?.discoveryProfile?.educationSignals || [], 4);
+  const activitySignals = normalizeStringArray(profile?.discoveryProfile?.activitySignals || [], 4);
+  const founderSignals = normalizeStringArray(
+    profile?.discoveryProfile?.founderVisibilitySignals || [],
+    4
+  );
+  const offers = normalizeStringArray(profile?.brandProductTruth?.offers || [], 4);
+
+  const brandCorePct = groupMap?.brandCore?.pct || 0;
+  const marketSignalPct = groupMap?.marketSignal?.pct || 0;
+  const optimizationPct = groupMap?.optimization?.pct || 0;
+  const sourceMixPct = groupMap?.sourceMix?.pct || 0;
+
+  if (/subscription/.test(founderGoal) || /subscription/.test(recommendedFocus)) {
+    return "subscription_base";
+  }
+  if (/founder presence/.test(founderGoal) || founderSignals.some((x) => /limited/i.test(x))) {
+    return "founder_presence";
+  }
+  if (/educational/.test(founderGoal) || educationSignals.length >= 2) {
+    return "education_authority";
+  }
+  if (/trust/.test(founderGoal) || trustSignals.length >= 2) {
+    return "trust_build";
+  }
+  if (/promote products or services/.test(founderGoal) || offers.length > 0 && marketSignalPct < 70) {
+    return "offer_clarification";
+  }
+  if (/posting consistency/.test(founderGoal) && activitySignals.length < 2) {
+    return "visibility_push";
+  }
+
+  if (sourceMixPct < 55) return "proof_harvest";
+  if (brandCorePct < 60) return "founder_presence";
+  if (marketSignalPct < 60) return "offer_clarification";
+  if (optimizationPct >= 70 && educationSignals.length > 0) return "education_authority";
+  if (activitySignals.length >= 2) return "community_penetration";
+  if (trustSignals.length >= 2) return "trust_build";
+
+  return "visibility_push";
+}
+
+function buildSecondaryStrategies(primaryKey, profile = {}, groupMap = {}) {
+  const options = [];
+  const trustSignals = normalizeStringArray(profile?.discoveryProfile?.trustSignals || [], 4);
+  const educationSignals = normalizeStringArray(profile?.discoveryProfile?.educationSignals || [], 4);
+  const founderSignals = normalizeStringArray(
+    profile?.discoveryProfile?.founderVisibilitySignals || [],
+    4
+  );
+  const activitySignals = normalizeStringArray(profile?.discoveryProfile?.activitySignals || [], 4);
+
+  if (primaryKey !== "trust_build" && trustSignals.length > 0) options.push("trust_build");
+  if (primaryKey !== "education_authority" && educationSignals.length > 0) options.push("education_authority");
+  if (primaryKey !== "founder_presence" && founderSignals.length > 0) options.push("founder_presence");
+  if (primaryKey !== "community_penetration" && activitySignals.length > 0) options.push("community_penetration");
+  if (primaryKey !== "proof_harvest") options.push("proof_harvest");
+  if (primaryKey !== "visibility_push") options.push("visibility_push");
+
+  return uniqueStrings(options, 3);
+}
+function buildStrategyCatalog() {
+  return [
+    {
+      key: "trust_build",
+      title: "Trust Build",
+      objective: "Increase buyer confidence by making proof, standards, and reassurance more visible.",
+      channels: ["social_posts", "image_posts", "email", "website_copy"],
+      defaultDurationDays: 30,
+      defaultCadence: "3 posts per week, 1 trust email, 1 website proof update",
+      outputs: [
+        "trust-led post pack",
+        "proof-led image pack",
+        "reassurance email",
+        "website trust block"
+      ]
+    },
+    {
+      key: "visibility_push",
+      title: "Visibility Push",
+      objective: "Increase public visibility by publishing more consistently into the most relevant channels and communities.",
+      channels: ["social_posts", "image_posts", "community_outreach"],
+      defaultDurationDays: 30,
+      defaultCadence: "4 posts per week, 2 community placements per week",
+      outputs: [
+        "visibility post pack",
+        "image pack",
+        "community posting plan"
+      ]
+    },
+    {
+      key: "founder_presence_campaign",
+      title: "Founder Presence Campaign",
+      objective: "Make the founder more visible so the brand feels more human, distinct, and memorable.",
+      channels: ["social_posts", "image_posts", "website_copy", "email"],
+      defaultDurationDays: 21,
+      defaultCadence: "3 founder-led posts per week, 1 founder email, 1 founder website update",
+      outputs: [
+        "founder-led post pack",
+        "founder image pack",
+        "founder story update",
+        "founder email"
+      ]
+    },
+    {
+      key: "education_authority_series",
+      title: "Education Authority Series",
+      objective: "Turn business knowledge into authority by publishing useful educational content consistently.",
+      channels: ["social_posts", "image_posts", "email"],
+      defaultDurationDays: 30,
+      defaultCadence: "3 educational posts per week, 1 teaching email per week",
+      outputs: [
+        "education post pack",
+        "education image pack",
+        "authority email sequence"
+      ]
+    },
+    {
+      key: "offer_clarification_run",
+      title: "Offer Clarification Run",
+      objective: "Make the offer easier to understand so buyers quickly grasp what it is, who it is for, and why it matters.",
+      channels: ["social_posts", "image_posts", "website_copy", "email"],
+      defaultDurationDays: 21,
+      defaultCadence: "3 offer-clarity posts per week, 1 offer email, 1 website offer rewrite",
+      outputs: [
+        "offer clarity post pack",
+        "offer image pack",
+        "offer email",
+        "offer page rewrite"
+      ]
+    }
+  ];
+}
+
+function buildChosenMove(profile = {}) {
+  const groupMap = getGroupMap(profile);
+  const strategyLibrary = buildStrategyLibrary(profile, groupMap);
+
+  const primaryKey = choosePrimaryStrategy(profile, groupMap);
+  const secondaryKeys = buildSecondaryStrategies(primaryKey, profile, groupMap);
+
+  const primary = strategyLibrary[primaryKey];
+  const secondary = secondaryKeys
+    .map((key) => strategyLibrary[key])
+    .filter(Boolean)
+    .map((item) => ({
+      key: item.key,
+      title: item.title,
+      reason: item.reason,
+    }));
+
+  return {
+    strategyKey: primary.key,
+    title: primary.title,
+    operatorRole: primary.operatorRole,
+    instruction: primary.strategySummary,
+    reason: primary.reason,
+    actions: primary.actions,
+    supportActions: primary.supportActions,
+    tools: primary.tools,
+    constraint:
+      "Keep the strategy grounded in the real business, execute one clear system at a time, and make every output serve the same campaign direction.",
+    schedule: `${primary.duration} • ${primary.cadence}`,
+    campaignType: primary.campaignType,
+    successSignal: primary.successSignal,
+    secondaryStrategies: secondary,
   };
 }
 
 function buildExecutionPlan(profile = {}) {
   const chosenMove = profile?.chosenMove || buildChosenMove(profile);
   const businessName = profile?.businessProfile?.name || "the business";
-  const recommendedFocus =
-    profile?.groupedSnapshot?.recommendedFocus ||
-    profile?.advisorSnapshot?.recommendedFocus ||
-    chosenMove?.instruction ||
-    "";
-
-  const actions = Array.isArray(chosenMove?.actions) ? chosenMove.actions : [];
 
   return {
     title: chosenMove?.title || "Execution Plan",
-    summary: `YEVIB's current best move for ${businessName} is to ${String(
-      recommendedFocus || "push the clearest opportunity into execution"
-    ).replace(/\.$/, "").toLowerCase()}.`,
+    summary:
+      chosenMove?.instruction ||
+      `YEVIB has selected a strategy system for ${businessName}.`,
     reason:
       chosenMove?.reason ||
-      "This move was chosen because it gives the business the strongest practical next step.",
+      "This strategy was chosen because it gives the business the strongest practical next move.",
+    operatorRole:
+      chosenMove?.operatorRole ||
+      "YEVIB acts as a digital operator across the selected strategy.",
     actions:
-      actions.length > 0
-        ? actions
+      Array.isArray(chosenMove?.actions) && chosenMove.actions.length
+        ? chosenMove.actions
         : [
-            "Choose the clearest business truth already visible.",
-            "Turn it into one concrete public-facing action.",
-            "Use that action in the next content cycle."
+            "Choose one campaign system.",
+            "Build the outputs around that system.",
+            "Execute consistently enough for the market to feel it."
           ],
+    supportActions:
+      Array.isArray(chosenMove?.supportActions) && chosenMove.supportActions.length
+        ? chosenMove.supportActions
+        : [
+            "Support the main campaign with aligned actions.",
+            "Keep the message consistent.",
+            "Use repetition strategically."
+          ],
+    tools:
+      Array.isArray(chosenMove?.tools) && chosenMove.tools.length
+        ? chosenMove.tools
+        : ["social posts", "images"],
     constraint:
       chosenMove?.constraint ||
       "Keep the move practical, specific, and directly tied to the real business.",
     schedule:
       chosenMove?.schedule ||
-      "Start now and apply it in the next 7 days.",
+      "Run the selected strategy over a defined cycle.",
+    campaignType:
+      chosenMove?.campaignType || "general",
+    successSignal:
+      chosenMove?.successSignal ||
+      "The business should become clearer, stronger, and more effective in public.",
+    secondaryStrategies:
+      chosenMove?.secondaryStrategies || [],
   };
 }
-
-app.post("/build-profile", async (req, res) => {
-  const { mode, businessUrl, pastedSourceText, manualBusinessContext, founderGoal, ownerWritingSample } = req.body;
-
-  try {
-    let laneGather = null;
-    const normalizedUrl = normalizeUrl(businessUrl);
-
-    if (normalizedUrl) {
-      laneGather = await gatherLaneSources(normalizedUrl);
-    }
-
-    const founderText = laneText(
-      laneGather?.lanes?.founderVoice || [],
-      manualBusinessContext || pastedSourceText || ownerWritingSample || ""
-    );
-
-    const customerText = laneText(laneGather?.lanes?.customerOutcome || [], "");
-    const productText = laneText(laneGather?.lanes?.brandProductTruth || [], "");
-
-    const founderSourceInput = clipText(
-      mode === "manual"
-        ? manualBusinessContext || pastedSourceText || ownerWritingSample
-        : mode === "hybrid"
-        ? pastedSourceText || manualBusinessContext || ownerWritingSample || founderText
-        : founderText || pastedSourceText || manualBusinessContext || ownerWritingSample || productText,
-      5000
-    );
-
-    const [sourceProfile, customerOutcome, brandProductTruth] = await Promise.all([
-      runJsonChat(
-        sourceProfilePrompt({
-          mode,
-          founderText,
-          customerText,
-          productText,
-          pastedSourceText,
-          manualBusinessContext,
-        })
-      ),
-      runJsonChat(customerOutcomePrompt(clipText(customerText || pastedSourceText || "", 3000))),
-      runJsonChat(
-        productTruthPrompt(clipText(productText || founderText || pastedSourceText || "", 3000))
-      ),
-    ]);
-
-    const safeVoiceSourceText = chooseVoiceSourceText({
-      mode,
-      founderText,
-      customerText,
-      productText,
-      pastedSourceText,
-      manualBusinessContext,
-      sourceProfileSummary: sourceProfile?.businessProfile?.summary || "",
-    });
-
-    const safeFounderVoice = await runJsonChat(
-      voiceAgentPrompt(clipText(safeVoiceSourceText || founderSourceInput || "", 5000))
-    );
-
-    const finalBusinessName =
-      sourceProfile?.businessProfile?.name ||
-      brandProductTruth?.productType ||
-      "Unknown Business";
-
-    const socialLinks = laneGather?.socialLinks || {};
-    const groupedPages = laneGather?.groupedPages || {
-      aboutPages: [],
-      blogPages: [],
-      faqPages: [],
-      reviewPages: [],
-      activityPages: [],
-      pressPages: [],
-      productPages: [],
-    };
-
-    const discoveryProfile = {
-      channelsFound: socialLinks,
-      sourcePages: groupedPages,
-      trustSignals: inferTrustSignals({ groupedPages, lanes: laneGather?.lanes || {}, pages: laneGather?.pages || [] }),
-      educationSignals: inferEducationSignals({ groupedPages, lanes: laneGather?.lanes || {}, pages: laneGather?.pages || [] }),
-      activitySignals: inferActivitySignals({ groupedPages, pages: laneGather?.pages || [] }),
-      founderVisibilitySignals: inferFounderVisibilitySignals({ groupedPages, founderText, pages: laneGather?.pages || [] }),
-      sourceConfidence: inferSourceConfidence({
-        channelsFound: socialLinks,
-        groupedPages,
-        pagesScanned: laneGather?.pages?.length || 0,
-        hasOwnerWriting: Boolean(ownerWritingSample || manualBusinessContext || pastedSourceText),
-      }),
-    };
-
-    const profile = {
-      businessProfile: {
-        name: finalBusinessName,
-        summary: sourceProfile?.businessProfile?.summary || "",
-      },
-
-      contentProfile: {
-        suggestedCategory:
-          sourceProfile?.contentProfile?.suggestedCategory || "Product in Real Life",
-        suggestedIdea:
-          sourceProfile?.contentProfile?.suggestedIdea ||
-          "How this business makes everyday life feel easier or better",
-      },
-      visualProfile: {
-        visualDirections: sourceProfile?.visualProfile?.visualDirections || [],
-        avoidRules: sourceProfile?.visualProfile?.avoidRules || [],
-      },
-      sourceProfile: {
-        dominantSource: sourceProfile?.sourceProfile?.dominantSource || "mixed",
-        voiceSourceText: safeVoiceSourceText,
-        voiceSourceLane:
-          mode === "manual"
-            ? "manual"
-            : safeVoiceSourceText === founderText
-            ? "founder"
-            : safeVoiceSourceText === pastedSourceText
-            ? "pasted"
-            : safeVoiceSourceText === manualBusinessContext
-            ? "manual"
-            : "fallback",
-        weakVoiceSource: isWeakVoiceSource(safeVoiceSourceText),
-        founderLanePreview: founderText,
-        customerLanePreview: customerText,
-        productLanePreview: productText,
-        urlUsed: Boolean(normalizedUrl),
-        pastedTextUsed: Boolean(pastedSourceText),
-        manualContextUsed: Boolean(manualBusinessContext),
-      },
-      founderVoice: safeFounderVoice,
-      customerOutcome,
-      brandProductTruth,
-      discoveryProfile,
-      ownerKbMeta: getBusinessKbMeta(finalBusinessName),
-      debug: {
-        pagesScanned: laneGather?.pages?.length || 0,
-      },
-    };
-
-    profile.advisorSnapshot = inferAdvisorSnapshot({
-      founderGoal,
-      founderVoice: profile.founderVoice,
-      brandProductTruth: profile.brandProductTruth,
-      customerOutcome: profile.customerOutcome,
-      sourceProfile: profile.sourceProfile,
-      discoveryProfile: profile.discoveryProfile,
-      contentProfile: profile.contentProfile,
-    });
-
-    profile.intelligenceRead = buildIntelligenceRead({
-      advisorSnapshot: profile.advisorSnapshot,
-      discoveryProfile: profile.discoveryProfile,
-    });
-
-    profile.groupedSnapshot = buildGroupedSnapshot({
-      founderGoal,
-      initialProfile: profile,
-      hasOwnerWriting: Boolean(ownerWritingSample || manualBusinessContext || pastedSourceText),
-    });
-
-    profile.chosenMove = buildChosenMove(profile);
-
-    const executionPlan = buildExecutionPlan(profile);
-
-    return res.json({
-      profile: {
-        ...profile,
-        executionPlan
-      }
-    });
-  } catch (err) {
-    console.error("BUILD PROFILE ERROR:", err);
-    res.status(500).json({ error: err.message || "Failed to build profile." });
-  }
-});
 
 app.post("/analyze-voice", async (req, res) => {
   const { input } = req.body;
