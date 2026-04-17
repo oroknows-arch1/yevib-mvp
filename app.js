@@ -591,10 +591,12 @@ function selectPost(post, element) {
 
   document.querySelectorAll(".post-choice-card").forEach((el) => {
     el.classList.remove("selected");
+    el.style.border = "";
   });
 
   if (element) {
     element.classList.add("selected");
+    element.style.border = "2px solid #2563eb";
   }
 }
 
