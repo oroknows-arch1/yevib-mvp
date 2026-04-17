@@ -4946,12 +4946,14 @@ app.post("/analyze-voice", async (req, res) => {
   }
 });
 
-function getHashtags(category, idea, businessName, initialProfile) {
+function getHashtags(category, idea, businessName, initialProfile, postText) {
   const cleanName = String(businessName || "Brand")
     .replace(/[^a-zA-Z0-9 ]/g, " ")
     .trim();
 
   const normalizedName = cleanName.toLowerCase();
+  const lowerIdea = String(idea || "").toLowerCase();
+  const lowerPost = String(postText || "").toLowerCase();
 
   const brandTag =
     "#" +
@@ -4999,9 +5001,9 @@ function getHashtags(category, idea, businessName, initialProfile) {
     ""
   ).toLowerCase();
 
-  const source = [
+  const nicheSource = [
     normalizedName,
-    String(idea || "").toLowerCase(),
+    lowerIdea,
     offers,
     audience,
     trustSignals,
@@ -5010,52 +5012,63 @@ function getHashtags(category, idea, businessName, initialProfile) {
   ].join(" ");
 
   function detectNicheTag() {
-    if (/matcha|green tea|uji|tea|ceremonial grade/.test(source)) return "#Matcha";
-    if (/coffee|cafe|espresso/.test(source)) return "#Coffee";
-    if (/skincare|skin|facial|cosmetic|beauty|injectable/.test(source)) return "#Skincare";
-    if (/gym|fitness|training|coach|pt|sport/.test(source)) return "#Fitness";
-    if (/volleyball/.test(source)) return "#Volleyball";
-    if (/football|soccer/.test(source)) return "#Football";
-    if (/clothing|fashion|apparel|wear|streetwear/.test(source)) return "#Apparel";
-    if (/electrical|cable|manufacturing|factory/.test(source)) return "#Manufacturing";
-    if (/marketing|brand|content|social media|audience|messaging/.test(source)) return "#BrandStrategy";
-    if (/clinic|treatment|injectable|cosmetic nurse|aesthetic/.test(source)) return "#Aesthetics";
+    if (/matcha|green tea|uji|tea|ceremonial grade/.test(nicheSource)) return "#Matcha";
+    if (/coffee|cafe|espresso/.test(nicheSource)) return "#Coffee";
+    if (/skincare|skin|facial|cosmetic|beauty|injectable/.test(nicheSource)) return "#Skincare";
+    if (/gym|fitness|training|coach|pt|sport/.test(nicheSource)) return "#Fitness";
+    if (/volleyball/.test(nicheSource)) return "#Volleyball";
+    if (/football|soccer/.test(nicheSource)) return "#Football";
+    if (/clothing|fashion|apparel|wear|streetwear/.test(nicheSource)) return "#Apparel";
+    if (/electrical|cable|manufacturing|factory/.test(nicheSource)) return "#Manufacturing";
+    if (/marketing|brand|content|social media|audience|messaging/.test(nicheSource)) return "#BrandStrategy";
+    if (/clinic|treatment|injectable|cosmetic nurse|aesthetic/.test(nicheSource)) return "#Aesthetics";
 
     return "#SmallBusiness";
   }
 
-  const intentMap = {
-    "Daily Relief": "#DailyRelief",
-    "Everyday Ritual": "#DailyRitual",
-    "Founder Reflection": "#FounderStory",
-    "Product in Real Life": "#RealLifeUse",
-    "Quiet Value": "#EverydayValue",
-    "Standards and Care": "#QualityMatters",
-    "Busy Day Ease": "#BusyDaySupport",
-    "Small Moment Real Value": "#DailyMoments",
-    "Something Real": "#RealTalk",
-  };
+  function detectPlanTag() {
+    const planSource = `${lowerIdea} ${recommendedFocus}`;
 
-  let intentTag = intentMap[category] || "";
+    if (/trust|proof|credible|credibility/.test(planSource)) return "#BuildTrust";
+    if (/quality|standard|care|craft|process/.test(planSource)) return "#QualityMatters";
+    if (/routine|ritual|daily use|daily practice/.test(planSource)) return "#DailyRitual";
+    if (/founder|voice|presence|identity/.test(planSource)) return "#FounderLed";
+    if (/education|learn|understand|explain/.test(planSource)) return "#LearnMore";
+    if (/offer|service|product|real[- ]life value|real life/.test(planSource)) return "#RealLifeUse";
+    if (/consistency|repeatable|weekly/.test(planSource)) return "#Consistency";
+    if (/clarity|clarify|clear/.test(planSource)) return "#BrandClarity";
 
-  const lowerIdea = String(idea || "").toLowerCase();
+    const map = {
+      "Daily Relief": "#DailyRelief",
+      "Everyday Ritual": "#DailyRitual",
+      "Founder Reflection": "#FounderLed",
+      "Product in Real Life": "#RealLifeUse",
+      "Quiet Value": "#EverydayValue",
+      "Standards and Care": "#QualityMatters",
+      "Busy Day Ease": "#BusyDaySupport",
+      "Small Moment Real Value": "#DailyMoments",
+      "Something Real": "#RealTalk",
+    };
 
-  if (/morning|start|wake|woke up/.test(lowerIdea)) intentTag = "#MorningRoutine";
-  else if (/focus|clarity|clear/.test(lowerIdea)) intentTag = "#ClearFocus";
-  else if (/energy/.test(lowerIdea)) intentTag = "#SteadyEnergy";
-  else if (/stress|pressure|chaos|rush|overwhelmed/.test(lowerIdea)) intentTag = "#StressSupport";
-  else if (/routine|daily|every day|ritual/.test(lowerIdea)) intentTag = "#DailyRitual";
-  else if (/quality|standard|care|craft|process/.test(lowerIdea)) intentTag = "#QualityMatters";
-  else if (/authentic|real|truth/.test(lowerIdea)) intentTag = "#AuthenticChoice";
-  else if (/trust|proof|credible|credibility/.test(lowerIdea)) intentTag = "#BuildTrust";
-  else if (/education|learn|understand|explain/.test(lowerIdea)) intentTag = "#LearnMore";
-  else if (/offer|service|product|use/.test(lowerIdea)) intentTag = "#RealLifeUse";
-
-  if (!intentTag) {
-    intentTag = toTag(idea, "BrandContent");
+    return map[category] || "#BrandStrategy";
   }
 
-  return `${brandTag} ${detectNicheTag()} ${intentTag}`;
+  function detectPostTag() {
+    if (/morning|woke up|start the day|before the laptop|before work/.test(lowerPost)) return "#MorningRoutine";
+    if (/focus|clarity|clear head|clearer/.test(lowerPost)) return "#ClearFocus";
+    if (/energy|steady energy|without the crash|no crash/.test(lowerPost)) return "#SteadyEnergy";
+    if (/stress|pressure|chaos|rush|overwhelmed|deadlines|emails/.test(lowerPost)) return "#StressSupport";
+    if (/authentic|real|truth|something authentic/.test(lowerPost)) return "#AuthenticChoice";
+    if (/routine|ritual|daily|every day/.test(lowerPost)) return "#DailyRitual";
+    if (/quality|standard|care|craft|process|old methods|century-old/.test(lowerPost)) return "#QualityMatters";
+    if (/uji|kyoto|sourced|source|grown|ground|harvested/.test(lowerPost)) return "#SourceMatters";
+    if (/nutrition|whole leaf|powdered leaf|results you can feel/.test(lowerPost)) return "#WholeLeaf";
+    if (/founder|i insist|i look at|i reach for/.test(lowerPost)) return "#FounderStory";
+
+    return toTag(postText, "RealLifeUse");
+  }
+
+  return `${brandTag} ${detectPlanTag()} ${detectPostTag()}`;
 }
 
 app.post("/generate", async (req, res) => {
@@ -5390,11 +5403,11 @@ ${extraCategoryRule}
       });
     }
 
-    const finalPosts = posts.map((post) => {
-      let cleaned = cleanPost(post);
-      cleaned = cleaned.replace(/\n?#\w+(?:\s+#\w+)*/g, "").trim();
-      return `${cleaned}\n${getHashtags(category, idea, finalBusinessName, initialProfile)}`;
-    });
+   const finalPosts = posts.map((post) => {
+  let cleaned = cleanPost(post);
+  cleaned = cleaned.replace(/\n?#\w+(?:\s+#\w+)*/g, "").trim();
+  return `${cleaned}\n${getHashtags(category, idea, finalBusinessName, initialProfile, cleaned)}`;
+});
 
     res.json({ text: finalPosts.join("\n\n\n") });
   } catch (err) {
