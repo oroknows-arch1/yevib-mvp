@@ -5053,23 +5053,33 @@ function getHashtags(category, idea, businessName, initialProfile, postText) {
     return map[category] || "#BrandStrategy";
   }
 
-  function detectPostTag() {
+    function detectPostTag() {
     if (/morning|woke up|start the day|before the laptop|before work/.test(lowerPost)) return "#MorningRoutine";
-    if (/focus|clarity|clear head|clearer/.test(lowerPost)) return "#ClearFocus";
+    if (/focus|clarity|clear head|clearer|direction|uncertainty into control/.test(lowerPost)) return "#ClearFocus";
     if (/energy|steady energy|without the crash|no crash/.test(lowerPost)) return "#SteadyEnergy";
-    if (/stress|pressure|chaos|rush|overwhelmed|deadlines|emails/.test(lowerPost)) return "#StressSupport";
+    if (/stress|pressure|chaos|rush|overwhelmed|deadlines|emails|frustration/.test(lowerPost)) return "#StressSupport";
     if (/authentic|real|truth|something authentic/.test(lowerPost)) return "#AuthenticChoice";
-    if (/routine|ritual|daily|every day/.test(lowerPost)) return "#DailyRitual";
-    if (/quality|standard|care|craft|process|old methods|century-old/.test(lowerPost)) return "#QualityMatters";
+    if (/routine|ritual|daily|every day|habits|patterns|workflow/.test(lowerPost)) return "#DailyRitual";
+    if (/quality|standard|care|craft|process|old methods|century-old|discipline/.test(lowerPost)) return "#QualityMatters";
     if (/uji|kyoto|sourced|source|grown|ground|harvested/.test(lowerPost)) return "#SourceMatters";
     if (/nutrition|whole leaf|powdered leaf|results you can feel/.test(lowerPost)) return "#WholeLeaf";
     if (/founder|i insist|i look at|i reach for/.test(lowerPost)) return "#FounderStory";
 
-    return toTag(postText, "RealLifeUse");
-  }
+    if (/accountability|follow through|follow-through|check-in|check in/.test(lowerPost)) return "#Accountability";
+    if (/strategy|strategic|plan|planning|action plan|priorities/.test(lowerPost)) return "#GrowthStrategy";
+    if (/lead|leadership|teams|manage their teams|team alignment/.test(lowerPost)) return "#LeadershipClarity";
+    if (/business owner|owners|entrepreneur|entrepreneurs|small business/.test(lowerPost)) return "#BusinessCoaching";
+    if (/teach|teaching|learn|understand|explain|framework/.test(lowerPost)) return "#LearnBusiness";
+    if (/confidence|confident|certainty|control/.test(lowerPost)) return "#BusinessConfidence";
 
-  return `${brandTag} ${detectPlanTag()} ${detectPostTag()}`;
-}
+    if (/#matcha/i.test(detectNicheTag())) return "#DailyRitual";
+    if (/#skincare|#aesthetics/i.test(detectNicheTag())) return "#ClientCare";
+    if (/#fitness/i.test(detectNicheTag())) return "#TrainingProgress";
+    if (/#volleyball|#football/i.test(detectNicheTag())) return "#Performance";
+    if (/#brandstrategy/i.test(detectNicheTag())) return "#ClearMessaging";
+
+    return "#RealLifeUse";
+  }
 
 app.post("/generate", async (req, res) => {
   const {
