@@ -72,7 +72,6 @@ const customFeelingInput = document.getElementById("customFeeling");
 
 
 let initialProfile = null;
-let selectedPost = "";
 let selectedLens = "";
 let selectedFeeling = "";
 let snapshotChart = null;
