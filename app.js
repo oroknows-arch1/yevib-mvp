@@ -118,6 +118,12 @@ function clearOutputs() {
   imageStatus.innerText = "";
   postsPrompt.innerText = "";
   selectedPost = "";
+
+  if (approvePostBtn) {
+    approvePostBtn.style.display = "none";
+    approvePostBtn.disabled = true;
+    approvePostBtn.innerText = "Approve & Continue";
+  }
 }
 
 function clearSnapshotUI() {
@@ -598,6 +604,11 @@ function selectPost(post, element) {
     element.classList.add("selected");
     element.style.border = "2px solid #2563eb";
   }
+
+  if (approvePostBtn) {
+    approvePostBtn.disabled = false;
+    approvePostBtn.innerText = "Approve & Continue";
+  }
 }
 
 /* ------------------ BUILD PROFILE ------------------ */
@@ -689,14 +700,20 @@ if (approvePostBtn) {
       return;
     }
 
+    approvePostBtn.disabled = true;
+    approvePostBtn.innerText = "Generating Image...";
+
     selectedPostBox.innerText = selectedPost;
-
     imageStatus.innerText = "Generating image from approved post...";
-    await generateImage();
 
-    const imageSection = document.getElementById("generatedImage");
-    if (imageSection) {
-      imageSection.scrollIntoView({ behavior: "smooth" });
+    await generateImage(selectedPost);
+
+    approvePostBtn.innerText = "Approved";
+    approvePostBtn.disabled = false;
+
+    const outputSection = document.getElementById("section-output");
+    if (outputSection) {
+      outputSection.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   });
 }
@@ -770,6 +787,17 @@ async function generateExecutionPlan() {
 function renderPostChoices(posts) {
   postsDiv.innerHTML = "";
   postsPrompt.innerText = "Choose one, then click Approve & Continue.";
+  selectedPost = "";
+  selectedPostBox.innerText = "";
+  generatedImage.style.display = "none";
+  generatedImage.src = "";
+  imageStatus.innerText = "";
+
+  if (approvePostBtn) {
+    approvePostBtn.style.display = "inline-block";
+    approvePostBtn.disabled = true;
+    approvePostBtn.innerText = "Approve & Continue";
+  }
 
   posts.forEach((post) => {
     const card = document.createElement("div");
@@ -779,9 +807,9 @@ function renderPostChoices(posts) {
     card.onclick = () => {
       document.querySelectorAll(".post-choice-card").forEach((el) => {
         el.classList.remove("selected");
+        el.style.border = "";
       });
 
-      card.classList.add("selected");
       selectPost(post, card);
     };
 
@@ -812,7 +840,7 @@ async function generateImage(post = selectedPost) {
     const visualDirections = (initialProfile?.visualProfile?.visualDirections || []).join(", ");
     const avoidRules = (initialProfile?.visualProfile?.avoidRules || []).join(", ");
 
-    const imagePrompt = `
+        const imagePrompt = `
 Create a documentary-realistic 4-panel collage image that visually matches this exact post as closely as possible.
 
 BUSINESS:
@@ -908,13 +936,17 @@ NON-NEGOTIABLE SAFETY / VISUAL RULES:
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ imagePrompt })
+      body: JSON.stringify({
+        prompt: imagePrompt
+      })
     });
 
     const data = await res.json();
 
     if (!res.ok || !data.imageUrl) {
-      imageStatus.innerText = "Image failed.";
+      generatedImage.style.display = "none";
+      generatedImage.src = "";
+      imageStatus.innerText = "Image failed: " + (data.error || "No image returned.");
       return;
     }
 
@@ -922,6 +954,8 @@ NON-NEGOTIABLE SAFETY / VISUAL RULES:
     generatedImage.style.display = "block";
     imageStatus.innerText = "Execution complete.";
   } catch (err) {
+    generatedImage.style.display = "none";
+    generatedImage.src = "";
     imageStatus.innerText = "Error: " + err.message;
   }
 }

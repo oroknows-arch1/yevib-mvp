@@ -274,7 +274,8 @@
 
   <button id="runPlanBtn" style="margin-top:15px; padding:10px 16px; border-radius:8px; background:#2563eb; color:white; border:none;">
     Run This Plan
-  </button>
+</button>
+<div id="runPlanStatus" style="margin-top:10px; font-size:14px; opacity:0.8;"></div>
 </div>
       <section class="screen-card" id="section-generate">
         <div class="screen-head">
@@ -342,6 +343,10 @@
 
         <div id="postsPrompt" class="subtle-line"></div>
         <div id="posts"></div>
+
+        <button id="approvePostBtn" style="display:none; margin-top:15px; padding:10px 16px; border-radius:8px; background:#16a34a; color:white; border:none;" disabled>
+          Approve & Continue
+        </button>
       </section>
 
       <section class="screen-card" id="section-output">
