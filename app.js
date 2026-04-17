@@ -487,7 +487,7 @@ function populateExecutionPlan(profile) {
 }
 
 async function runAgentCycle() {
-  if (!initialProfile) return;
+  if (!initialProfile) return null;
 
   if (runPlanBtn) {
     runPlanBtn.disabled = true;
@@ -516,7 +516,7 @@ async function runAgentCycle() {
         runPlanStatus.innerText = "Plan run failed.";
       }
 
-      return;
+      return null;
     }
 
     initialProfile = data.profile;
@@ -527,17 +527,63 @@ async function runAgentCycle() {
     }
 
     console.log("Agent cycle complete:", data.runLog);
+    return data;
   } catch (err) {
     console.error("Agent cycle error:", err.message);
 
     if (runPlanStatus) {
       runPlanStatus.innerText = `Plan run error: ${err.message}`;
     }
+
+    return null;
   } finally {
     if (runPlanBtn) {
       runPlanBtn.disabled = false;
       runPlanBtn.innerText = "Run This Plan";
     }
+  }
+}
+
+async function runPlanAndGenerateFirstArtifact() {
+  if (!initialProfile) return;
+
+  if (runPlanBtn) {
+    runPlanBtn.disabled = true;
+    runPlanBtn.innerText = "Running Plan...";
+  }
+
+  const cycleResult = await runAgentCycle();
+
+  if (!cycleResult) {
+    if (runPlanBtn) {
+      runPlanBtn.disabled = false;
+      runPlanBtn.innerText = "Run This Plan";
+    }
+    return;
+  }
+
+  if (!selectedLens) {
+    selectedLens = "Business";
+
+    lensButtons.forEach((btn) => {
+      const isBusiness = (btn.dataset.type || "") === "Business";
+      btn.classList.toggle("selected", isBusiness);
+    });
+
+    selectedLensPrompt.innerText = "Selected lens: Business";
+  }
+
+  generatePrompt.innerText = "YEVIB is generating the first execution artifact...";
+  await generateExecutionPlan();
+
+  const postsSection = document.getElementById("section-posts");
+  if (postsSection) {
+    postsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  if (runPlanBtn) {
+    runPlanBtn.disabled = false;
+    runPlanBtn.innerText = "Run This Plan";
   }
 }
 
@@ -619,7 +665,7 @@ if (continueToGenerateBtn) {
 
 if (runPlanBtn) {
   runPlanBtn.addEventListener("click", async () => {
-    await runAgentCycle();
+    await runPlanAndGenerateFirstArtifact();
   });
 }
 
