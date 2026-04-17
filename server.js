@@ -4376,7 +4376,7 @@ function getStrategyCatalog() {
         "repeatable awareness content pack",
         "channel consistency schedule"
       ]
-    }
+    },
     {
       key: "founder_presence_campaign",
       name: "Founder Presence Campaign",
@@ -4888,6 +4888,49 @@ app.post("/build-profile", async (req, res) => {
   }
 });
 
+app.post("/run-agent-cycle", async (req, res) => {
+  try {
+    const { profile } = req.body || {};
+
+    if (!profile) {
+      return res.status(400).json({ error: "profile is required." });
+    }
+
+    const refreshedProfile = {
+      ...profile,
+      strategyEngine: buildStrategyEngine(profile),
+      brandIntelligence: buildBrandIntelligence(profile),
+      chosenMove: buildChosenMove(profile),
+    };
+
+    refreshedProfile.executionPlan = buildExecutionPlan(refreshedProfile);
+    refreshedProfile.multiAgentSystem = buildMultiAgentSystem(refreshedProfile);
+
+    const strategist = refreshedProfile.multiAgentSystem?.strategist || {};
+    const operator = refreshedProfile.multiAgentSystem?.operator || {};
+    const analyst = refreshedProfile.multiAgentSystem?.analyst || {};
+
+    const runLog = createAgentRunLog({
+      businessName: refreshedProfile?.businessProfile?.name,
+      strategist,
+      operator,
+      analyst,
+      executionPlan: refreshedProfile.executionPlan,
+    });
+
+    return res.json({
+      ok: true,
+      profile: refreshedProfile,
+      runLog,
+    });
+  } catch (err) {
+    console.error("RUN AGENT CYCLE ERROR:", err);
+    res.status(500).json({
+      error: err.message || "Failed to run agent cycle.",
+    });
+  }
+});
+
 app.post("/analyze-voice", async (req, res) => {
   const { input } = req.body;
 
@@ -4942,48 +4985,7 @@ function getHashtags(category, idea, businessName) {
 
   return `${brandTag} ${categoryMap[category] || "#BrandContent"} ${topicTag}`;
 }
-app.post("/run-agent-cycle", async (req, res) => {
-  try {
-    const { profile } = req.body || {};
 
-    if (!profile) {
-      return res.status(400).json({ error: "profile is required." });
-    }
-
-    const refreshedProfile = {
-      ...profile,
-      strategyEngine: buildStrategyEngine(profile),
-      brandIntelligence: buildBrandIntelligence(profile),
-      chosenMove: buildChosenMove(profile),
-    };
-
-    refreshedProfile.executionPlan = buildExecutionPlan(refreshedProfile);
-    refreshedProfile.multiAgentSystem = buildMultiAgentSystem(refreshedProfile);
-
-    const strategist = refreshedProfile.multiAgentSystem?.strategist || {};
-    const operator = refreshedProfile.multiAgentSystem?.operator || {};
-    const analyst = refreshedProfile.multiAgentSystem?.analyst || {};
-
-    const runLog = createAgentRunLog({
-      businessName: refreshedProfile?.businessProfile?.name,
-      strategist,
-      operator,
-      analyst,
-      executionPlan: refreshedProfile.executionPlan,
-    });
-
-    return res.json({
-      ok: true,
-      profile: refreshedProfile,
-      runLog,
-    });
-  } catch (err) {
-    console.error("RUN AGENT CYCLE ERROR:", err);
-    res.status(500).json({
-      error: err.message || "Failed to run agent cycle.",
-    });
-  }
-});
 app.post("/generate", async (req, res) => {
   const {
     mode,
