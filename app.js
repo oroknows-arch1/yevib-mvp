@@ -937,7 +937,7 @@ NON-NEGOTIABLE SAFETY / VISUAL RULES:
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        prompt: imagePrompt
+        imagePrompt
       })
     });
 
