@@ -38,6 +38,12 @@ const activitySignalsDisplay = document.getElementById("activitySignalsDisplay")
 const founderVisibilitySignalsDisplay = document.getElementById("founderVisibilitySignalsDisplay");
 const voiceInput = document.getElementById("voiceInput");
 
+const primaryStrategyDisplay = document.getElementById("primaryStrategyDisplay");
+const supportingStrategiesDisplay = document.getElementById("supportingStrategiesDisplay");
+const chosenMoveDisplay = document.getElementById("chosenMoveDisplay");
+const executionPlanDisplay = document.getElementById("executionPlanDisplay");
+const successSignalDisplay = document.getElementById("successSignalDisplay");
+
 const activeSliceWrap = document.getElementById("activeSliceWrap");
 const activeSliceTitle = document.getElementById("activeSliceTitle");
 const activeSliceMeta = document.getElementById("activeSliceMeta");
@@ -278,6 +284,42 @@ function populateSnapshot(profile) {
   const brandProductTruth = profile?.brandProductTruth || {};
   const discoveryProfile = profile?.discoveryProfile || {};
   const sourceProfile = profile?.sourceProfile || {};
+  const strategyEngine = profile?.strategyEngine || {};
+const chosenMove = profile?.chosenMove || {};
+const executionPlan = profile?.executionPlan || {};
+
+// PRIMARY STRATEGY
+primaryStrategyDisplay.innerText = safeText(
+  strategyEngine?.primaryStrategy,
+  "Strategy will appear here after the scan."
+);
+
+// SUPPORTING STRATEGIES
+supportingStrategiesDisplay.innerText = safeJoin(
+  strategyEngine?.supportingStrategies,
+  "Supporting strategies will appear here."
+);
+
+// WHY THIS MOVE
+chosenMoveDisplay.innerText = safeText(
+  chosenMove?.reason,
+  "Decision logic will appear here."
+);
+
+// EXECUTION PLAN (clean format)
+executionPlanDisplay.innerText = safeJoin(
+  [
+    executionPlan?.summary,
+    ...(executionPlan?.actions || [])
+  ].filter(Boolean),
+  "Execution steps will appear here."
+);
+
+// SUCCESS SIGNAL
+successSignalDisplay.innerText = safeText(
+  executionPlan?.successSignal,
+  "Success signal will appear here."
+);
 
   businessSummaryInput.value = safeText(profile?.businessProfile?.summary, "");
   founderGoalDisplay.innerText = getFounderGoal() || "No goal selected yet.";
@@ -389,10 +431,11 @@ async function buildInitialProfile() {
 
     initialProfile = data.profile;
 
-    populateSnapshot(initialProfile);
+await runAgentCycle();
 
-    intakeStatus.innerText = "Brand scan complete.";
-    profilePrompt.innerText = "Snapshot ready. Open Brand Intelligence or continue to content action.";
+intakeStatus.innerText = "Brand scan complete.";
+profilePrompt.innerText = "Snapshot ready. YEVIB has run its agent cycle. Open Brand Intelligence or continue to content action.";
+    
 
     if (initialProfile?.ownerKbMeta?.entryCount) {
       ownerKbStatus.innerText = `Owner KB entries found for this business: ${initialProfile.ownerKbMeta.entryCount}`;

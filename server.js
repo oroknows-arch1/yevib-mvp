@@ -3579,6 +3579,87 @@ function buildExecutionAssets(strategy = {}, layers = {}) {
   };
 }
 
+function buildBrandIntelligence(profile = {}) {
+  const groupedSnapshot = profile?.groupedSnapshot || {};
+  const advisorSnapshot = profile?.advisorSnapshot || {};
+  const discoveryProfile = profile?.discoveryProfile || {};
+  const strategyEngine = profile?.strategyEngine || {};
+
+  const primaryStrategy = strategyEngine?.primaryStrategy || null;
+  const supportingStrategies = Array.isArray(strategyEngine?.supportingStrategies)
+    ? strategyEngine.supportingStrategies
+    : [];
+
+  const opportunities = normalizeStringArray(advisorSnapshot?.opportunities, 6);
+  const blindSpots = normalizeStringArray(advisorSnapshot?.blindSpots, 6);
+  const trustSignals = normalizeStringArray(discoveryProfile?.trustSignals, 6);
+  const educationSignals = normalizeStringArray(discoveryProfile?.educationSignals, 6);
+  const activitySignals = normalizeStringArray(discoveryProfile?.activitySignals, 6);
+  const founderVisibilitySignals = normalizeStringArray(
+    discoveryProfile?.founderVisibilitySignals,
+    6
+  );
+
+  const strongestGroup = Array.isArray(groupedSnapshot?.groups)
+    ? [...groupedSnapshot.groups].sort((a, b) => (b.score / b.max) - (a.score / a.max))[0]
+    : null;
+
+  const weakestGroup = Array.isArray(groupedSnapshot?.groups)
+    ? [...groupedSnapshot.groups].sort((a, b) => (a.score / a.max) - (b.score / b.max))[0]
+    : null;
+
+  const readParts = [];
+
+  if (strongestGroup?.title) {
+    readParts.push(
+      `${strongestGroup.title} is currently the strongest part of the brand signal, which means the business already has usable momentum there.`
+    );
+  }
+
+  if (weakestGroup?.title) {
+    readParts.push(
+      `${weakestGroup.title} is the weakest part right now, so that is where the biggest practical improvement opportunity sits.`
+    );
+  }
+
+  if (primaryStrategy?.name) {
+    readParts.push(
+      `The best strategy right now is ${primaryStrategy.name} because it matches what the scan says the business needs most.`
+    );
+  }
+
+  return {
+    read: readParts.join(" "),
+    recommendedFocus:
+      groupedSnapshot?.recommendedFocus ||
+      advisorSnapshot?.recommendedFocus ||
+      "No clear recommended focus yet.",
+    opportunities,
+    blindSpots,
+    trustSignals,
+    educationSignals,
+    activitySignals,
+    founderVisibilitySignals,
+    primaryStrategy: primaryStrategy
+      ? {
+          key: primaryStrategy.key,
+          name: primaryStrategy.name,
+          objective: primaryStrategy.objective,
+          score: primaryStrategy.score,
+          scoreBreakdown: primaryStrategy.scoreBreakdown || [],
+          primaryOutputs: primaryStrategy.primaryOutputs || [],
+        }
+      : null,
+    supportingStrategies: supportingStrategies.map((strategy) => ({
+      key: strategy.key,
+      name: strategy.name,
+      objective: strategy.objective,
+      score: strategy.score,
+      primaryOutputs: strategy.primaryOutputs || [],
+    })),
+  };
+}
+
 function buildChosenMove(profile = {}) {
   const strategyEngine = profile?.strategyEngine || buildStrategyEngine(profile);
   const primary = strategyEngine?.primaryStrategy || null;
@@ -3637,64 +3718,623 @@ function buildChosenMove(profile = {}) {
   };
 }
 
+function canYevibSayIsGoingTo(profile = {}, chosenMove = {}) {
+  const hasStrategy =
+    Boolean(profile?.strategyEngine?.primaryStrategy?.key) ||
+    Boolean(chosenMove?.strategyKey);
+
+  const hasChosenMove =
+    Boolean(chosenMove?.title) &&
+    Array.isArray(chosenMove?.actions) &&
+    chosenMove.actions.length > 0;
+
+  const hasExecutionSignals =
+    Array.isArray(chosenMove?.actions) &&
+    chosenMove.actions.length > 0 &&
+    Boolean(chosenMove?.campaignType || chosenMove?.tools?.length);
+
+  return hasStrategy && hasChosenMove && hasExecutionSignals;
+}
+
+function buildExecutionEta(profile = {}, chosenMove = {}) {
+  const sourceConfidence = String(profile?.discoveryProfile?.sourceConfidence || "medium").toLowerCase();
+  const weakVoice = Boolean(profile?.sourceProfile?.weakVoiceSource);
+  const channelsFound = profile?.discoveryProfile?.channelsFound || {};
+  const hasChannels = Object.values(channelsFound).some(Boolean);
+  const actionCount = Array.isArray(chosenMove?.actions) ? chosenMove.actions.length : 0;
+  const campaignType = String(chosenMove?.campaignType || "").toLowerCase();
+
+  let setup = "2–3 days";
+  let firstSignal = "7–14 days";
+  let compounding = "3–6 weeks";
+
+  if (sourceConfidence === "high" && hasChannels && !weakVoice) {
+    setup = "1–2 days";
+    firstSignal = "3–7 days";
+    compounding = "2–4 weeks";
+  } else if (sourceConfidence === "low" || weakVoice) {
+    setup = "3–5 days";
+    firstSignal = "1–2 weeks";
+    compounding = "4–8 weeks";
+  }
+
+  if (campaignType === "founder_presence") {
+    firstSignal = weakVoice ? "1–2 weeks" : "5–10 days";
+  }
+
+  if (campaignType === "trust" || campaignType === "proof_harvest") {
+    compounding = "3–6 weeks";
+  }
+
+  if (campaignType === "visibility") {
+    firstSignal = "3–7 days";
+    compounding = "2–4 weeks";
+  }
+
+  if (campaignType === "subscription") {
+    firstSignal = "1–2 weeks";
+    compounding = "4–8 weeks";
+  }
+
+  if (actionCount >= 5 && setup === "1–2 days") {
+    setup = "2–3 days";
+  }
+
+  return { setup, firstSignal, compounding };
+}
+
+function buildExpectedOutcome(profile = {}, chosenMove = {}) {
+  const campaignType = String(chosenMove?.campaignType || "").toLowerCase();
+
+  if (campaignType === "trust") {
+    return {
+      minimum: "Clearer proof, standards, and reassurance in public-facing content.",
+      likely: "Improved trust-bearing engagement and stronger buyer confidence.",
+      maximum: "Noticeable lift in conversion quality, inbound trust, and decision speed."
+    };
+  }
+
+  if (campaignType === "visibility") {
+    return {
+      minimum: "More consistent public output and stronger message repetition.",
+      likely: "Improved reach, profile visits, and repeated audience exposure.",
+      maximum: "Noticeable lift in brand familiarity, inbound attention, and momentum."
+    };
+  }
+
+  if (campaignType === "founder_presence") {
+    return {
+      minimum: "Stronger founder visibility and less generic brand language.",
+      likely: "Improved connection, recognition, and audience memory of the brand.",
+      maximum: "Noticeable lift in trust, founder-led loyalty, and brand distinctiveness."
+    };
+  }
+
+  if (campaignType === "education") {
+    return {
+      minimum: "Clearer educational output and stronger topic consistency.",
+      likely: "Improved authority perception, saves, shares, and trust.",
+      maximum: "Noticeable lift in inbound interest, audience confidence, and expert positioning."
+    };
+  }
+
+  if (campaignType === "offer_clarification") {
+    return {
+      minimum: "Clearer understanding of what the business offers and why it matters.",
+      likely: "Improved response quality, better-fit inquiries, and stronger message clarity.",
+      maximum: "Noticeable lift in conversions, offer comprehension, and decision speed."
+    };
+  }
+
+  if (campaignType === "subscription") {
+    return {
+      minimum: "Stronger owned-audience direction and clearer subscribe reasons.",
+      likely: "Improved sign-up intent and more repeat contact opportunities.",
+      maximum: "Noticeable lift in retained audience value, repeat engagement, and future conversion control."
+    };
+  }
+
+  return {
+    minimum: "Increased content consistency and clearer messaging.",
+    likely: "Improved audience response and engagement patterns.",
+    maximum: "Noticeable shift in trust, inbound interest, or conversions."
+  };
+}
+
+function buildRiskNotes(profile = {}, chosenMove = {}) {
+  const riskNotes = [];
+  const weakVoice = Boolean(profile?.sourceProfile?.weakVoiceSource);
+  const sourceConfidence = String(profile?.discoveryProfile?.sourceConfidence || "medium").toLowerCase();
+  const hasChannels = Object.values(profile?.discoveryProfile?.channelsFound || {}).some(Boolean);
+
+  riskNotes.push("Results depend on consistency of execution across the full strategy window.");
+
+  if (weakVoice) {
+    riskNotes.push("Weak founder signal may slow trust-building and differentiation until stronger owner-led language is added.");
+  }
+
+  if (sourceConfidence === "low") {
+    riskNotes.push("A thinner source base may reduce strategy precision until more business evidence is gathered.");
+  }
+
+  if (!hasChannels) {
+    riskNotes.push("Limited public channel presence may slow visibility, feedback, and compounding effects.");
+  }
+
+  return riskNotes.slice(0, 3);
+}
+
+function buildExecutionSummary(profile = {}, chosenMove = {}, canCommit = false) {
+  const businessName = profile?.businessProfile?.name || "the business";
+  const instruction =
+    chosenMove?.instruction ||
+    "execute the strongest available strategy";
+
+  const cleanInstruction = String(instruction).replace(/\.$/, "");
+
+  if (canCommit) {
+    return `YEVIB is going to ${cleanInstruction.toLowerCase()} for ${businessName}.`;
+  }
+
+  return `YEVIB recommends ${cleanInstruction.toLowerCase()} for ${businessName}, but cannot frame it as active execution until a full executable move is locked.`;
+}
+function clampInt(value, min, max) {
+  return Math.max(min, Math.min(max, Math.round(value)));
+}
+
+function getGroupPctByKey(profile = {}, key = "") {
+  const groups = Array.isArray(profile?.groupedSnapshot?.groups)
+    ? profile.groupedSnapshot.groups
+    : [];
+
+  const match = groups.find((group) => group.key === key);
+  if (!match || !match.max) return 0;
+  return Math.round((match.score / match.max) * 100);
+}
+
+function getExecutionReadiness(profile = {}, chosenMove = {}) {
+  const sourceMixPct = getGroupPctByKey(profile, "sourceMix");
+  const brandCorePct = getGroupPctByKey(profile, "brandCore");
+  const marketSignalPct = getGroupPctByKey(profile, "marketSignal");
+  const optimizationPct = getGroupPctByKey(profile, "optimization");
+
+  const overallPct = Number(profile?.groupedSnapshot?.overallPct || 0);
+  const sourceConfidence = String(profile?.discoveryProfile?.sourceConfidence || "medium").toLowerCase();
+  const weakVoice = Boolean(profile?.sourceProfile?.weakVoiceSource);
+
+  const trustSignals = normalizeStringArray(profile?.discoveryProfile?.trustSignals || [], 6);
+  const educationSignals = normalizeStringArray(profile?.discoveryProfile?.educationSignals || [], 6);
+  const activitySignals = normalizeStringArray(profile?.discoveryProfile?.activitySignals || [], 6);
+  const founderSignals = normalizeStringArray(
+    profile?.discoveryProfile?.founderVisibilitySignals || [],
+    6
+  );
+
+  const offers = normalizeStringArray(profile?.brandProductTruth?.offers || [], 6);
+  const audience = normalizeStringArray(profile?.brandProductTruth?.audience || [], 6);
+  const lifeMoments = normalizeStringArray(profile?.customerOutcome?.lifeMoments || [], 6);
+
+  const channelsFound = profile?.discoveryProfile?.channelsFound || {};
+  const channelCount = Object.values(channelsFound).filter(Boolean).length;
+
+  let readinessScore = 0;
+
+  readinessScore += overallPct * 0.20;
+  readinessScore += sourceMixPct * 0.20;
+  readinessScore += brandCorePct * 0.20;
+  readinessScore += marketSignalPct * 0.20;
+  readinessScore += optimizationPct * 0.20;
+
+  if (sourceConfidence === "high") readinessScore += 8;
+  if (sourceConfidence === "medium") readinessScore += 4;
+  if (weakVoice) readinessScore -= 8;
+
+  readinessScore += Math.min(channelCount * 3, 12);
+  readinessScore += Math.min(trustSignals.length * 2, 8);
+  readinessScore += Math.min(educationSignals.length * 2, 8);
+  readinessScore += Math.min(activitySignals.length * 2, 8);
+  readinessScore += Math.min(offers.length * 2, 8);
+  readinessScore += Math.min(audience.length * 2, 8);
+  readinessScore += Math.min(lifeMoments.length * 2, 8);
+
+  if (founderSignals.some((s) => /limited/i.test(s))) readinessScore -= 4;
+
+  readinessScore = clampInt(readinessScore, 0, 100);
+
+  let readinessBand = "low";
+  if (readinessScore >= 75) readinessBand = "high";
+  else if (readinessScore >= 50) readinessBand = "medium";
+
+  return {
+    readinessScore,
+    readinessBand,
+    sourceMixPct,
+    brandCorePct,
+    marketSignalPct,
+    optimizationPct,
+    overallPct,
+    sourceConfidence,
+    weakVoice,
+    channelCount,
+    trustCount: trustSignals.length,
+    educationCount: educationSignals.length,
+    activityCount: activitySignals.length,
+    offerCount: offers.length,
+    audienceCount: audience.length,
+    lifeMomentCount: lifeMoments.length,
+    founderLimited: founderSignals.some((s) => /limited/i.test(s)),
+    campaignType: String(chosenMove?.campaignType || "general").toLowerCase(),
+  };
+}
+
+function buildUniversalEta(profile = {}, chosenMove = {}) {
+  const read = getExecutionReadiness(profile, chosenMove);
+
+  let setupDays = 4;
+  let firstSignalDays = 10;
+  let compoundingDays = 35;
+
+  // Stronger business = faster setup and earlier signal
+  setupDays -= Math.floor(read.readinessScore / 30);
+  firstSignalDays -= Math.floor(read.readinessScore / 18);
+  compoundingDays -= Math.floor(read.readinessScore / 8);
+
+  // Source and channel effects
+  setupDays -= Math.min(read.channelCount, 2);
+  firstSignalDays -= Math.min(read.channelCount, 3);
+
+  if (read.sourceConfidence === "high") {
+    setupDays -= 1;
+    firstSignalDays -= 1;
+  }
+
+  if (read.weakVoice) {
+    setupDays += 2;
+    firstSignalDays += 3;
+    compoundingDays += 7;
+  }
+
+  if (read.founderLimited && read.campaignType === "founder_presence") {
+    firstSignalDays += 3;
+    compoundingDays += 7;
+  }
+
+  // Campaign-specific modifiers
+  if (read.campaignType === "visibility") {
+    firstSignalDays -= 2;
+    compoundingDays -= 5;
+  }
+
+  if (read.campaignType === "trust_build" || read.campaignType === "trust" || read.campaignType === "proof_harvest") {
+    firstSignalDays += 2;
+    compoundingDays += 7;
+  }
+
+  if (read.campaignType === "education" || read.campaignType === "education_authority") {
+    firstSignalDays += 1;
+    compoundingDays += 5;
+  }
+
+  if (read.campaignType === "offer_clarification") {
+    firstSignalDays -= 1;
+    compoundingDays -= 3;
+  }
+
+  if (read.campaignType === "subscription") {
+    firstSignalDays += 4;
+    compoundingDays += 10;
+  }
+
+  if (read.campaignType === "partnership") {
+    firstSignalDays += 5;
+    compoundingDays += 10;
+  }
+
+  setupDays = clampInt(setupDays, 1, 7);
+  firstSignalDays = clampInt(firstSignalDays, 3, 21);
+  compoundingDays = clampInt(compoundingDays, 14, 70);
+
+  return {
+    setup: formatDayRange(setupDays, "day"),
+    firstSignal: formatDayRange(firstSignalDays, "day"),
+    compounding: formatDayRange(compoundingDays, compoundingDays >= 14 ? "week" : "day"),
+    confidence: buildEtaConfidenceLabel(read.readinessBand, read.readinessScore),
+    readinessScore: read.readinessScore,
+    readinessBand: read.readinessBand,
+  };
+}
+
+function formatDayRange(value, mode = "day") {
+  if (mode === "week") {
+    const minWeeks = Math.max(2, Math.floor(value / 7));
+    const maxWeeks = Math.max(minWeeks + 1, Math.ceil((value + 7) / 7));
+    return `${minWeeks}–${maxWeeks} weeks`;
+  }
+
+  const min = Math.max(1, value - 1);
+  const max = value + 1;
+  return `${min}–${max} days`;
+}
+
+function buildEtaConfidenceLabel(band = "medium", score = 0) {
+  if (band === "high") return `High confidence ETA (${score}/100 readiness)`;
+  if (band === "low") return `Cautious ETA (${score}/100 readiness)`;
+  return `Working ETA (${score}/100 readiness)`;
+}
+
+function buildUniversalExpectedOutcome(profile = {}, chosenMove = {}) {
+  const read = getExecutionReadiness(profile, chosenMove);
+  const type = read.campaignType;
+
+  let minimum = "Clearer execution structure and stronger message consistency.";
+  let likely = "Improved audience response, stronger business signal, and better campaign direction.";
+  let maximum = "Noticeable lift in trust, visibility, engagement, or conversion quality.";
+
+  if (type === "visibility") {
+    minimum = "More consistent public presence and stronger repetition of the core message.";
+    likely = "Improved reach, impressions, and repeated exposure to the right audience.";
+    maximum = "Noticeable lift in familiarity, profile visits, and inbound attention.";
+  } else if (type === "trust" || type === "trust_build") {
+    minimum = "Clearer proof, reassurance, and visible standards.";
+    likely = "Improved trust-bearing engagement and better conversion confidence.";
+    maximum = "Noticeable lift in buyer confidence, inquiry quality, and trust-driven conversion.";
+  } else if (type === "founder_presence") {
+    minimum = "Stronger founder visibility and less generic brand messaging.";
+    likely = "Improved human connection, recognition, and brand memory.";
+    maximum = "Noticeable lift in founder-led trust, loyalty, and distinctiveness.";
+  } else if (type === "education" || type === "education_authority") {
+    minimum = "More useful educational content and stronger topical clarity.";
+    likely = "Improved authority perception, saves, shares, and trust.";
+    maximum = "Noticeable lift in expert positioning, qualified attention, and inbound interest.";
+  } else if (type === "offer_clarification") {
+    minimum = "Clearer explanation of what the business does and why it matters.";
+    likely = "Improved response quality and better-fit customer inquiries.";
+    maximum = "Noticeable lift in conversion readiness and offer understanding.";
+  } else if (type === "subscription") {
+    minimum = "A clearer owned-audience pathway and stronger subscribe logic.";
+    likely = "Improved sign-up intent and more repeat contact opportunities.";
+    maximum = "Noticeable lift in retention power and owned-audience value.";
+  }
+
+  if (read.readinessBand === "low") {
+    likely = `Early version of likely outcome: ${likely}`;
+    maximum = `If execution stays consistent and signal improves: ${maximum}`;
+  }
+
+  return { minimum, likely, maximum };
+}
+
+function buildUniversalRiskNotes(profile = {}, chosenMove = {}) {
+  const read = getExecutionReadiness(profile, chosenMove);
+  const notes = [];
+
+  notes.push("Results depend on consistency across the full campaign window, not one-off execution.");
+
+  if (read.sourceMixPct < 55) {
+    notes.push("A narrow source base may reduce strategy precision until more business evidence is gathered.");
+  }
+
+  if (read.weakVoice) {
+    notes.push("Weak founder signal may slow differentiation until stronger owner-led language is added.");
+  }
+
+  if (read.channelCount === 0) {
+    notes.push("Limited public channel presence may slow visibility and feedback loops.");
+  }
+
+  if (read.marketSignalPct < 55) {
+    notes.push("A weaker market signal may delay stronger conversion or response outcomes until the offer is clearer.");
+  }
+
+  return notes.slice(0, 3);
+}
+
+const AGENT_RUNS_PATH = path.join(__dirname, "agent-runs.json");
+
+function ensureAgentRunsFile() {
+  if (!fs.existsSync(AGENT_RUNS_PATH)) {
+    fs.writeFileSync(
+      AGENT_RUNS_PATH,
+      JSON.stringify({ runs: [] }, null, 2),
+      "utf8"
+    );
+  }
+}
+
+function readAgentRuns() {
+  ensureAgentRunsFile();
+  try {
+    return JSON.parse(fs.readFileSync(AGENT_RUNS_PATH, "utf8"));
+  } catch {
+    return { runs: [] };
+  }
+}
+
+function writeAgentRuns(data) {
+  ensureAgentRunsFile();
+  fs.writeFileSync(AGENT_RUNS_PATH, JSON.stringify(data, null, 2), "utf8");
+}
+
+function createAgentRunLog({
+  businessName,
+  strategist,
+  operator,
+  analyst,
+  executionPlan,
+}) {
+  const db = readAgentRuns();
+
+  const run = {
+    id: Date.now().toString(),
+    timestamp: new Date().toISOString(),
+    businessName: businessName || "Unknown Business",
+    strategist,
+    operator,
+    analyst,
+    executionPlan,
+  };
+
+  db.runs.push(run);
+  db.runs = db.runs.slice(-200);
+
+  writeAgentRuns(db);
+  return run;
+}
+
+function buildStrategistAgent(profile = {}) {
+  const chosenMove = profile?.chosenMove || buildChosenMove(profile);
+  const executionPlan = profile?.executionPlan || buildExecutionPlan(profile);
+  const strategyEngine = profile?.strategyEngine || buildStrategyEngine(profile);
+
+  return {
+    role: "strategist",
+    primaryStrategy: strategyEngine?.primaryStrategy || null,
+    supportingStrategies: strategyEngine?.supportingStrategies || [],
+    chosenMove: {
+      title: chosenMove?.title || "",
+      strategyKey: chosenMove?.strategyKey || "",
+      reason: chosenMove?.reason || "",
+      campaignType: chosenMove?.campaignType || "general",
+    },
+    mission:
+      executionPlan?.summary ||
+      chosenMove?.instruction ||
+      "Run the strongest available strategy.",
+    successSignal:
+      executionPlan?.successSignal ||
+      chosenMove?.successSignal ||
+      "Stronger public performance."
+  };
+}
+
+function buildOperatorAgent(profile = {}) {
+  const chosenMove = profile?.chosenMove || buildChosenMove(profile);
+  const executionPlan = profile?.executionPlan || buildExecutionPlan(profile);
+
+  return {
+    role: "operator",
+    campaignType: chosenMove?.campaignType || "general",
+    tools: executionPlan?.tools || ["social posts", "images"],
+    actions: executionPlan?.actions || [],
+    supportActions: executionPlan?.supportActions || [],
+    eta: executionPlan?.eta || null,
+  };
+}
+
+function buildAnalystAgent(profile = {}) {
+  const groupedSnapshot = profile?.groupedSnapshot || {};
+  const groups = Array.isArray(groupedSnapshot?.groups) ? groupedSnapshot.groups : [];
+  const ranked = [...groups].sort((a, b) => {
+    const aPct = a?.max ? a.score / a.max : 0;
+    const bPct = b?.max ? b.score / b.max : 0;
+    return aPct - bPct;
+  });
+
+  const weakest = ranked[0] || null;
+  const strongest = ranked[ranked.length - 1] || null;
+
+  return {
+    role: "analyst",
+    strongestArea: strongest
+      ? {
+          key: strongest.key,
+          title: strongest.title,
+          score: strongest.score,
+          max: strongest.max,
+          nextMove: strongest.nextMove,
+        }
+      : null,
+    weakestArea: weakest
+      ? {
+          key: weakest.key,
+          title: weakest.title,
+          score: weakest.score,
+          max: weakest.max,
+          nextMove: weakest.nextMove,
+        }
+      : null,
+    adjustmentRule: weakest
+      ? `Keep strategy pressure on ${weakest.title} until it improves enough to stop being the weakest visible area.`
+      : "Keep reviewing performance and adjust based on the weakest visible area.",
+  };
+}
+
+function buildMultiAgentSystem(profile = {}) {
+  const strategist = buildStrategistAgent(profile);
+  const operator = buildOperatorAgent(profile);
+  const analyst = buildAnalystAgent(profile);
+  const executionPlan = profile?.executionPlan || buildExecutionPlan(profile);
+
+  return {
+    strategist,
+    operator,
+    analyst,
+    command:
+      executionPlan?.canSayIsGoingTo
+        ? "active_execution"
+        : "advisory_only",
+  };
+}
+
 function buildExecutionPlan(profile = {}) {
   const chosenMove = profile?.chosenMove || buildChosenMove(profile);
-  const strategyLibrary = buildStrategyLibrary(profile, getGroupMap(profile));
-  const selectedStrategy = strategyLibrary[chosenMove?.strategyKey] || {};
-  const layers = buildExecutionLayers(selectedStrategy, profile);
-  const assets = buildExecutionAssets(selectedStrategy, layers);
+  const canCommit = canYevibSayIsGoingTo(profile, chosenMove);
 
   return {
     title: chosenMove?.title || "Execution Plan",
-    summary:
-      chosenMove?.instruction ||
-      "Run one clear campaign system instead of scattered outputs.",
+    summary: buildExecutionSummary(profile, chosenMove, canCommit),
+    commitmentMode: canCommit ? "active_execution" : "advisory_only",
+    canSayIsGoingTo: canCommit,
+
     reason:
       chosenMove?.reason ||
       "This strategy was chosen because it gives the business the strongest practical next move.",
+
     operatorRole:
       chosenMove?.operatorRole ||
       "YEVIB acts as a digital operator across the selected strategy.",
-    campaignType:
-      chosenMove?.campaignType || "general",
-    schedule:
-      chosenMove?.schedule || "30 days",
-    successSignal:
-      chosenMove?.successSignal ||
-      "The business should become clearer, stronger, and more effective in public.",
+
+    actions:
+      Array.isArray(chosenMove?.actions) && chosenMove.actions.length
+        ? chosenMove.actions
+        : [
+            "Choose one campaign system.",
+            "Build the outputs around that system.",
+            "Execute consistently enough for the market to feel it."
+          ],
+
+    supportActions:
+      Array.isArray(chosenMove?.supportActions) && chosenMove.supportActions.length
+        ? chosenMove.supportActions
+        : [
+            "Support the main campaign with aligned actions.",
+            "Keep the message consistent.",
+            "Use repetition strategically."
+          ],
+
     tools:
       Array.isArray(chosenMove?.tools) && chosenMove.tools.length
         ? chosenMove.tools
         : ["social posts", "images"],
 
-    coreCampaign: layers.core || "",
-    campaignLayers: {
-      content: layers.content || [],
-      distribution: layers.distribution || [],
-      trust: layers.trust || [],
-      reciprocity: layers.reciprocity || [],
-      conversion: layers.conversion || [],
-    },
-
-    actions: [
-      layers.core,
-      ...(layers.content || []),
-      ...(layers.distribution || []),
-      ...(layers.trust || []),
-      ...(layers.reciprocity || []),
-      ...(layers.conversion || []),
-    ].filter(Boolean),
-
-    supportActions:
-      Array.isArray(chosenMove?.supportActions) && chosenMove.supportActions.length
-        ? chosenMove.supportActions
-        : [],
-
-    assets,
-
     constraint:
       chosenMove?.constraint ||
-      "Keep every output under one campaign theme and do not dilute the direction.",
+      "Keep the move practical, specific, and directly tied to the real business.",
+
+    schedule:
+      chosenMove?.schedule ||
+      "Run the selected strategy over a defined cycle.",
+
+    campaignType:
+      chosenMove?.campaignType || "general",
+
+    successSignal:
+      chosenMove?.successSignal ||
+      "The business should become clearer, stronger, and more effective in public.",
+
+    eta: buildUniversalEta(profile, chosenMove),
+    expectedOutcome: buildUniversalExpectedOutcome(profile, chosenMove),
+    riskNotes: buildUniversalRiskNotes(profile, chosenMove),
 
     secondaryStrategies:
       chosenMove?.secondaryStrategies || [],
@@ -3736,7 +4376,7 @@ function getStrategyCatalog() {
         "repeatable awareness content pack",
         "channel consistency schedule"
       ]
-    },
+    }
     {
       key: "founder_presence_campaign",
       name: "Founder Presence Campaign",
@@ -4233,9 +4873,10 @@ app.post("/build-profile", async (req, res) => {
     });
 
     profile.strategyEngine = buildStrategyEngine(profile);
+    profile.brandIntelligence = buildBrandIntelligence(profile);
     profile.chosenMove = buildChosenMove(profile);
     profile.executionPlan = buildExecutionPlan(profile);
-
+    profile.multiAgentSystem = buildMultiAgentSystem(profile);
     return res.json({
       profile,
     });
@@ -4301,7 +4942,48 @@ function getHashtags(category, idea, businessName) {
 
   return `${brandTag} ${categoryMap[category] || "#BrandContent"} ${topicTag}`;
 }
+app.post("/run-agent-cycle", async (req, res) => {
+  try {
+    const { profile } = req.body || {};
 
+    if (!profile) {
+      return res.status(400).json({ error: "profile is required." });
+    }
+
+    const refreshedProfile = {
+      ...profile,
+      strategyEngine: buildStrategyEngine(profile),
+      brandIntelligence: buildBrandIntelligence(profile),
+      chosenMove: buildChosenMove(profile),
+    };
+
+    refreshedProfile.executionPlan = buildExecutionPlan(refreshedProfile);
+    refreshedProfile.multiAgentSystem = buildMultiAgentSystem(refreshedProfile);
+
+    const strategist = refreshedProfile.multiAgentSystem?.strategist || {};
+    const operator = refreshedProfile.multiAgentSystem?.operator || {};
+    const analyst = refreshedProfile.multiAgentSystem?.analyst || {};
+
+    const runLog = createAgentRunLog({
+      businessName: refreshedProfile?.businessProfile?.name,
+      strategist,
+      operator,
+      analyst,
+      executionPlan: refreshedProfile.executionPlan,
+    });
+
+    return res.json({
+      ok: true,
+      profile: refreshedProfile,
+      runLog,
+    });
+  } catch (err) {
+    console.error("RUN AGENT CYCLE ERROR:", err);
+    res.status(500).json({
+      error: err.message || "Failed to run agent cycle.",
+    });
+  }
+});
 app.post("/generate", async (req, res) => {
   const {
     mode,
