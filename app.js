@@ -46,7 +46,6 @@ const executionActions = document.getElementById("executionActions");
 const primaryStrategyDisplay = document.getElementById("primaryStrategyDisplay");
 const supportingStrategiesDisplay = document.getElementById("supportingStrategiesDisplay");
 const chosenMoveDisplay = document.getElementById("chosenMoveDisplay");
-const executionPlanDisplay = document.getElementById("executionPlanDisplay");
 const successSignalDisplay = document.getElementById("successSignalDisplay");
 
 const activeSliceWrap = document.getElementById("activeSliceWrap");
@@ -318,15 +317,6 @@ chosenMoveDisplay.innerText = safeText(
   "Decision logic will appear here."
 );
 
-// EXECUTION PLAN (clean format)
-executionPlanDisplay.innerText = safeJoin(
-  [
-    executionPlan?.summary,
-    ...(executionPlan?.actions || [])
-  ].filter(Boolean),
-  "Execution steps will appear here."
-);
-
 // SUCCESS SIGNAL
 successSignalDisplay.innerText = safeText(
   executionPlan?.successSignal,
@@ -400,14 +390,23 @@ successSignalDisplay.innerText = safeText(
 
   renderSnapshotChart(groupedSnapshot);
 }
+
 function populateExecutionPlan(profile) {
   const plan = profile?.executionPlan || {};
 
-  executionSummary.innerText =
-  plan.canSayIsGoingTo
-    ? plan.summary
-    : "YEVIB has identified the strongest move but is not yet committing to execution.";
-    
+  executionSummary.innerHTML = "";
+  executionSummary.innerText = plan.summary || "No execution summary yet.";
+
+  if (!plan.canSayIsGoingTo) {
+    const warning = document.createElement("div");
+    warning.style.marginTop = "8px";
+    warning.style.fontSize = "12px";
+    warning.style.opacity = "0.7";
+    warning.innerText =
+      "⚠️ Execution not locked: YEVIB needs a clearer move before committing.";
+    executionSummary.appendChild(warning);
+  }
+
   if (plan.eta) {
     executionEta.innerText =
       `ETA: Setup ${plan.eta.setup}, First signal ${plan.eta.firstSignal}, Compounding ${plan.eta.compounding}`;
@@ -430,6 +429,35 @@ function populateExecutionPlan(profile) {
     executionActions.appendChild(li);
   });
 }
+
+async function runAgentCycle() {
+  if (!initialProfile) return;
+
+  try {
+    const res = await fetch("/run-agent-cycle", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ profile: initialProfile })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      console.error("Agent cycle failed:", data.error);
+      return;
+    }
+
+    initialProfile = data.profile;
+    populateSnapshot(initialProfile);
+
+    console.log("Agent cycle complete:", data.runLog);
+  } catch (err) {
+    console.error("Agent cycle error:", err.message);
+  }
+}
+
 /* ------------------ BUILD PROFILE ------------------ */
 
 async function buildInitialProfile() {
