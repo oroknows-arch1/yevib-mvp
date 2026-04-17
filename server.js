@@ -4946,44 +4946,116 @@ app.post("/analyze-voice", async (req, res) => {
   }
 });
 
-function getHashtags(category, idea, businessName) {
-  const cleanName = (businessName || "Brand")
+function getHashtags(category, idea, businessName, initialProfile) {
+  const cleanName = String(businessName || "Brand")
     .replace(/[^a-zA-Z0-9 ]/g, " ")
     .trim();
+
+  const normalizedName = cleanName.toLowerCase();
 
   const brandTag =
     "#" +
     (cleanName
       ? cleanName
           .split(/\s+/)
+          .slice(0, 2)
           .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
           .join("")
       : "YourBrand");
 
-  const categoryMap = {
-    "Daily Relief": "#DailyRelief",
-    "Everyday Ritual": "#EverydayRitual",
-    "Founder Reflection": "#FounderReflection",
-    "Product in Real Life": "#RealLifeUse",
-    "Quiet Value": "#QuietValue",
-    "Standards and Care": "#StandardsAndCare",
-    "Busy Day Ease": "#BusyDayEase",
-    "Small Moment Real Value": "#SmallMomentRealValue",
-    "Something Real": "#SomethingReal",
-  };
-
-  const topicTag =
-    "#" +
-    ((idea || "Business")
+  function toTag(text, fallback = "BrandContent") {
+    const cleaned = String(text || "")
       .toLowerCase()
       .replace(/[^a-z0-9\s]/g, " ")
       .trim()
       .split(/\s+/)
+      .filter(Boolean)
       .slice(0, 3)
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join("") || "Business");
+      .join("");
 
-  return `${brandTag} ${categoryMap[category] || "#BrandContent"} ${topicTag}`;
+    return `#${cleaned || fallback}`;
+  }
+
+  const offers = normalizeStringArray(initialProfile?.brandProductTruth?.offers, 6)
+    .join(" ")
+    .toLowerCase();
+
+  const audience = normalizeStringArray(initialProfile?.brandProductTruth?.audience, 6)
+    .join(" ")
+    .toLowerCase();
+
+  const trustSignals = normalizeStringArray(initialProfile?.discoveryProfile?.trustSignals, 6)
+    .join(" ")
+    .toLowerCase();
+
+  const educationSignals = normalizeStringArray(initialProfile?.discoveryProfile?.educationSignals, 6)
+    .join(" ")
+    .toLowerCase();
+
+  const recommendedFocus = String(
+    initialProfile?.groupedSnapshot?.recommendedFocus ||
+    initialProfile?.advisorSnapshot?.recommendedFocus ||
+    ""
+  ).toLowerCase();
+
+  const source = [
+    normalizedName,
+    String(idea || "").toLowerCase(),
+    offers,
+    audience,
+    trustSignals,
+    educationSignals,
+    recommendedFocus,
+  ].join(" ");
+
+  function detectNicheTag() {
+    if (/matcha|green tea|uji|tea|ceremonial grade/.test(source)) return "#Matcha";
+    if (/coffee|cafe|espresso/.test(source)) return "#Coffee";
+    if (/skincare|skin|facial|cosmetic|beauty|injectable/.test(source)) return "#Skincare";
+    if (/gym|fitness|training|coach|pt|sport/.test(source)) return "#Fitness";
+    if (/volleyball/.test(source)) return "#Volleyball";
+    if (/football|soccer/.test(source)) return "#Football";
+    if (/clothing|fashion|apparel|wear|streetwear/.test(source)) return "#Apparel";
+    if (/electrical|cable|manufacturing|factory/.test(source)) return "#Manufacturing";
+    if (/marketing|brand|content|social media|audience|messaging/.test(source)) return "#BrandStrategy";
+    if (/clinic|treatment|injectable|cosmetic nurse|aesthetic/.test(source)) return "#Aesthetics";
+
+    return "#SmallBusiness";
+  }
+
+  const intentMap = {
+    "Daily Relief": "#DailyRelief",
+    "Everyday Ritual": "#DailyRitual",
+    "Founder Reflection": "#FounderStory",
+    "Product in Real Life": "#RealLifeUse",
+    "Quiet Value": "#EverydayValue",
+    "Standards and Care": "#QualityMatters",
+    "Busy Day Ease": "#BusyDaySupport",
+    "Small Moment Real Value": "#DailyMoments",
+    "Something Real": "#RealTalk",
+  };
+
+  let intentTag = intentMap[category] || "";
+
+  const lowerIdea = String(idea || "").toLowerCase();
+
+  if (/morning|start|wake|woke up/.test(lowerIdea)) intentTag = "#MorningRoutine";
+  else if (/focus|clarity|clear/.test(lowerIdea)) intentTag = "#ClearFocus";
+  else if (/energy/.test(lowerIdea)) intentTag = "#SteadyEnergy";
+  else if (/stress|pressure|chaos|rush|overwhelmed/.test(lowerIdea)) intentTag = "#StressSupport";
+  else if (/routine|daily|every day|ritual/.test(lowerIdea)) intentTag = "#DailyRitual";
+  else if (/quality|standard|care|craft|process/.test(lowerIdea)) intentTag = "#QualityMatters";
+  else if (/authentic|real|truth/.test(lowerIdea)) intentTag = "#AuthenticChoice";
+  else if (/trust|proof|credible|credibility/.test(lowerIdea)) intentTag = "#BuildTrust";
+  else if (/education|learn|understand|explain/.test(lowerIdea)) intentTag = "#LearnMore";
+  else if (/offer|service|product|use/.test(lowerIdea)) intentTag = "#RealLifeUse";
+
+  if (!intentTag) {
+    intentTag = toTag(idea, "BrandContent");
+  }
+
+  return `${brandTag} ${detectNicheTag()} ${intentTag}`;
 }
 
 app.post("/generate", async (req, res) => {
@@ -5253,6 +5325,8 @@ REQUIREMENTS:
 - output exactly 3 posts
 - separate each post with ---
 - each post must end with exactly 3 hashtags on the final line
+- hashtags must be useful: 1 brand tag, 1 niche/search tag, and 1 intent/use-case tag
+- avoid abstract, vague, or non-searchable hashtags
 - no numbering
 - no markdown
 - platform is X
@@ -5273,7 +5347,7 @@ ANTI-REPETITION RULE:
 - Each post should feel like it was written on a different day from a different real moment
 - Vary sentence rhythm, opening angle, and internal structure
 - Keep the same owner voice, but change the shape of expression
-- All 3 posts must be clearly distinct from each other in opener, sentence rhythm, and angle
+
 
 AVOID:
 - generic motivation clichés
@@ -5319,7 +5393,7 @@ ${extraCategoryRule}
     const finalPosts = posts.map((post) => {
       let cleaned = cleanPost(post);
       cleaned = cleaned.replace(/\n?#\w+(?:\s+#\w+)*/g, "").trim();
-      return `${cleaned}\n${getHashtags(category, idea, finalBusinessName)}`;
+      return `${cleaned}\n${getHashtags(category, idea, finalBusinessName, initialProfile)}`;
     });
 
     res.json({ text: finalPosts.join("\n\n\n") });
