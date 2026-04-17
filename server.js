@@ -5107,6 +5107,8 @@ app.post("/generate", async (req, res) => {
       ...(normalizeStringArray(discoveryProfile?.founderVisibilitySignals, 4).map((x) => `- Founder visibility: ${x}`)),
     ].join("\n");
 
+    const previousPosts = (initialProfile?.recentPosts || []).join("\n\n");
+
     const prompt = `
 Create exactly 3 X posts.
 
@@ -5149,6 +5151,9 @@ ${clipText(idea || "No idea provided", 300)}
 
 WEEKLY SOURCE MATERIAL:
 ${clipText(weeklyPosts || "No weekly notes provided", 2000)}
+
+RECENT POSTS TO AVOID COPYING:
+${previousPosts || "No previous posts stored yet."}
 
 VOICE PROFILE:
 ${buildVoiceInstructions(voiceProfile)}
@@ -5261,6 +5266,15 @@ IMPORTANT:
 - Hybrid mode should combine both cleanly
 - If the voice sample is thin, rely harder on the lens and business truth
 
+ANTI-REPETITION RULE:
+- Do not repeat or closely resemble any recent posts shown above
+- Do not reuse the same opening pattern across outputs
+- Do not fall back on familiar brand-script phrasing
+- Each post should feel like it was written on a different day from a different real moment
+- Vary sentence rhythm, opening angle, and internal structure
+- Keep the same owner voice, but change the shape of expression
+- All 3 posts must be clearly distinct from each other in opener, sentence rhythm, and angle
+
 AVOID:
 - generic motivation clichés
 - "unlock your potential"
@@ -5270,11 +5284,16 @@ AVOID:
 - obvious ad language
 - repeated sentence structures across all 3 posts
 - repeating the same opener structure across all 3 posts
+- repeating opener structures used in recent past posts
+- defaulting to phrases like "There’s a reason..."
+- defaulting to phrases like "It’s not just..."
+- defaulting to phrases like "This isn’t about..."
 - review-style phrasing like "we've used them for years"
 - praise framing like "would not go anywhere else"
 - recommendation framing like "highly recommend"
 
 ${extraCategoryRule}
+
 `;
 
     let posts = await generatePostsWithRetry(prompt, category);
