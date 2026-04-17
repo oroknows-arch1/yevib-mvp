@@ -16,6 +16,7 @@ const pastedSourceTextInput = document.getElementById("pastedSourceText");
 const businessUrlInput = document.getElementById("businessUrl");
 
 const generatePostsBtn = document.getElementById("generatePostsBtn");
+const runPlanBtn = document.getElementById("runPlanBtn");
 
 const founderGoalDisplay = document.getElementById("founderGoalDisplay");
 const brandSignalScore = document.getElementById("brandSignalScore");
@@ -582,6 +583,12 @@ if (toggleBrandIntelligenceBtn) {
 if (continueToGenerateBtn) {
   continueToGenerateBtn.addEventListener("click", () => {
     scrollToGenerateSection();
+  });
+}
+
+if (runPlanBtn) {
+  runPlanBtn.addEventListener("click", async () => {
+    await runAgentCycle();
   });
 }
 
