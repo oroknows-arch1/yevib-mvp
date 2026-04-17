@@ -299,15 +299,15 @@ function populateSnapshot(profile) {
 const chosenMove = profile?.chosenMove || {};
 const executionPlan = profile?.executionPlan || {};
 
-// PRIMARY STRATEGY
 primaryStrategyDisplay.innerText = safeText(
-  strategyEngine?.primaryStrategy,
+  strategyEngine?.primaryStrategy?.name || strategyEngine?.primaryStrategy?.title,
   "Strategy will appear here after the scan."
 );
 
-// SUPPORTING STRATEGIES
 supportingStrategiesDisplay.innerText = safeJoin(
-  strategyEngine?.supportingStrategies,
+  (strategyEngine?.supportingStrategies || []).map(
+    (s) => s?.name || s?.title || ""
+  ),
   "Supporting strategies will appear here."
 );
 
