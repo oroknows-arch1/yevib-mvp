@@ -17,6 +17,7 @@ const businessUrlInput = document.getElementById("businessUrl");
 
 const generatePostsBtn = document.getElementById("generatePostsBtn");
 const runPlanBtn = document.getElementById("runPlanBtn");
+const runPlanStatus = document.getElementById("runPlanStatus");
 
 const founderGoalDisplay = document.getElementById("founderGoalDisplay");
 const brandSignalScore = document.getElementById("brandSignalScore");
@@ -143,6 +144,9 @@ function clearSnapshotUI() {
   continueToGenerateBtn.style.display = "none";
   brandIntelligenceDrawer.style.display = "none";
 
+if (runPlanStatus) {
+  runPlanStatus.innerText = "";
+}
   closeActiveSlice();
   destroySnapshotChart();
 }
@@ -485,6 +489,15 @@ function populateExecutionPlan(profile) {
 async function runAgentCycle() {
   if (!initialProfile) return;
 
+  if (runPlanBtn) {
+    runPlanBtn.disabled = true;
+    runPlanBtn.innerText = "Running Plan...";
+  }
+
+  if (runPlanStatus) {
+    runPlanStatus.innerText = "YEVIB is running the current strategy cycle...";
+  }
+
   try {
     const res = await fetch("/run-agent-cycle", {
       method: "POST",
@@ -498,15 +511,33 @@ async function runAgentCycle() {
 
     if (!res.ok) {
       console.error("Agent cycle failed:", data.error);
+
+      if (runPlanStatus) {
+        runPlanStatus.innerText = "Plan run failed.";
+      }
+
       return;
     }
 
     initialProfile = data.profile;
     populateSnapshot(initialProfile);
 
+    if (runPlanStatus) {
+      runPlanStatus.innerText = "Plan run complete. YEVIB refreshed the strategy cycle.";
+    }
+
     console.log("Agent cycle complete:", data.runLog);
   } catch (err) {
     console.error("Agent cycle error:", err.message);
+
+    if (runPlanStatus) {
+      runPlanStatus.innerText = `Plan run error: ${err.message}`;
+    }
+  } finally {
+    if (runPlanBtn) {
+      runPlanBtn.disabled = false;
+      runPlanBtn.innerText = "Run This Plan";
+    }
   }
 }
 
