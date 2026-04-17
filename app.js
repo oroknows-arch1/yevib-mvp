@@ -840,8 +840,8 @@ async function generateImage(post = selectedPost) {
     const visualDirections = (initialProfile?.visualProfile?.visualDirections || []).join(", ");
     const avoidRules = (initialProfile?.visualProfile?.avoidRules || []).join(", ");
 
-        const imagePrompt = `
-Create a documentary-realistic 4-panel collage image that visually matches this exact post as closely as possible.
+                const imagePrompt = `
+Create a documentary-realistic 4-panel collage image that follows the storyline of this exact post in sequence.
 
 BUSINESS:
 ${businessName}
@@ -882,18 +882,37 @@ ${visualDirections || "Use the website's visible tone, colour mood, and styling 
 WEBSITE VISUAL AVOID RULES:
 ${avoidRules || "Avoid anything that clashes with the website identity"}
 
-STRICT IMAGE GOAL:
-- the viewer should be able to understand the post through the image alone
-- do not make a generic brand collage
-- make the image specifically about the selected post
-- each of the 4 panels must represent a different visual part, beat, or implication of the post
-- if the post suggests effort, standards, routine, pressure, relief, community, education, or founder presence, show those things visually
-- if the post contains a real-life situation, build the collage around that real-life situation
-- if the post is reflective, still show visible real-world scenes, not abstract mood only
-- if the post implies before/after, process/result, pressure/relief, or work/value, use the panels to show that progression
-- if the business is service-based, show people, process, environment, and real use
-- if the business is product-based, show the product naturally inside lived situations, not like an ad
-- make the post feel visible in the image
+PRIMARY INSTRUCTION:
+- do NOT make a generic brand collage
+- do NOT make 4 similar product shots
+- do NOT summarize the industry in a broad way
+- the image must visually retell the post from panel 1 to panel 4
+- each panel must show a different beat in the post's meaning
+- the 4 panels must work like a visual explanation of the post
+- the viewer should understand the post even without reading it
+
+MANDATORY PANEL LOGIC:
+- Panel 1 = the cause, source, setting, or origin mentioned in the post
+- Panel 2 = the method, craft, process, effort, or standard described in the post
+- Panel 3 = the transformation, proof, or key difference described in the post
+- Panel 4 = the outcome, lived use, felt result, or final meaning of the post
+
+PANEL DISCIPLINE RULES:
+- all 4 panels must be different from one another
+- no repeated angle of the same bowl, jar, product, or person
+- no filler panels
+- no vague lifestyle shots unless the post clearly calls for them
+- if the post names a place, source, material, ritual, sequence, or standard, the panels must reflect that sequence
+- if the post contains comparison logic such as why this source matters, why this process matters, or why this result matters, the panels must make that logic visible
+- if the founder voice is present in the post, include a human sourcing, choosing, preparing, teaching, or demonstrating where appropriate
+- if the post is product-based, show the product in process and result, not just beauty shots
+- if the post is service-based, show the service through human action, environment, and outcome
+
+FOR THIS IMAGE, PRIORITISE:
+1. exact post meaning over generic brand mood
+2. sequence over aesthetics
+3. proof over decoration
+4. real-world scenes over abstract symbolism
 
 WEBSITE ALIGNMENT RULE:
 - where possible, match the imagery style, colours, materials, atmosphere, and theme of the website
@@ -908,16 +927,22 @@ STRICT COLLAGE RULES:
 - no single-scene image
 - no random unrelated panels
 - documentary realism
-- warm natural lighting unless the website identity clearly suggests a cooler or cleaner tone
 - grounded, believable, human scenes
+- warm natural lighting unless the website identity clearly suggests a cooler or cleaner tone
 - visually rich but not fantasy-like
 - no over-stylised ad look
 - no polished stock-photo feeling
-- the founder / human being behind the business may appear where appropriate
-- where possible, show action, environment, effort, and result
+- where possible, show action, environment, process, and result
+- if one panel shows origin, another should show method, another transformation, another lived outcome
 
 AVOID:
-${avoidRules || "Anything visually off-brand or unrelated to the business"}
+- generic premium lifestyle collage
+- generic artisanal workshop montage
+- repeated bowl shots
+- repeated product close-ups
+- empty aesthetic filler
+- anything visually off-brand or unrelated to the business
+${avoidRules ? `- ${avoidRules}` : ""}
 
 NON-NEGOTIABLE SAFETY / VISUAL RULES:
 - no readable text anywhere in the image
