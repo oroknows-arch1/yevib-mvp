@@ -38,6 +38,11 @@ const activitySignalsDisplay = document.getElementById("activitySignalsDisplay")
 const founderVisibilitySignalsDisplay = document.getElementById("founderVisibilitySignalsDisplay");
 const voiceInput = document.getElementById("voiceInput");
 
+const executionSummary = document.getElementById("executionSummary");
+const executionEta = document.getElementById("executionEta");
+const executionOutcome = document.getElementById("executionOutcome");
+const executionActions = document.getElementById("executionActions");
+
 const primaryStrategyDisplay = document.getElementById("primaryStrategyDisplay");
 const supportingStrategiesDisplay = document.getElementById("supportingStrategiesDisplay");
 const chosenMoveDisplay = document.getElementById("chosenMoveDisplay");
@@ -58,6 +63,8 @@ const feelingButtons = document.querySelectorAll(".feeling-btn");
 const selectedLensPrompt = document.getElementById("selectedLensPrompt");
 const feelingPrompt = document.getElementById("feelingPrompt");
 const customFeelingInput = document.getElementById("customFeeling");
+
+
 
 let initialProfile = null;
 let selectedPost = "";
@@ -126,6 +133,11 @@ function clearSnapshotUI() {
   activitySignalsDisplay.innerText = "Public activity signals will appear here after the scan.";
   founderVisibilitySignalsDisplay.innerText = "Founder visibility signals will appear here after the scan.";
   voiceInput.value = "";
+  
+  executionSummary.innerText = "";
+  executionEta.innerText = "";
+  executionOutcome.innerText = "";
+  executionActions.innerHTML = "";
 
   toggleBrandIntelligenceBtn.style.display = "none";
   continueToGenerateBtn.style.display = "none";
@@ -382,13 +394,42 @@ successSignalDisplay.innerText = safeText(
     sourceProfile?.voiceSourceText,
     ""
   );
-
+  populateExecutionPlan(profile);
   toggleBrandIntelligenceBtn.style.display = "inline-flex";
   continueToGenerateBtn.style.display = "inline-flex";
 
   renderSnapshotChart(groupedSnapshot);
 }
+function populateExecutionPlan(profile) {
+  const plan = profile?.executionPlan || {};
 
+  executionSummary.innerText =
+  plan.canSayIsGoingTo
+    ? plan.summary
+    : "YEVIB has identified the strongest move but is not yet committing to execution.";
+    
+  if (plan.eta) {
+    executionEta.innerText =
+      `ETA: Setup ${plan.eta.setup}, First signal ${plan.eta.firstSignal}, Compounding ${plan.eta.compounding}`;
+  } else {
+    executionEta.innerText = "";
+  }
+
+  if (plan.expectedOutcome) {
+    executionOutcome.innerText =
+      `Expected outcome: ${plan.expectedOutcome.likely || ""}`;
+  } else {
+    executionOutcome.innerText = "";
+  }
+
+  executionActions.innerHTML = "";
+
+  (plan.actions || []).forEach((action) => {
+    const li = document.createElement("li");
+    li.innerText = action;
+    executionActions.appendChild(li);
+  });
+}
 /* ------------------ BUILD PROFILE ------------------ */
 
 async function buildInitialProfile() {
