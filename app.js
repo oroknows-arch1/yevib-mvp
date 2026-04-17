@@ -1,7 +1,11 @@
 const postsDiv = document.getElementById("posts");
 const selectedPostBox = document.getElementById("selectedPost");
 const generatedImage = document.getElementById("generatedImage");
+
+let selectedPost = "";
+
 const imageStatus = document.getElementById("imageStatus");
+const approvePostBtn = document.getElementById("approvePostBtn");
 
 const intakeStatus = document.getElementById("intakeStatus");
 const ownerKbStatus = document.getElementById("ownerKbStatus");
@@ -547,20 +551,9 @@ async function runAgentCycle() {
 async function runPlanAndGenerateFirstArtifact() {
   if (!initialProfile) return;
 
-  if (runPlanBtn) {
-    runPlanBtn.disabled = true;
-    runPlanBtn.innerText = "Running Plan...";
-  }
-
   const cycleResult = await runAgentCycle();
 
-  if (!cycleResult) {
-    if (runPlanBtn) {
-      runPlanBtn.disabled = false;
-      runPlanBtn.innerText = "Run This Plan";
-    }
-    return;
-  }
+  if (!cycleResult) return;
 
   if (!selectedLens) {
     selectedLens = "Business";
@@ -573,6 +566,10 @@ async function runPlanAndGenerateFirstArtifact() {
     selectedLensPrompt.innerText = "Selected lens: Business";
   }
 
+  if (runPlanStatus) {
+    runPlanStatus.innerText = "YEVIB completed the strategy cycle and is now generating the first execution artifact...";
+  }
+
   generatePrompt.innerText = "YEVIB is generating the first execution artifact...";
   await generateExecutionPlan();
 
@@ -581,9 +578,24 @@ async function runPlanAndGenerateFirstArtifact() {
     postsSection.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  if (runPlanBtn) {
-    runPlanBtn.disabled = false;
-    runPlanBtn.innerText = "Run This Plan";
+  if (runPlanStatus) {
+    runPlanStatus.innerText = "First execution artifact generated. Review the post options below.";
+  }
+}
+
+function selectPost(post, element) {
+  selectedPost = post;
+
+  if (selectedPostBox) {
+    selectedPostBox.innerText = post;
+  }
+
+  document.querySelectorAll(".post-choice-card").forEach((el) => {
+    el.classList.remove("selected");
+  });
+
+  if (element) {
+    element.classList.add("selected");
   }
 }
 
@@ -669,8 +681,23 @@ if (runPlanBtn) {
   });
 }
 
-if (closeActiveSliceBtn) {
-  closeActiveSliceBtn.addEventListener("click", closeActiveSlice);
+if (approvePostBtn) {
+  approvePostBtn.addEventListener("click", async () => {
+    if (!selectedPost) {
+      alert("Select a post first.");
+      return;
+    }
+
+    selectedPostBox.innerText = selectedPost;
+
+    imageStatus.innerText = "Generating image from approved post...";
+    await generateImage();
+
+    const imageSection = document.getElementById("generatedImage");
+    if (imageSection) {
+      imageSection.scrollIntoView({ behavior: "smooth" });
+    }
+  });
 }
 
 /* ------------------ EXECUTION ENGINE ------------------ */
@@ -741,25 +768,20 @@ async function generateExecutionPlan() {
 
 function renderPostChoices(posts) {
   postsDiv.innerHTML = "";
-  postsPrompt.innerText = "Choose one. This locks execution.";
+  postsPrompt.innerText = "Choose one, then click Approve & Continue.";
 
   posts.forEach((post) => {
     const card = document.createElement("div");
     card.className = "post-choice-card";
     card.innerText = post;
 
-    card.onclick = async () => {
+    card.onclick = () => {
       document.querySelectorAll(".post-choice-card").forEach((el) => {
         el.classList.remove("selected");
       });
 
       card.classList.add("selected");
-
-      selectedPost = post;
-      selectedPostBox.innerText = post;
-
-      imageStatus.innerText = "Generating image...";
-      await generateImage(post);
+      selectPost(post, card);
     };
 
     postsDiv.appendChild(card);
@@ -768,7 +790,7 @@ function renderPostChoices(posts) {
 
 /* ------------------ IMAGE ------------------ */
 
-async function generateImage(post) {
+async function generateImage(post = selectedPost) {
   try {
     const businessName = initialProfile?.businessProfile?.name || "the business";
     const businessSummary = initialProfile?.businessProfile?.summary || "";
