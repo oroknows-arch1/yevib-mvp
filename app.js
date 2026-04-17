@@ -394,40 +394,91 @@ successSignalDisplay.innerText = safeText(
 function populateExecutionPlan(profile) {
   const plan = profile?.executionPlan || {};
 
-  executionSummary.innerHTML = "";
-  executionSummary.innerText = plan.summary || "No execution summary yet.";
+  // RESET FIRST (IMPORTANT)
+  executionSummary.innerText = "";
+  executionEta.innerText = "";
+  executionOutcome.innerText = "";
+  executionActions.innerHTML = "";
 
-  if (!plan.canSayIsGoingTo) {
-    const warning = document.createElement("div");
-    warning.style.marginTop = "8px";
-    warning.style.fontSize = "12px";
-    warning.style.opacity = "0.7";
-    warning.innerText =
-      "⚠️ Execution not locked: YEVIB needs a clearer move before committing.";
-    executionSummary.appendChild(warning);
+  // ✅ SUMMARY (THIS is your "YEVIB WILL DO")
+  executionSummary.innerText = plan.summary || "";
+
+  // ✅ ADD CORE CAMPAIGN (THIS IS WHAT YOU’RE MISSING)
+  if (plan.coreCampaign) {
+    const core = document.createElement("p");
+    core.style.marginTop = "10px";
+    core.style.fontWeight = "600";
+    core.innerText = `Core Campaign: ${plan.coreCampaign}`;
+    executionSummary.appendChild(core);
   }
 
+  // ✅ SCHEDULE
+  if (plan.schedule) {
+    const schedule = document.createElement("p");
+    schedule.style.marginTop = "6px";
+    schedule.innerText = `Schedule: ${plan.schedule}`;
+    executionSummary.appendChild(schedule);
+  }
+
+  // ✅ ETA
   if (plan.eta) {
     executionEta.innerText =
       `ETA: Setup ${plan.eta.setup}, First signal ${plan.eta.firstSignal}, Compounding ${plan.eta.compounding}`;
-  } else {
-    executionEta.innerText = "";
   }
 
+  // ✅ EXPECTED OUTCOME
   if (plan.expectedOutcome) {
     executionOutcome.innerText =
-      `Expected outcome: ${plan.expectedOutcome.likely || ""}`;
-  } else {
-    executionOutcome.innerText = "";
+      `Expected: ${plan.expectedOutcome.likely}`;
   }
 
-  executionActions.innerHTML = "";
-
+  // ✅ ACTIONS (MAIN LIST)
   (plan.actions || []).forEach((action) => {
     const li = document.createElement("li");
     li.innerText = action;
     executionActions.appendChild(li);
   });
+
+  // ✅ 🔥 THIS IS THE BIG ONE → CAMPAIGN LAYERS
+  if (plan.campaignLayers) {
+    const layersWrap = document.createElement("div");
+    layersWrap.style.marginTop = "15px";
+
+    Object.entries(plan.campaignLayers).forEach(([key, items]) => {
+      const title = document.createElement("h4");
+      title.innerText = key.toUpperCase();
+      title.style.marginTop = "10px";
+
+      const ul = document.createElement("ul");
+
+      items.forEach((item) => {
+        const li = document.createElement("li");
+        li.innerText = item;
+        ul.appendChild(li);
+      });
+
+      layersWrap.appendChild(title);
+      layersWrap.appendChild(ul);
+    });
+
+    executionActions.appendChild(layersWrap);
+  }
+
+  // ✅ TOOLS
+  if (plan.tools?.length) {
+    const tools = document.createElement("p");
+    tools.style.marginTop = "10px";
+    tools.innerText = `Tools: ${plan.tools.join(", ")}`;
+    executionActions.appendChild(tools);
+  }
+
+  // ✅ SUCCESS SIGNAL
+  if (plan.successSignal) {
+    const success = document.createElement("p");
+    success.style.marginTop = "10px";
+    success.innerText = `Success looks like: ${plan.successSignal}`;
+    executionActions.appendChild(success);
+  }
 }
 
 async function runAgentCycle() {
