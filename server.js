@@ -185,7 +185,7 @@ function normalizeLockedScenePlan(rawPlan = {}, imagePrompt = "") {
 
 async function buildImageScenePlan(imagePrompt = "") {
   const prompt = `
-Turn this image request into a strict 4-panel visual scene plan with hard subject locking.
+Turn this image request into a strict 4-panel visual scene plan with hard subject locking, panel target locking, and framing control.
 
 INPUT IMAGE REQUEST:
 ${clipText(imagePrompt || "", 3000)}
@@ -208,29 +208,41 @@ Return valid JSON in exactly this shape:
     {
       "panel": 1,
       "role": "establishing",
+      "shotType": "wide establishing shot",
       "lockedSubject": "same main subject",
+      "targetSubject": "exact subject this panel must focus on",
       "allowedSupportSubject": "optional support subject",
+      "mustShow": "what must be clearly visible in frame",
       "scene": "..."
     },
     {
       "panel": 2,
       "role": "inspection",
+      "shotType": "medium inspection shot",
       "lockedSubject": "same main subject",
+      "targetSubject": "exact subject this panel must focus on",
       "allowedSupportSubject": "optional support subject",
+      "mustShow": "what must be clearly visible in frame",
       "scene": "..."
     },
     {
       "panel": 3,
       "role": "process",
+      "shotType": "close process shot",
       "lockedSubject": "same main subject",
+      "targetSubject": "exact subject this panel must focus on",
       "allowedSupportSubject": "optional support subject",
+      "mustShow": "what must be clearly visible in frame",
       "scene": "..."
     },
     {
       "panel": 4,
       "role": "outcome",
+      "shotType": "medium outcome shot",
       "lockedSubject": "same main subject",
+      "targetSubject": "exact subject this panel must focus on",
       "allowedSupportSubject": "optional support subject",
+      "mustShow": "what must be clearly visible in frame",
       "scene": "..."
     }
   ]
@@ -246,6 +258,9 @@ PLANNING RULES:
 - panel 2 must show inspection, setup, or method
 - panel 3 must show the key process or active work
 - panel 4 must show the outcome or resolved state
+- for every panel, explicitly name the target subject
+- for every panel, explicitly name what must be clearly visible in frame
+- if the request involves repair or inspection, do not crop the engine bay, repair zone, or primary working area so tightly that it becomes partial or unclear
 - keep the plan grounded, realistic, and literal
 - avoid abstract symbolism
 - avoid generic lifestyle filler
@@ -5680,9 +5695,11 @@ Show the outcome, result, lived use, or resolved state tied to the same subject.
         ? scenePlan.forbiddenSwaps.map((rule) => `- ${rule}`).join("\n")
         : `- do not replace the main subject with a nearby support object
 - do not reinterpret the collage as a different product, machine, vehicle, or service
-- do not drift into a visually similar but incorrect subject`;
-
-    const hardenedPrompt = `
+- do not drift into a visually similar but incorrect subject
+- do not crop the main working area so tightly that it becomes unclear or partial
+- do not change the core machine, vehicle, product, service type, or job type`;
+    
+const hardenedPrompt = `
 Create exactly one documentary-realistic 4-panel collage image.
 
 ORIGINAL REQUEST:
@@ -5722,6 +5739,9 @@ SUBJECT CONSISTENCY ENFORCEMENT:
 - the locked main subject must remain the hero subject in all panels
 - support subjects may appear but must never replace the main subject
 - do not swap product, vehicle, machine, service, or job type across panels
+- each panel must keep focus on its intended target subject
+- do not let a nearby support object or support vehicle steal panel focus
+- if the broken or serviced object is the target, the mechanic vehicle must remain secondary
 
 NON-NEGOTIABLE OBJECT CONSISTENCY RULES:
 - do not change the core machine, vehicle, product, service type, or job type unless explicitly required
@@ -5729,6 +5749,13 @@ NON-NEGOTIABLE OBJECT CONSISTENCY RULES:
 - if a support van appears, do not accidentally turn the van into the main repair subject
 - if the request is about one product or process, do not substitute a different one
 - do not invent mismatched tools, machinery, or environments
+
+NON-NEGOTIABLE FRAMING RULES:
+- each panel must frame its target subject clearly and readably at first glance
+- if a panel shows inspection, setup, or repair, the full working area must be clearly visible in frame
+- do not crop the engine bay, repair zone, or primary work surface so tightly that it becomes partial, unclear, or secondary
+- do not let background vehicles, nearby tools, or support objects dominate the frame over the target subject
+- use framing that makes the intended action obvious without needing text
 
 NON-NEGOTIABLE IMAGE MATCH RULES:
 - the image must align closely with the post meaning
