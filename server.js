@@ -60,9 +60,132 @@ async function runJsonChat(prompt) {
   }
 }
 
+function cleanSceneText(value = "", fallback = "") {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  return text || fallback;
+}
+
+function ensurePanelRole(role = "", panelNumber = 1) {
+  const cleanRole = String(role || "").trim().toLowerCase();
+
+  if (panelNumber === 1) return "establishing";
+  if (panelNumber === 2) {
+    return ["preparation", "inspection", "method"].includes(cleanRole)
+      ? cleanRole
+      : "inspection";
+  }
+  if (panelNumber === 3) {
+    return ["action", "process", "transformation"].includes(cleanRole)
+      ? cleanRole
+      : "process";
+  }
+  if (panelNumber === 4) return "outcome";
+
+  return cleanRole || "supporting";
+}
+
+function normalizeLockedScenePlan(rawPlan = {}, imagePrompt = "") {
+  const fallbackMainSubject = cleanSceneText(imagePrompt, "the main subject from the request");
+
+  const mainSubject = cleanSceneText(rawPlan?.mainSubject, fallbackMainSubject);
+  const supportingSubject = cleanSceneText(rawPlan?.supportingSubject, "");
+  const globalScene = cleanSceneText(
+    rawPlan?.globalScene,
+    "A single coherent real-world scene built directly from the request."
+  );
+
+  const forbiddenSwaps = Array.isArray(rawPlan?.forbiddenSwaps)
+    ? rawPlan.forbiddenSwaps
+        .map((item) => cleanSceneText(item))
+        .filter(Boolean)
+        .slice(0, 8)
+    : [];
+
+  const continuityRules = Array.isArray(rawPlan?.continuityRules)
+    ? rawPlan.continuityRules
+        .map((item) => cleanSceneText(item))
+        .filter(Boolean)
+        .slice(0, 8)
+    : [];
+
+  const panelRoleFallbacks = {
+    1: "establishing",
+    2: "inspection",
+    3: "process",
+    4: "outcome",
+  };
+
+  const panels = Array.isArray(rawPlan?.panels)
+    ? rawPlan.panels
+        .map((panel, index) => {
+          const panelNumber = index + 1;
+          return {
+            panel: panelNumber,
+            role: ensurePanelRole(panel?.role, panelNumber),
+            lockedSubject: cleanSceneText(panel?.lockedSubject, mainSubject),
+            allowedSupportSubject: cleanSceneText(
+              panel?.allowedSupportSubject,
+              supportingSubject
+            ),
+            scene: cleanSceneText(
+              panel?.scene,
+              `Panel ${panelNumber} shows ${mainSubject} in a grounded real-world moment.`
+            ),
+          };
+        })
+        .slice(0, 4)
+    : [];
+
+  while (panels.length < 4) {
+    const panelNumber = panels.length + 1;
+    panels.push({
+      panel: panelNumber,
+      role: panelRoleFallbacks[panelNumber],
+      lockedSubject: mainSubject,
+      allowedSupportSubject: supportingSubject,
+      scene:
+        panelNumber === 1
+          ? `Establish ${mainSubject} in the real environment described by the request.`
+          : panelNumber === 2
+          ? `Show inspection, setup, or preparation focused on ${mainSubject}.`
+          : panelNumber === 3
+          ? `Show the main process or action involving ${mainSubject}.`
+          : `Show the resolved outcome or lived result connected to ${mainSubject}.`,
+    });
+  }
+
+  const finalContinuityRules = [
+    `The main subject is locked as: ${mainSubject}`,
+    supportingSubject ? `The support subject is only: ${supportingSubject}` : "",
+    "Do not switch the main subject between panels.",
+    "Do not promote a support object into the hero subject.",
+    "Do not swap product type, vehicle type, machine type, service type, or job type.",
+    ...continuityRules,
+  ]
+    .filter(Boolean)
+    .slice(0, 10);
+
+  const finalForbiddenSwaps = [
+    "Do not replace the main subject with a nearby support object.",
+    "Do not reinterpret the panel as a different product, vehicle, machine, or job.",
+    ...forbiddenSwaps,
+  ]
+    .filter(Boolean)
+    .slice(0, 10);
+
+  return {
+    globalScene,
+    mainSubject,
+    supportingSubject,
+    forbiddenSwaps: finalForbiddenSwaps,
+    continuityRules: finalContinuityRules,
+    panels,
+  };
+}
+
 async function buildImageScenePlan(imagePrompt = "") {
   const prompt = `
-Turn this image request into a strict 4-panel visual scene plan.
+Turn this image request into a strict 4-panel visual scene plan with hard subject locking.
 
 INPUT IMAGE REQUEST:
 ${clipText(imagePrompt || "", 3000)}
@@ -70,52 +193,67 @@ ${clipText(imagePrompt || "", 3000)}
 Return valid JSON in exactly this shape:
 {
   "globalScene": "one sentence describing the overall world of the image",
+  "mainSubject": "the one object/person/process that must stay central across the collage",
+  "supportingSubject": "optional secondary object/person allowed to appear but never replace the main subject",
+  "forbiddenSwaps": [
+    "swap that must never happen",
+    "swap that must never happen"
+  ],
   "continuityRules": [
     "rule 1",
     "rule 2",
     "rule 3"
   ],
   "panels": [
-    { "panel": 1, "scene": "..." },
-    { "panel": 2, "scene": "..." },
-    { "panel": 3, "scene": "..." },
-    { "panel": 4, "scene": "..." }
+    {
+      "panel": 1,
+      "role": "establishing",
+      "lockedSubject": "same main subject",
+      "allowedSupportSubject": "optional support subject",
+      "scene": "..."
+    },
+    {
+      "panel": 2,
+      "role": "inspection",
+      "lockedSubject": "same main subject",
+      "allowedSupportSubject": "optional support subject",
+      "scene": "..."
+    },
+    {
+      "panel": 3,
+      "role": "process",
+      "lockedSubject": "same main subject",
+      "allowedSupportSubject": "optional support subject",
+      "scene": "..."
+    },
+    {
+      "panel": 4,
+      "role": "outcome",
+      "lockedSubject": "same main subject",
+      "allowedSupportSubject": "optional support subject",
+      "scene": "..."
+    }
   ]
 }
 
 PLANNING RULES:
 - create exactly 4 panels
 - each panel must be visually distinct but logically connected
-- preserve the same core subject across panels where relevant
-- do not switch vehicle type, machine type, product type, or job type unless the request explicitly requires it
-- if the request is about truck repair, keep truck repair consistent across the relevant panels
-- if a support vehicle appears, do not accidentally turn it into the main repair subject
-- if the request is about one product or process, do not swap to a different product or process
-- panel 1 should usually establish the situation or environment
-- panel 2 should usually show preparation, inspection, or method
-- panel 3 should usually show the key process, intervention, or transformation
-- panel 4 should usually show the outcome, use, or resolved state
+- identify one main subject and keep it locked across the full collage
+- if a support object appears, it must stay secondary and never become the hero subject
+- do not switch vehicle type, machine type, product type, service type, or job type unless explicitly required
+- panel 1 must establish the situation
+- panel 2 must show inspection, setup, or method
+- panel 3 must show the key process or active work
+- panel 4 must show the outcome or resolved state
 - keep the plan grounded, realistic, and literal
 - avoid abstract symbolism
+- avoid generic lifestyle filler
+- if there is any ambiguity, choose the most literal interpretation of the request
 `;
 
-  const plan = await runJsonChat(prompt);
-
-  return {
-    globalScene: String(plan?.globalScene || "").trim(),
-    continuityRules: Array.isArray(plan?.continuityRules)
-      ? plan.continuityRules.map((x) => String(x || "").trim()).filter(Boolean).slice(0, 6)
-      : [],
-    panels: Array.isArray(plan?.panels)
-      ? plan.panels
-          .map((p, i) => ({
-            panel: Number(p?.panel || i + 1),
-            scene: String(p?.scene || "").trim(),
-          }))
-          .filter((p) => p.scene)
-          .slice(0, 4)
-      : [],
-  };
+  const rawPlan = await runJsonChat(prompt);
+  return normalizeLockedScenePlan(rawPlan, imagePrompt);
 }
 
 function clampNumber(value, min, max) {
@@ -5493,31 +5631,56 @@ app.post("/generate-image", async (req, res) => {
   try {
     const scenePlan = await buildImageScenePlan(imagePrompt || "");
 
-    const panelLines =
+        const panelLines =
       scenePlan.panels.length === 4
         ? scenePlan.panels
-            .map((p) => `PANEL ${p.panel}:\n${p.scene}`)
+            .map(
+              (p) => `PANEL ${p.panel}:
+ROLE: ${p.role}
+LOCKED SUBJECT: ${p.lockedSubject}
+${p.allowedSupportSubject ? `ALLOWED SUPPORT SUBJECT: ${p.allowedSupportSubject}\n` : ""}SCENE:
+${p.scene}`
+            )
             .join("\n\n")
         : `
 PANEL 1:
+ROLE: establishing
+LOCKED SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
+SCENE:
 Establish the main situation, environment, or source described in the request.
 
 PANEL 2:
-Show the preparation, inspection, method, or active work described in the request.
+ROLE: inspection
+LOCKED SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
+SCENE:
+Show preparation, inspection, or method focused on the same subject.
 
 PANEL 3:
-Show the key process, intervention, transformation, or proof point described in the request.
+ROLE: process
+LOCKED SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
+SCENE:
+Show the key process, intervention, or transformation focused on the same subject.
 
 PANEL 4:
-Show the outcome, result, lived use, or resolved state described in the request.
+ROLE: outcome
+LOCKED SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
+SCENE:
+Show the outcome, result, lived use, or resolved state tied to the same subject.
 `.trim();
 
     const continuityLines =
       scenePlan.continuityRules.length > 0
         ? scenePlan.continuityRules.map((rule) => `- ${rule}`).join("\n")
-        : `- preserve the same core subject across related panels
-- do not switch machine, vehicle, product, or job type unless explicitly required
+        : `- the main subject must stay locked across all 4 panels
+- do not switch machine, vehicle, product, service, or job type unless explicitly required
 - keep the visual world consistent across all 4 panels`;
+
+    const forbiddenSwapLines =
+      Array.isArray(scenePlan.forbiddenSwaps) && scenePlan.forbiddenSwaps.length > 0
+        ? scenePlan.forbiddenSwaps.map((rule) => `- ${rule}`).join("\n")
+        : `- do not replace the main subject with a nearby support object
+- do not reinterpret the collage as a different product, machine, vehicle, or service
+- do not drift into a visually similar but incorrect subject`;
 
     const hardenedPrompt = `
 Create exactly one documentary-realistic 4-panel collage image.
@@ -5528,8 +5691,17 @@ ${clipText(imagePrompt || "", 2200)}
 GLOBAL SCENE:
 ${scenePlan.globalScene || "A single coherent real-world scene built from the request."}
 
+MAIN SUBJECT LOCK:
+${scenePlan.mainSubject || "the main subject from the request"}
+
+SUPPORT SUBJECT:
+${scenePlan.supportingSubject || "none"}
+
 CONTINUITY RULES:
 ${continuityLines}
+
+FORBIDDEN SWAPS:
+${forbiddenSwapLines}
 
 ${panelLines}
 
@@ -5539,6 +5711,17 @@ NON-NEGOTIABLE STRUCTURE RULES:
 - do not return a single-scene image
 - do not collapse all panels into the same shot
 - panel-to-panel continuity must make sense
+
+PANEL ROLE ENFORCEMENT:
+- panel 1 must establish the environment and subject
+- panel 2 must show inspection, setup, or preparation (NOT outcome)
+- panel 3 must show the main process or action (NOT setup or filler)
+- panel 4 must show the outcome or resolved state (NOT revert backward)
+
+SUBJECT CONSISTENCY ENFORCEMENT:
+- the locked main subject must remain the hero subject in all panels
+- support subjects may appear but must never replace the main subject
+- do not swap product, vehicle, machine, service, or job type across panels
 
 NON-NEGOTIABLE OBJECT CONSISTENCY RULES:
 - do not change the core machine, vehicle, product, service type, or job type unless explicitly required
