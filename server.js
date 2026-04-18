@@ -60,6 +60,64 @@ async function runJsonChat(prompt) {
   }
 }
 
+async function buildImageScenePlan(imagePrompt = "") {
+  const prompt = `
+Turn this image request into a strict 4-panel visual scene plan.
+
+INPUT IMAGE REQUEST:
+${clipText(imagePrompt || "", 3000)}
+
+Return valid JSON in exactly this shape:
+{
+  "globalScene": "one sentence describing the overall world of the image",
+  "continuityRules": [
+    "rule 1",
+    "rule 2",
+    "rule 3"
+  ],
+  "panels": [
+    { "panel": 1, "scene": "..." },
+    { "panel": 2, "scene": "..." },
+    { "panel": 3, "scene": "..." },
+    { "panel": 4, "scene": "..." }
+  ]
+}
+
+PLANNING RULES:
+- create exactly 4 panels
+- each panel must be visually distinct but logically connected
+- preserve the same core subject across panels where relevant
+- do not switch vehicle type, machine type, product type, or job type unless the request explicitly requires it
+- if the request is about truck repair, keep truck repair consistent across the relevant panels
+- if a support vehicle appears, do not accidentally turn it into the main repair subject
+- if the request is about one product or process, do not swap to a different product or process
+- panel 1 should usually establish the situation or environment
+- panel 2 should usually show preparation, inspection, or method
+- panel 3 should usually show the key process, intervention, or transformation
+- panel 4 should usually show the outcome, use, or resolved state
+- keep the plan grounded, realistic, and literal
+- avoid abstract symbolism
+`;
+
+  const plan = await runJsonChat(prompt);
+
+  return {
+    globalScene: String(plan?.globalScene || "").trim(),
+    continuityRules: Array.isArray(plan?.continuityRules)
+      ? plan.continuityRules.map((x) => String(x || "").trim()).filter(Boolean).slice(0, 6)
+      : [],
+    panels: Array.isArray(plan?.panels)
+      ? plan.panels
+          .map((p, i) => ({
+            panel: Number(p?.panel || i + 1),
+            scene: String(p?.scene || "").trim(),
+          }))
+          .filter((p) => p.scene)
+          .slice(0, 4)
+      : [],
+  };
+}
+
 function clampNumber(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
@@ -5053,7 +5111,7 @@ function getHashtags(category, idea, businessName, initialProfile, postText) {
     return map[category] || "#BrandStrategy";
   }
 
-    function detectPostTag() {
+  function detectPostTag() {
     if (/morning|woke up|start the day|before the laptop|before work/.test(lowerPost)) return "#MorningRoutine";
     if (/focus|clarity|clear head|clearer|direction|uncertainty into control/.test(lowerPost)) return "#ClearFocus";
     if (/energy|steady energy|without the crash|no crash/.test(lowerPost)) return "#SteadyEnergy";
@@ -5080,6 +5138,9 @@ function getHashtags(category, idea, businessName, initialProfile, postText) {
 
     return "#RealLifeUse";
   }
+
+  return `${brandTag} ${detectPlanTag()} ${detectPostTag()}`;
+}
 
 app.post("/generate", async (req, res) => {
   const {
@@ -5430,9 +5491,61 @@ app.post("/generate-image", async (req, res) => {
   const { imagePrompt } = req.body;
 
   try {
-    
+    const scenePlan = await buildImageScenePlan(imagePrompt || "");
+
+    const panelLines =
+      scenePlan.panels.length === 4
+        ? scenePlan.panels
+            .map((p) => `PANEL ${p.panel}:\n${p.scene}`)
+            .join("\n\n")
+        : `
+PANEL 1:
+Establish the main situation, environment, or source described in the request.
+
+PANEL 2:
+Show the preparation, inspection, method, or active work described in the request.
+
+PANEL 3:
+Show the key process, intervention, transformation, or proof point described in the request.
+
+PANEL 4:
+Show the outcome, result, lived use, or resolved state described in the request.
+`.trim();
+
+    const continuityLines =
+      scenePlan.continuityRules.length > 0
+        ? scenePlan.continuityRules.map((rule) => `- ${rule}`).join("\n")
+        : `- preserve the same core subject across related panels
+- do not switch machine, vehicle, product, or job type unless explicitly required
+- keep the visual world consistent across all 4 panels`;
+
     const hardenedPrompt = `
-${clipText(imagePrompt || "", 3500)}
+Create exactly one documentary-realistic 4-panel collage image.
+
+ORIGINAL REQUEST:
+${clipText(imagePrompt || "", 2200)}
+
+GLOBAL SCENE:
+${scenePlan.globalScene || "A single coherent real-world scene built from the request."}
+
+CONTINUITY RULES:
+${continuityLines}
+
+${panelLines}
+
+NON-NEGOTIABLE STRUCTURE RULES:
+- create exactly 4 clearly distinct panels
+- each panel must be visually different, but part of the same story
+- do not return a single-scene image
+- do not collapse all panels into the same shot
+- panel-to-panel continuity must make sense
+
+NON-NEGOTIABLE OBJECT CONSISTENCY RULES:
+- do not change the core machine, vehicle, product, service type, or job type unless explicitly required
+- if the request is about truck repair, keep truck repair consistent
+- if a support van appears, do not accidentally turn the van into the main repair subject
+- if the request is about one product or process, do not substitute a different one
+- do not invent mismatched tools, machinery, or environments
 
 NON-NEGOTIABLE IMAGE MATCH RULES:
 - the image must align closely with the post meaning
@@ -5448,11 +5561,6 @@ NON-NEGOTIABLE WEBSITE ALIGNMENT RULES:
 - keep the image feeling like it belongs to the same business identity as the website
 - do not use random colours, props, or moods that clash with the website
 - if the website feels minimal, earthy, luxurious, warm, clinical, handcrafted, industrial, soft, family-led, or modern, reflect that visually
-
-NON-NEGOTIABLE COLLAGE RULES:
-- create exactly 4 clearly distinct panels
-- do not return a single-scene image
-- all 4 panels must feel part of the same visual story
 
 NON-NEGOTIABLE IMAGE SAFETY RULES:
 - no readable words anywhere in the image
@@ -5477,6 +5585,7 @@ NON-NEGOTIABLE IMAGE SAFETY RULES:
 
     res.json({
       imageUrl: `data:image/png;base64,${base64Image}`,
+      scenePlan,
     });
   } catch (err) {
     console.error("IMAGE GENERATION ERROR:", err);
