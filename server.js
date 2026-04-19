@@ -5686,8 +5686,8 @@ PRIMARY FRAME OWNER: ${scenePlan.mainSubject || "the main subject from the reque
 ONLY OPERATIVE SURFACE: the one exact inspection area on the same target subject
 ACTION ANCHOR: the exact inspection point on the same target subject
 CONTACT POINT: hands, tools, gaze, and body orientation must visibly connect to the inspection point on the same subject and not to any second subject
-MUST SHOW: the exact working area of the same subject clearly in frame with visible physical interaction, and that same subject must own the frame
-MUST NOT SHOW: inspection focus drifting onto the mechanic vehicle or support vehicle, mechanics handling empty space, the target sitting behind them while another foreground surface becomes the work area, or two separate subjects sharing the action
+MUST SHOW: the exact working area of the same subject clearly in the foreground with visible physical interaction, and that same subject must be the closest and dominant object in the frame
+MUST NOT SHOW: inspection focus drifting onto the mechanic vehicle or support vehicle, mechanics handling empty space, the target sitting behind them while another foreground surface becomes the work area, any situation where the action happens on a different foreground object while the true subject is in the background, or two separate subjects sharing the action
 SCENE:
 Show preparation, inspection, or method focused on the same subject.
 
@@ -5699,8 +5699,8 @@ PRIMARY FRAME OWNER: ${scenePlan.mainSubject || "the main subject from the reque
 ONLY OPERATIVE SURFACE: the one exact repair area on the same target subject
 ACTION ANCHOR: the key repair point on the same target subject
 CONTACT POINT: the repair action must visibly connect to the repair point on the same target subject and not to any other surface or subject
-MUST SHOW: the key repair process on the same target subject with real contact between mechanic, tool, and subject, and no competing operative subject
-MUST NOT SHOW: unrelated vehicle parts, contradictory fault signals, a different repair target, repair motions disconnected from the subject, or the real target pushed into the background while another surface becomes the active work zone
+MUST SHOW: the key repair process on the same target subject in the foreground with real contact between mechanic, tool, and subject, and that subject must be the dominant and closest object in frame
+MUST NOT SHOW: unrelated vehicle parts, contradictory fault signals, a different repair target, repair motions disconnected from the subject, the real target pushed into the background while another surface becomes the active work zone, or any foreground object being treated as the repair surface if it is not the target subject
 SCENE:
 Show the key process, intervention, or transformation focused on the same subject.
 
