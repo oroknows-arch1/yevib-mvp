@@ -2979,118 +2979,588 @@ function getLensRules({ quickType = "", category = "", weakVoice = false }) {
 
   return { lensTitle, lensRules };
 }
+function classifyPostClass({
+  founderGoal = "",
+  category = "",
+  quickType = "",
+  idea = "",
+  weeklyPosts = "",
+}) {
+  const combined = [
+    founderGoal,
+    category,
+    quickType,
+    idea,
+    weeklyPosts,
+  ]
+    .map((x) => String(x || "").toLowerCase())
+    .join(" ");
+
+  if (
+    /trust|build more trust|clarity|clear quotes|fair pricing|confidence|reassurance/.test(combined)
+  ) {
+    return "trust_building";
+  }
+
+  if (
+    /educational|explain|teaching|teach|understand|what's needed|why|how/.test(combined)
+  ) {
+    return "education";
+  }
+
+  if (
+    /promote|offer|discount|first service|quote|book|call now|get started/.test(combined)
+  ) {
+    return "offer_positioning";
+  }
+
+  if (
+    /founder|show more founder presence|i run|i insist|i make sure|responsibility|where i stand/.test(combined)
+  ) {
+    return "founder_authority";
+  }
+
+  if (
+    /consistency|routine|daily|every day|standard|maintenance|reliable|24\/7|availability/.test(combined)
+  ) {
+    return "operational_reliability";
+  }
+
+  return "real_world_value";
+}
+
+function classifyPostType({
+  postClass = "",
+  quickType = "",
+  ownerNudge = "",
+  category = "",
+}) {
+  const lens = String(quickType || "").toLowerCase();
+  const feeling = String(ownerNudge || "").toLowerCase();
+  const contentCategory = String(category || "").toLowerCase();
+
+  if (postClass === "education") return "instructional";
+  if (postClass === "offer_positioning") return "direct_response";
+  if (postClass === "founder_authority") return "authority";
+  if (postClass === "operational_reliability") return "operational";
+  if (postClass === "trust_building") return "reassurance";
+
+  if (lens === "personal" || contentCategory === "founder reflection") {
+    return "reflective";
+  }
+
+  if (lens === "educational") {
+    return "instructional";
+  }
+
+  if (/reflective|thoughtful|processing/.test(feeling)) {
+    return "reflective";
+  }
+
+  if (/focused|fired up|clear|locked in/.test(feeling)) {
+    return "directive";
+  }
+
+  return "observational";
+}
+
+function getPostClassRules(postClass = "") {
+  if (postClass === "trust_building") {
+    return `
+- The job of this post is to reduce hesitation and increase confidence
+- Prioritise reassurance, clarity, and grounded trust signals
+- Do not drift into generic reliability filler
+- Make trust feel earned through specifics
+`;
+  }
+
+  if (postClass === "education") {
+    return `
+- The job of this post is to help the audience understand something better
+- Prioritise explanation, clarity, and practical takeaway
+- Do not drift into vague inspiration
+- Make the value come from understanding
+`;
+  }
+
+  if (postClass === "offer_positioning") {
+    return `
+- The job of this post is to position an offer or clear reason to act
+- Prioritise relevance, timing, and practical value
+- Do not sound pushy or salesy
+- Make the action feel grounded and justified
+`;
+  }
+
+  if (postClass === "founder_authority") {
+    return `
+- The job of this post is to strengthen founder-led authority
+- Prioritise judgment, standards, decision-making, and responsibility
+- Keep the owner central
+- Do not collapse into generic business praise
+`;
+  }
+
+  if (postClass === "operational_reliability") {
+    return `
+- The job of this post is to show dependable execution and repeatable standards
+- Prioritise process, readiness, availability, and consistency
+- Do not repeat the same trust script
+- Make reliability feel operational, not abstract
+`;
+  }
+
+  return `
+- The job of this post is to show real-world value in a believable way
+- Prioritise lived effect, practical use, and grounded relevance
+- Avoid broad generic claims
+`;
+}
+
+function getPostTypeRules(postType = "") {
+  if (postType === "instructional") {
+    return `
+- Shape the writing to teach clearly
+- Use plain explanation and useful framing
+- Keep it human, not textbook
+`;
+  }
+
+  if (postType === "direct_response") {
+    return `
+- Shape the writing to move someone closer to action
+- Keep the value clear and immediate
+- Avoid hype and pressure
+`;
+  }
+
+  if (postType === "authority") {
+    return `
+- Shape the writing around confident judgment and standards
+- Let the owner sound decisive and responsible
+- Avoid sounding arrogant
+`;
+  }
+
+  if (postType === "operational") {
+    return `
+- Shape the writing around systems, readiness, and execution
+- Let the business feel dependable because it is well run
+- Avoid generic slogans
+`;
+  }
+
+  if (postType === "reassurance") {
+    return `
+- Shape the writing to reduce stress and uncertainty
+- Let calm certainty come from specifics
+- Avoid saying the same trust phrases repeatedly
+`;
+  }
+
+  if (postType === "reflective") {
+    return `
+- Shape the writing around observation and meaning
+- Let reflection guide the post without becoming soft or vague
+`;
+  }
+
+  if (postType === "directive") {
+    return `
+- Shape the writing with more edge, clarity, and forward posture
+- Keep it controlled, not aggressive
+`;
+  }
+
+  return `
+- Shape the writing like a real observation from a real owner
+- Keep it natural, grounded, and specific
+`;
+}
+
+function getPostEnforcementRules(postClass = "", postType = "") {
+  const rules = [];
+
+  if (postClass === "trust_building") {
+    rules.push(`
+CLASS ENFORCEMENT:
+- The post must reduce uncertainty through specifics
+- Use one concrete trust anchor only: quote clarity, timing clarity, process clarity, standards clarity, or respectful service conduct
+- Do NOT stack multiple generic trust claims in one post
+- Do NOT lean on vague phrases like "you can trust us", "peace of mind", or "we care" unless grounded in a real detail
+- Do NOT default to generic reliability language unless reliability is the actual point
+`);
+  }
+
+  if (postClass === "education") {
+    rules.push(`
+CLASS ENFORCEMENT:
+- The post must teach one useful thing clearly
+- Pick one explanation lane only: what it is, why it matters, how it works, or what to notice
+- Do NOT drift into founder-story filler unless it supports the explanation directly
+- The value must come from understanding, not just admiration
+`);
+  }
+
+  if (postClass === "offer_positioning") {
+    rules.push(`
+CLASS ENFORCEMENT:
+- The post must make one practical reason to act easier to understand
+- Pick one offer lever only: timing, savings, convenience, fit, or reduced friction
+- Do NOT stack too many sales reasons together
+- Keep action grounded, not pushy
+`);
+  }
+
+  if (postClass === "founder_authority") {
+    rules.push(`
+CLASS ENFORCEMENT:
+- The post must sound like a founder making a judgment call
+- Center one founder move only: what I insist on, what I refuse, what I check, or what I prioritise
+- Do NOT collapse into generic brand praise
+- Keep the owner visibly responsible for the standard being described
+`);
+  }
+
+  if (postClass === "operational_reliability") {
+    rules.push(`
+CLASS ENFORCEMENT:
+- The post must show dependable execution through operation, not slogans
+- Center one operational proof only: readiness, repeatability, availability, process discipline, or response standard
+- Do NOT turn this into a general trust post
+- Reliability must feel procedural and lived, not abstract
+`);
+  }
+
+  if (postClass === "real_world_value") {
+    rules.push(`
+CLASS ENFORCEMENT:
+- The post must show one believable real-life benefit
+- Use one grounded day-impact only
+- Avoid broad claims that try to cover everything
+`);
+  }
+
+  if (postType === "instructional") {
+    rules.push(`
+TYPE ENFORCEMENT:
+- Open with explanation, not nostalgia
+- Use a clear teaching posture
+- Avoid dramatic storytelling unless it directly serves the lesson
+`);
+  }
+
+  if (postType === "direct_response") {
+    rules.push(`
+TYPE ENFORCEMENT:
+- Open with relevance or practical value
+- Keep the path to action visible
+- Avoid reflective or wandering openings
+`);
+  }
+
+  if (postType === "authority") {
+    rules.push(`
+TYPE ENFORCEMENT:
+- Open with a decision, standard, or non-negotiable
+- The owner should sound decisive
+- Avoid soft observational drift
+`);
+  }
+
+  if (postType === "operational") {
+    rules.push(`
+TYPE ENFORCEMENT:
+- Open with process, readiness, or execution reality
+- Keep the language functional and grounded
+- Avoid emotional over-explaining
+`);
+  }
+
+  if (postType === "reassurance") {
+    rules.push(`
+TYPE ENFORCEMENT:
+- Open by reducing confusion, friction, or hesitation
+- Keep the tone steady and concrete
+- Avoid repeating "trust", "clarity", and "confidence" unless one is truly essential
+`);
+  }
+
+  if (postType === "reflective") {
+    rules.push(`
+TYPE ENFORCEMENT:
+- Open with a real observation or specific moment
+- Keep reflection tied to lived experience
+- Avoid floating philosophical filler
+`);
+  }
+
+  if (postType === "directive") {
+    rules.push(`
+TYPE ENFORCEMENT:
+- Open with sharper posture and firmer momentum
+- Keep the language controlled
+- Avoid hype and motivational clichés
+`);
+  }
+
+  if (!rules.length) {
+    rules.push(`
+TYPE ENFORCEMENT:
+- Keep the writing natural, specific, and grounded
+- Use one clear angle per post
+- Avoid blending too many purposes into one post
+`);
+  }
+
+  rules.push(`
+OPENING ENFORCEMENT:
+- Across the 3 posts, use 3 different opening styles
+- Do NOT let more than one post open with a memory/reflection setup
+- Do NOT let more than one post open with "That is why", "It's not just", "I remember", or similar familiar scaffolding
+- At least one post must open with a direct statement
+- At least one post must open with a concrete real-world situation, action, or scene
+- At least one post must open with a standard, decision, or observation
+`);
+
+  rules.push(`
+CLAIM ENFORCEMENT:
+- Each post should center one main claim only
+- Do NOT repeat the same claim across all 3 posts
+- If one post centers quality, another should not center quality in the same way
+- If one post centers trust, another should shift to process, explanation, timing, or lived effect
+`);
+
+  rules.push(`
+NARRATIVE ENFORCEMENT:
+- Do not let all 3 posts use the same skeleton
+- Separate the batch into different shapes: one scene-led, one explanation-led, one standard-led
+- Same voice, different construction
+`);
+
+  return rules.join("\n");
+}
+function detectOpeningStyle(post = "") {
+  const text = String(post || "").trim();
+  const lower = text.toLowerCase();
+
+  if (
+    /^(i remember|i still remember|i found myself|i noticed|i saw|last friday|last week|one day|that morning|this morning)\b/.test(lower)
+  ) {
+    return "memory_scene";
+  }
+
+  if (
+    /^(that'?s why|this is why|it'?s not just|it is not just|when|if|clear priorities|customer satisfaction|reliable plumbing|the difference in)\b/.test(lower)
+  ) {
+    return "framing_statement";
+  }
+
+  if (
+    /^(i insist|i make sure|i check|i won'?t|i refuse|i focus|i prioritise|i handle)\b/.test(lower)
+  ) {
+    return "decision_standard";
+  }
+
+  if (
+    /^(what|why|how)\b/.test(lower)
+  ) {
+    return "explanation_open";
+  }
+
+  return "direct_statement";
+}
+
+function detectPrimaryClaim(post = "") {
+  const lower = String(post || "").toLowerCase();
+
+  if (/quote|pricing|price|cost|estimate|no surprises|fairness/.test(lower)) {
+    return "pricing_clarity";
+  }
+  if (/trust|confidence|hesitation|certainty|reassurance/.test(lower)) {
+    return "trust_reduction";
+  }
+  if (/quality|standards|done right|baseline|council standards|properly/.test(lower)) {
+    return "quality_standard";
+  }
+  if (/24\/7|on call|response|ready|availability|fast|urgent|delay/.test(lower)) {
+    return "response_readiness";
+  }
+  if (/explain|understand|why|how it works|guide|what's needed/.test(lower)) {
+    return "education_explanation";
+  }
+  if (/ritual|daily|routine|every day|morning/.test(lower)) {
+    return "daily_use";
+  }
+  if (/tradition|uji|kyoto|farmers|heritage|origin|shaded/.test(lower)) {
+    return "origin_tradition";
+  }
+
+  return "general_value";
+}
+
+function countScaffoldRepeats(posts = []) {
+  const scaffoldPatterns = [
+    /i remember/gi,
+    /that'?s why/gi,
+    /it'?s not just/gi,
+    /this is why/gi,
+    /when .* matters/gi,
+    /clear communication/gi,
+    /clear priorities/gi,
+    /customer satisfaction/gi,
+    /the difference in/gi,
+  ];
+
+  let hits = 0;
+  const joined = posts.join("\n\n").toLowerCase();
+
+  for (const pattern of scaffoldPatterns) {
+    const matches = joined.match(pattern);
+    if (matches && matches.length > 1) hits += matches.length - 1;
+  }
+
+  return hits;
+}
+
+function validatePostBatch(posts = []) {
+  const cleanPosts = Array.isArray(posts)
+    ? posts.map((p) => String(p || "").trim()).filter(Boolean)
+    : [];
+
+  const openingStyles = cleanPosts.map(detectOpeningStyle);
+  const primaryClaims = cleanPosts.map(detectPrimaryClaim);
+
+  const openingCounts = {};
+  const claimCounts = {};
+
+  for (const style of openingStyles) {
+    openingCounts[style] = (openingCounts[style] || 0) + 1;
+  }
+
+  for (const claim of primaryClaims) {
+    claimCounts[claim] = (claimCounts[claim] || 0) + 1;
+  }
+
+  const repeatedOpenings = Object.values(openingCounts).some((count) => count >= 3);
+  const repeatedClaims = Object.values(claimCounts).some((count) => count >= 3);
+  const scaffoldRepeatCount = countScaffoldRepeats(cleanPosts);
+
+  const hasDirectStatement = openingStyles.includes("direct_statement");
+  const hasSceneOrMemory = openingStyles.includes("memory_scene");
+  const hasDecisionOrStandard = openingStyles.includes("decision_standard") || openingStyles.includes("framing_statement");
+
+  const failedReasons = [];
+
+  if (cleanPosts.length !== 3) {
+    failedReasons.push("Expected exactly 3 posts in batch.");
+  }
+
+  if (repeatedOpenings) {
+    failedReasons.push("All posts are collapsing into the same opening style.");
+  }
+
+  if (!hasDirectStatement) {
+    failedReasons.push("Batch is missing a direct-statement opener.");
+  }
+
+  if (!hasSceneOrMemory) {
+    failedReasons.push("Batch is missing a scene-led or memory-led opener.");
+  }
+
+  if (!hasDecisionOrStandard) {
+    failedReasons.push("Batch is missing a standard-led, framing-led, or decision-led opener.");
+  }
+
+  if (repeatedClaims) {
+    failedReasons.push("All posts are centering the same primary claim.");
+  }
+
+  if (scaffoldRepeatCount >= 2) {
+    failedReasons.push("Repeated familiar scaffolding detected across the batch.");
+  }
+
+  return {
+    isValid: failedReasons.length === 0,
+    failedReasons,
+    openingStyles,
+    primaryClaims,
+    scaffoldRepeatCount,
+  };
+}
+function detectOpeningStyle(post = "") {
+  const text = String(post || "").trim();
+  const lower = text.toLowerCase();
+
+  if (/^(i remember|i still remember|i found myself|i noticed|last|this morning|one day)/.test(lower)) {
+    return "memory_scene";
+  }
+
+  if (/^(that'?s why|this is why|it'?s not just|when|if|clear|customer satisfaction|the difference)/.test(lower)) {
+    return "framing_statement";
+  }
+
+  if (/^(i insist|i make sure|i check|i won'?t|i refuse|i focus|i prioritise)/.test(lower)) {
+    return "decision_standard";
+  }
+
+  if (/^(what|why|how)\b/.test(lower)) {
+    return "explanation_open";
+  }
+
+  return "direct_statement";
+}
+
+function detectPrimaryClaim(post = "") {
+  const lower = String(post || "").toLowerCase();
+
+  if (/price|cost|quote|estimate|no surprises/.test(lower)) return "pricing";
+  if (/trust|confidence|reassurance/.test(lower)) return "trust";
+  if (/quality|standard|done right/.test(lower)) return "quality";
+  if (/24\/7|on call|fast|response|urgent/.test(lower)) return "response";
+  if (/explain|understand|how|why/.test(lower)) return "education";
+  if (/ritual|daily|routine/.test(lower)) return "routine";
+  if (/uji|kyoto|tradition|farmers/.test(lower)) return "origin";
+
+  return "general";
+}
+
+function validatePostBatch(posts = []) {
+  const openingStyles = posts.map(detectOpeningStyle);
+  const claims = posts.map(detectPrimaryClaim);
+
+  const openingSet = new Set(openingStyles);
+  const claimSet = new Set(claims);
+
+  const failedReasons = [];
+
+  if (openingSet.size < 3) {
+    failedReasons.push("Opening styles are not diverse.");
+  }
+
+  if (claimSet.size < 2) {
+    failedReasons.push("Primary claims are too similar.");
+  }
+
+  if (!openingStyles.includes("direct_statement")) {
+    failedReasons.push("Missing direct statement opener.");
+  }
+
+  if (!openingStyles.includes("memory_scene")) {
+    failedReasons.push("Missing scene/memory opener.");
+  }
+
+  return {
+    isValid: failedReasons.length === 0,
+    failedReasons,
+    openingStyles,
+    claims
+  };
+}
 
 function getFeelingRules(ownerNudge = "") {
   const feeling = String(ownerNudge || "").trim();
   const lower = feeling.toLowerCase();
-
-  if (!feeling) {
-    return {
-      feelingLabel: "Not specified",
-      feelingRules: `
-- No specific feeling was provided
-- Keep the emotional temperature grounded and natural
-- Let the lens lead the direction
-`,
-    };
-  }
-
-  if (/focused|clear|locked in|dialled in/.test(lower)) {
-    return {
-      feelingLabel: feeling,
-      feelingRules: `
-- The owner feels focused right now
-- Make the post clearer, steadier, and more intentional
-- Reduce drift and softness
-- Let the writing feel composed and purposeful
-`,
-    };
-  }
-
-  if (/proud|earned/.test(lower)) {
-    return {
-      feelingLabel: feeling,
-      feelingRules: `
-- The owner feels proud right now
-- Let the post carry earned pride
-- Avoid bragging
-- Make the effort and achievement feel real and deserved
-`,
-    };
-  }
-
-  if (/tired|flat|drained|exhausted/.test(lower)) {
-    return {
-      feelingLabel: feeling,
-      feelingRules: `
-- The owner feels tired or flat right now
-- Strip away polish and hype
-- Let the post feel more honest, direct, and effort-aware
-- Do not become negative or dramatic
-- Keep the writing human and restrained
-`,
-    };
-  }
-
-  if (/reflective|thoughtful|processing/.test(lower)) {
-    return {
-      feelingLabel: feeling,
-      feelingRules: `
-- The owner feels reflective right now
-- Slow the post down slightly
-- Let observation and meaning carry more weight
-- Keep it grounded, not poetic for the sake of it
-`,
-    };
-  }
-
-  if (/grateful|thankful/.test(lower)) {
-    return {
-      feelingLabel: feeling,
-      feelingRules: `
-- The owner feels grateful right now
-- Let appreciation and awareness show
-- Keep it sincere, not sentimental
-- Make gratitude feel tied to real people, effort, or support
-`,
-    };
-  }
-
-  if (/fired up|energised|energized|ready|sharp/.test(lower)) {
-    return {
-      feelingLabel: feeling,
-      feelingRules: `
-- The owner feels fired up right now
-- Increase conviction and forward movement
-- Make the tone stronger and more decisive
-- Do not become loud, preachy, or hype-driven
-`,
-    };
-  }
-
-  if (/not feeling it|off|restless|random/.test(lower)) {
-    return {
-      feelingLabel: feeling,
-      feelingRules: `
-- The owner feels off-rhythm or random right now
-- Let the post feel more in-the-moment and human
-- Reduce polish
-- Keep it real, believable, and lightly open-ended if useful
-`,
-    };
-  }
-
-  return {
-    feelingLabel: feeling,
-    feelingRules: `
-- The owner gave this current feeling/state: "${feeling}"
-- Let it shape the emotional temperature, emphasis, and posture of the writing
-- Do not let it replace the owner voice
-- Do not let it overpower the selected lens
-- Make its influence visible but controlled
-`,
-  };
-}
 
 function getVariationRules(category = "") {
   const quietOnlyRule =
@@ -3314,7 +3784,7 @@ You must correct this now:
 - one opener should be insight/decision/truth-based
 `;
 
-    const response = await openai.chat.completions.create({
+        const response = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
       messages: [{ role: "user", content: `${promptBase}${retryBlock}` }],
     });
@@ -3348,6 +3818,12 @@ You must correct this now:
     const quietCheck = hardQuietGuard(posts, category);
     if (quietCheck.failed) {
       retryReason = quietCheck.reason;
+      continue;
+    }
+
+    const batchValidation = validatePostBatch(posts);
+    if (!batchValidation.isValid) {
+      retryReason = batchValidation.failedReasons.join(" ");
       continue;
     }
 
@@ -5807,7 +6283,23 @@ app.post("/generate", async (req, res) => {
       weakVoice,
     });
 
-    const { feelingLabel, feelingRules } = getFeelingRules(ownerNudge || "");
+        const { feelingLabel, feelingRules } = getFeelingRules(ownerNudge || "");
+    const postClass = classifyPostClass({
+      founderGoal,
+      category,
+      quickType,
+      idea,
+      weeklyPosts,
+    });
+    const postType = classifyPostType({
+      postClass,
+      quickType,
+      ownerNudge,
+      category,
+    });
+    const postClassRules = getPostClassRules(postClass);
+    const postTypeRules = getPostTypeRules(postType);
+    const postEnforcementRules = getPostEnforcementRules(postClass, postType);
     const variationRules = getVariationRules(category);
     const intelligenceRead = initialProfile?.intelligenceRead || "";
     const recommendedFocus = initialProfile?.groupedSnapshot?.recommendedFocus || initialProfile?.advisorSnapshot?.recommendedFocus || "";
@@ -5843,6 +6335,21 @@ ${feelingLabel}
 
 FEELING RULES:
 ${feelingRules}
+
+POST CLASS:
+${postClass}
+
+POST CLASS RULES:
+${postClassRules}
+
+POST TYPE:
+${postType}
+
+POST TYPE RULES:
+${postTypeRules}
+
+POST ENFORCEMENT RULES:
+${postEnforcementRules}
 
 ${variationRules}
 
@@ -6042,7 +6549,11 @@ ${extraCategoryRule}
   return `${cleaned}\n${getHashtags(category, idea, finalBusinessName, initialProfile, cleaned)}`;
 });
 
-    res.json({ text: finalPosts.join("\n\n\n") });
+        res.json({
+  text: finalPosts.join("\n\n\n"),
+  postClass,
+  postType,
+});
   } catch (err) {
     console.error("GENERATE ERROR:", err);
     res.status(500).json({ error: err.message || "Failed to generate posts." });
@@ -6326,4 +6837,4 @@ NON-NEGOTIABLE IMAGE SAFETY RULES:
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-});
+});   
