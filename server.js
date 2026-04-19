@@ -3744,6 +3744,10 @@ function cleanPost(post = "") {
 
   return text;
 }
+function getPostGenerationModel(attempt = 0) {
+  if (attempt >= 2) return "gpt-5.3";
+  return "gpt-4.1-mini";
+}
 
 function soundsTooGeneric(text = "") {
   const badPhrases = [
@@ -3782,10 +3786,14 @@ You must correct this now:
 - one opener should be direct
 - one opener should be scene-based
 - one opener should be insight/decision/truth-based
+- if the previous attempt was too repetitive, increase structural diversity instead of paraphrasing the same idea
+- keep the same owner voice, but change the construction and primary claim focus
 `;
 
-        const response = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
+    const model = getPostGenerationModel(attempt);
+
+    const response = await openai.chat.completions.create({
+      model,
       messages: [{ role: "user", content: `${promptBase}${retryBlock}` }],
     });
 
