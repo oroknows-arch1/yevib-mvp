@@ -5654,10 +5654,12 @@ app.post("/generate-image", async (req, res) => {
 ROLE: ${p.role}
 LOCKED SUBJECT: ${p.lockedSubject}
 TARGET SUBJECT: ${p.targetSubject || p.lockedSubject || scenePlan.mainSubject || "the primary subject described in the request"}
+PRIMARY FRAME OWNER: ${p.primaryFrameOwner || p.targetSubject || p.lockedSubject || scenePlan.mainSubject || "the primary subject described in the request"}
+ONLY OPERATIVE SURFACE: ${p.onlyOperativeSurface || "the one visible surface, part, or area of the target subject where the action is actually happening"}
 ACTION ANCHOR: ${p.actionAnchor || "the visible physical point where the action is happening on the target subject"}
-CONTACT POINT: ${p.contactPoint || "hands, tools, or attention must connect clearly to the target subject"}
+CONTACT POINT: ${p.contactPoint || "hands, tools, gaze, and body orientation must connect clearly to that same target subject and the same operative surface"}
 ${p.allowedSupportSubject ? `ALLOWED SUPPORT SUBJECT: ${p.allowedSupportSubject}\n` : ""}MUST SHOW: ${p.mustShow || "the primary subject clearly as the main focus of the frame, with the action physically connected to it, not any supporting element"}
-MUST NOT SHOW: ${p.mustNotShow || "a supporting object, background element, or secondary subject taking over as the main focus, mixed object identities, contradictory states, or gestures/body positions disconnected from the target subject"}
+MUST NOT SHOW: ${p.mustNotShow || "a supporting object, background element, or secondary subject taking over as the main focus, mixed object identities, contradictory states, gestures/body positions disconnected from the target subject, or a second working surface on a different subject"}
 SCENE:
 ${p.scene}`
             )
@@ -5667,10 +5669,12 @@ PANEL 1:
 ROLE: establishing
 LOCKED SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
 TARGET SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
+PRIMARY FRAME OWNER: ${scenePlan.mainSubject || "the main subject from the request"}
+ONLY OPERATIVE SURFACE: the one visible problem area on the same primary subject
 ACTION ANCHOR: the visible location on the primary subject where the issue is happening
 CONTACT POINT: the mechanic's attention, body position, or pointing must clearly relate to the same target subject
 MUST SHOW: the main subject clearly in the real-world environment where the issue happens, with the problem area readable at first glance
-MUST NOT SHOW: fault symbols, warning lights, or problem signals on the wrong vehicle, or a mechanic inspecting empty space
+MUST NOT SHOW: fault symbols, warning lights, or problem signals on the wrong vehicle, a mechanic inspecting empty space, or a second subject visually competing as the main problem source
 SCENE:
 Establish the main situation, environment, or source described in the request.
 
@@ -5678,10 +5682,12 @@ PANEL 2:
 ROLE: inspection
 LOCKED SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
 TARGET SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
+PRIMARY FRAME OWNER: ${scenePlan.mainSubject || "the main subject from the request"}
+ONLY OPERATIVE SURFACE: the one exact inspection area on the same target subject
 ACTION ANCHOR: the exact inspection point on the same target subject
-CONTACT POINT: hands, tools, and body orientation must visibly connect to the inspection point on the same subject
-MUST SHOW: the exact working area of the same subject clearly in frame with visible physical interaction
-MUST NOT SHOW: inspection focus drifting onto the mechanic vehicle or support vehicle, or mechanics handling empty space with the target sitting behind them
+CONTACT POINT: hands, tools, gaze, and body orientation must visibly connect to the inspection point on the same subject and not to any second subject
+MUST SHOW: the exact working area of the same subject clearly in frame with visible physical interaction, and that same subject must own the frame
+MUST NOT SHOW: inspection focus drifting onto the mechanic vehicle or support vehicle, mechanics handling empty space, the target sitting behind them while another foreground surface becomes the work area, or two separate subjects sharing the action
 SCENE:
 Show preparation, inspection, or method focused on the same subject.
 
@@ -5689,10 +5695,12 @@ PANEL 3:
 ROLE: process
 LOCKED SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
 TARGET SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
+PRIMARY FRAME OWNER: ${scenePlan.mainSubject || "the main subject from the request"}
+ONLY OPERATIVE SURFACE: the one exact repair area on the same target subject
 ACTION ANCHOR: the key repair point on the same target subject
-CONTACT POINT: the repair action must visibly connect to the repair point on the same target subject
-MUST SHOW: the key repair process on the same target subject with real contact between mechanic, tool, and subject
-MUST NOT SHOW: unrelated vehicle parts, contradictory fault signals, a different repair target, or repair motions disconnected from the subject
+CONTACT POINT: the repair action must visibly connect to the repair point on the same target subject and not to any other surface or subject
+MUST SHOW: the key repair process on the same target subject with real contact between mechanic, tool, and subject, and no competing operative subject
+MUST NOT SHOW: unrelated vehicle parts, contradictory fault signals, a different repair target, repair motions disconnected from the subject, or the real target pushed into the background while another surface becomes the active work zone
 SCENE:
 Show the key process, intervention, or transformation focused on the same subject.
 
@@ -5700,10 +5708,12 @@ PANEL 4:
 ROLE: outcome
 LOCKED SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
 TARGET SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
+PRIMARY FRAME OWNER: ${scenePlan.mainSubject || "the main subject from the request"}
+ONLY OPERATIVE SURFACE: no active work surface, only the resolved final state of the same subject
 ACTION ANCHOR: the resolved final state of the same subject
 CONTACT POINT: if a person gestures, the gesture must be anatomically normal and secondary to the resolved subject
 MUST SHOW: the resolved state of the same subject after the work is complete, with normal human anatomy and a believable finished outcome
-MUST NOT SHOW: open bonnets, exposed engine bays, active repair posture, leftover fault-state artifacts, or distorted hands, fingers, or anatomy
+MUST NOT SHOW: open bonnets, exposed engine bays, active repair posture, leftover fault-state artifacts, distorted hands, fingers, or anatomy, or any second subject acting like the true resolved subject
 SCENE:
 Show the outcome, result, lived use, or resolved state tied to the same subject.
 `.trim();
@@ -5769,6 +5779,8 @@ SUBJECT CONSISTENCY ENFORCEMENT:
 - if the broken or serviced object is the target, the mechanic vehicle must remain secondary
 - fault symbols, warning lights, and visible problem signals must belong only to the correct target subject
 - panel 4 must show a resolved state only, with no active repair-state leftovers
+- each panel may contain support context, but only one true operative subject may own the action
+- the subject being touched, inspected, repaired, or resolved must be the same subject that visually owns the frame
 
 NON-NEGOTIABLE OBJECT CONSISTENCY RULES:
 - do not change the core machine, vehicle, product, service type, or job type unless explicitly required
@@ -5783,6 +5795,8 @@ NON-NEGOTIABLE FRAMING RULES:
 - do not crop the engine bay, repair zone, or primary work surface so tightly that it becomes partial, unclear, or secondary
 - do not let background vehicles, nearby tools, or support objects dominate the frame over the target subject
 - use framing that makes the intended action obvious without needing text
+- do not allow a foreground surface on one subject while the real target sits in the background
+- each action panel must show one operative surface only
 
 NON-NEGOTIABLE IMAGE MATCH RULES:
 - the image must align closely with the post meaning
