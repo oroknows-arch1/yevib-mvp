@@ -5654,15 +5654,17 @@ app.post("/generate-image", async (req, res) => {
 ROLE: ${p.role}
 LOCKED SUBJECT: ${p.lockedSubject}
 TARGET SUBJECT: ${p.targetSubject || p.lockedSubject || scenePlan.mainSubject || "the primary subject described in the request"}
+SUBJECT INSTANCE LOCK: ${p.subjectInstanceLock || "this must be the exact same physical subject instance across the sequence, not a different but similar one"}
+VIEW CONTINUITY: ${p.viewContinuity || "keep the same subject recognisable across panels through consistent shape, proportions, orientation, and general side/view unless the story explicitly changes viewpoint"}
 PRIMARY FRAME OWNER: ${p.primaryFrameOwner || p.targetSubject || p.lockedSubject || scenePlan.mainSubject || "the primary subject described in the request"}
 ONLY OPERATIVE SURFACE: ${p.onlyOperativeSurface || "the one visible surface, part, or area of the target subject where the action is actually happening"}
-ACTION ANCHOR: ${p.actionAnchor || "the visible physical point where the action is happening on the target subject"}
+ACTION ANCHOR: ${p.actionAnchor || "the visible physical point where the action is happening on a plausible serviceable area of the target subject"}
 CONTACT POINT: ${p.contactPoint || "hands, tools, gaze, and body orientation must connect clearly to that same target subject and the same operative surface"}
 SCENE PROXIMITY: ${p.sceneProximity || "all related subjects in the event must appear spatially connected and plausibly near each other, not separated into different locations"}
 COMPONENT CONTINUITY: ${p.componentContinuity || "if a specific part or component appears in adjacent action panels, it must remain materially consistent in size, type, shape, and position"}
 ENVIRONMENT CONTINUITY: ${p.environmentContinuity || "lighting, time-of-day, background setting, and spatial context must stay consistent across the sequence unless the story explicitly changes them"}
 ${p.allowedSupportSubject ? `ALLOWED SUPPORT SUBJECT: ${p.allowedSupportSubject}\n` : ""}MUST SHOW: ${p.mustShow || "the primary subject clearly as the main focus of the frame, with the action physically connected to it, not any supporting element"}
-MUST NOT SHOW: ${p.mustNotShow || "a supporting object, background element, or secondary subject taking over as the main focus, mixed object identities, contradictory states, gestures/body positions disconnected from the target subject, or a second working surface on a different subject"}
+MUST NOT SHOW: ${p.mustNotShow || "a supporting object, background element, or secondary subject taking over as the main focus, mixed object identities, contradictory states, gestures/body positions disconnected from the target subject, a second working surface on a different subject, or work being performed on an implausible or invented access point"}
 SCENE:
 ${p.scene}`
             )
@@ -5672,6 +5674,8 @@ PANEL 1:
 ROLE: establishing
 LOCKED SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
 TARGET SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
+SUBJECT INSTANCE LOCK: this must be the exact same physical subject instance that appears in later panels, not another similar one
+VIEW CONTINUITY: keep the same truck/object recognisable across the sequence through similar proportions, front/side identity, and overall visual form
 PRIMARY FRAME OWNER: ${scenePlan.mainSubject || "the main subject from the request"}
 ONLY OPERATIVE SURFACE: the one visible problem area on the same primary subject
 ACTION ANCHOR: the visible location on the primary subject where the issue is happening
@@ -5680,7 +5684,7 @@ SCENE PROXIMITY: the response vehicle, mechanic, and target subject must appear 
 COMPONENT CONTINUITY: if the problem component is implied here, it must match the component later inspected and repaired
 ENVIRONMENT CONTINUITY: time-of-day, road context, and lighting must match the rest of the sequence unless the story explicitly changes
 MUST SHOW: the main subject clearly in the real-world environment where the issue happens, with the problem area readable at first glance
-MUST NOT SHOW: fault symbols, warning lights, or problem signals on the wrong vehicle, a mechanic inspecting empty space, a second subject visually competing as the main problem source, or the target subject placed unrealistically far away from the active response
+MUST NOT SHOW: fault symbols, warning lights, or problem signals on the wrong vehicle, a mechanic inspecting empty space, a second subject visually competing as the main problem source, the target subject placed unrealistically far away from the active response, or a target subject that changes identity in later panels
 SCENE:
 Establish the main situation, environment, or source described in the request.
 
@@ -5688,15 +5692,17 @@ PANEL 2:
 ROLE: inspection
 LOCKED SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
 TARGET SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
+SUBJECT INSTANCE LOCK: this must be the exact same physical subject instance from panel 1, not a different but similar one
+VIEW CONTINUITY: keep the same subject recognisable in overall form, side/orientation, and access area unless the story explicitly changes viewpoint
 PRIMARY FRAME OWNER: ${scenePlan.mainSubject || "the main subject from the request"}
 ONLY OPERATIVE SURFACE: the one exact inspection area on the same target subject
-ACTION ANCHOR: the exact inspection point on the same target subject
+ACTION ANCHOR: the exact inspection point on a plausible serviceable area of the same target subject
 CONTACT POINT: hands, tools, gaze, and body orientation must visibly connect to the inspection point on the same subject and not to any second subject
 SCENE PROXIMITY: support context may appear, but it must remain physically secondary and plausibly adjacent to the same job scene
 COMPONENT CONTINUITY: the inspected component must match the repaired component in the next panel in size, type, form, and position
 ENVIRONMENT CONTINUITY: the lighting and location must still feel like the same event, not a different place or time
 MUST SHOW: the exact working area of the same subject clearly in the foreground with visible physical interaction, and that same subject must be the closest and dominant object in the frame
-MUST NOT SHOW: inspection focus drifting onto the mechanic vehicle or support vehicle, mechanics handling empty space, the target sitting behind them while another foreground surface becomes the work area, any situation where the action happens on a different foreground object while the true subject is in the background, two separate subjects sharing the action, or support-vehicle geometry being mistaken for the target subject
+MUST NOT SHOW: inspection focus drifting onto the mechanic vehicle or support vehicle, mechanics handling empty space, the target sitting behind them while another foreground surface becomes the work area, any situation where the action happens on a different foreground object while the true subject is in the background, two separate subjects sharing the action, support-vehicle geometry being mistaken for the target subject, or work being done on an implausible seam, hinge-like edge, or invented access point
 SCENE:
 Show preparation, inspection, or method focused on the same subject.
 
@@ -5704,15 +5710,17 @@ PANEL 3:
 ROLE: process
 LOCKED SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
 TARGET SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
+SUBJECT INSTANCE LOCK: this must still be the exact same physical subject instance from panels 1 and 2
+VIEW CONTINUITY: keep the same subject recognisable in form, component placement, and general side/orientation unless the story explicitly changes viewpoint
 PRIMARY FRAME OWNER: ${scenePlan.mainSubject || "the main subject from the request"}
 ONLY OPERATIVE SURFACE: the one exact repair area on the same target subject
-ACTION ANCHOR: the key repair point on the same target subject
+ACTION ANCHOR: the key repair point on a plausible serviceable area of the same target subject
 CONTACT POINT: the repair action must visibly connect to the repair point on the same target subject and not to any other surface or subject
 SCENE PROXIMITY: the repair scene must still belong to the same job and same roadside context
 COMPONENT CONTINUITY: the repaired component must remain materially consistent with the component shown in panel 2 in size, type, form, and placement
 ENVIRONMENT CONTINUITY: lighting and scene context must continue the same event unless the story explicitly changes
 MUST SHOW: the key repair process on the same target subject in the foreground with real contact between mechanic, tool, and subject, and that subject must be the dominant and closest object in frame
-MUST NOT SHOW: unrelated vehicle parts, contradictory fault signals, a different repair target, repair motions disconnected from the subject, the real target pushed into the background while another surface becomes the active work zone, any foreground object being treated as the repair surface if it is not the target subject, or dramatic component size changes from the previous panel
+MUST NOT SHOW: unrelated vehicle parts, contradictory fault signals, a different repair target, repair motions disconnected from the subject, the real target pushed into the background while another surface becomes the active work zone, any foreground object being treated as the repair surface if it is not the target subject, dramatic component size changes from the previous panel, or a target subject that no longer matches the one established earlier
 SCENE:
 Show the key process, intervention, or transformation focused on the same subject.
 
@@ -5720,6 +5728,8 @@ PANEL 4:
 ROLE: outcome
 LOCKED SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
 TARGET SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
+SUBJECT INSTANCE LOCK: this must still read as the exact same physical subject instance from earlier panels
+VIEW CONTINUITY: keep the same subject recognisable in overall form and identity while showing the resolved state
 PRIMARY FRAME OWNER: ${scenePlan.mainSubject || "the main subject from the request"}
 ONLY OPERATIVE SURFACE: no active work surface, only the resolved final state of the same subject
 ACTION ANCHOR: the resolved final state of the same subject
@@ -5728,7 +5738,7 @@ SCENE PROXIMITY: any people shown in the outcome must still belong to the same c
 COMPONENT CONTINUITY: the resolved subject should still read as the same machine/object from earlier panels
 ENVIRONMENT CONTINUITY: the final panel must still feel like the same place and time unless the story explicitly changes
 MUST SHOW: the resolved state of the same subject after the work is complete, with normal human anatomy, open natural eyes, and a believable finished outcome
-MUST NOT SHOW: open bonnets, exposed engine bays, active repair posture, leftover fault-state artifacts, distorted hands, fingers, anatomy, closed-eye handshake portraits, or any second subject acting like the true resolved subject
+MUST NOT SHOW: open bonnets, exposed engine bays, active repair posture, leftover fault-state artifacts, distorted hands, fingers, anatomy, closed-eye handshake portraits, any second subject acting like the true resolved subject, or a resolved subject that looks like a different instance from earlier panels
 SCENE:
 Show the outcome, result, lived use, or resolved state tied to the same subject.
 `.trim();
