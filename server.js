@@ -85,14 +85,61 @@ function ensurePanelRole(role = "", panelNumber = 1) {
 }
 
 function normalizeLockedScenePlan(rawPlan = {}, imagePrompt = "") {
-  const fallbackMainSubject = cleanSceneText(imagePrompt, "the main subject from the request");
-
-  const mainSubject = cleanSceneText(rawPlan?.mainSubject, fallbackMainSubject);
-  const supportingSubject = cleanSceneText(rawPlan?.supportingSubject, "");
-  const globalScene = cleanSceneText(
-    rawPlan?.globalScene,
-    "A single coherent real-world scene built directly from the request."
+  const fallbackPrimarySubject = cleanSceneText(
+    rawPlan?.primarySubject || rawPlan?.mainSubject,
+    cleanSceneText(imagePrompt, "the primary subject from the request")
   );
+
+  const primarySubject = fallbackPrimarySubject;
+  const supportSubjects = Array.isArray(rawPlan?.supportSubjects)
+    ? rawPlan.supportSubjects.map((item) => cleanSceneText(item)).filter(Boolean).slice(0, 4)
+    : [cleanSceneText(rawPlan?.supportingSubject, "")].filter(Boolean);
+
+  const problemStateSubject = cleanSceneText(
+    rawPlan?.problemStateSubject,
+    primarySubject
+  );
+
+  const resolvedStateSubject = cleanSceneText(
+    rawPlan?.resolvedStateSubject,
+    primarySubject
+  );
+
+  const primaryActor = cleanSceneText(
+    rawPlan?.primaryActor,
+    "the main actor described in the request"
+  );
+
+  const secondaryActors = Array.isArray(rawPlan?.secondaryActors)
+    ? rawPlan.secondaryActors.map((item) => cleanSceneText(item)).filter(Boolean).slice(0, 4)
+    : [];
+
+  const serviceableArea = cleanSceneText(
+    rawPlan?.serviceableArea,
+    "the plausible serviceable area where hands-on work can realistically happen"
+  );
+
+  const sameSubjectInstanceAcrossPanels =
+    typeof rawPlan?.sameSubjectInstanceAcrossPanels === "boolean"
+      ? rawPlan.sameSubjectInstanceAcrossPanels
+      : true;
+
+  const sameActorIdentityAcrossPanels =
+    typeof rawPlan?.sameActorIdentityAcrossPanels === "boolean"
+      ? rawPlan.sameActorIdentityAcrossPanels
+      : true;
+
+  const sameEnvironmentAcrossPanels =
+    typeof rawPlan?.sameEnvironmentAcrossPanels === "boolean"
+      ? rawPlan.sameEnvironmentAcrossPanels
+      : true;
+
+  const forbiddenRoleSwaps = Array.isArray(rawPlan?.forbiddenRoleSwaps)
+    ? rawPlan.forbiddenRoleSwaps
+        .map((item) => cleanSceneText(item))
+        .filter(Boolean)
+        .slice(0, 8)
+    : [];
 
   const forbiddenSwaps = Array.isArray(rawPlan?.forbiddenSwaps)
     ? rawPlan.forbiddenSwaps
@@ -108,6 +155,11 @@ function normalizeLockedScenePlan(rawPlan = {}, imagePrompt = "") {
         .slice(0, 8)
     : [];
 
+  const globalScene = cleanSceneText(
+    rawPlan?.globalScene,
+    "A single coherent real-world scene built directly from the request."
+  );
+
   const panelRoleFallbacks = {
     1: "establishing",
     2: "inspection",
@@ -119,17 +171,55 @@ function normalizeLockedScenePlan(rawPlan = {}, imagePrompt = "") {
     ? rawPlan.panels
         .map((panel, index) => {
           const panelNumber = index + 1;
+          const fallbackRole = panelRoleFallbacks[panelNumber];
+          const role = ensurePanelRole(panel?.role, panelNumber);
+
+          const defaultTargetSubject =
+            role === "outcome" ? resolvedStateSubject : primarySubject;
+
           return {
             panel: panelNumber,
-            role: ensurePanelRole(panel?.role, panelNumber),
-            lockedSubject: cleanSceneText(panel?.lockedSubject, mainSubject),
+            role,
+            shotType: cleanSceneText(
+              panel?.shotType,
+              panelNumber === 1
+                ? "wide establishing shot"
+                : panelNumber === 2
+                ? "medium inspection shot"
+                : panelNumber === 3
+                ? "close process shot"
+                : "medium outcome shot"
+            ),
+            lockedSubject: cleanSceneText(panel?.lockedSubject, primarySubject),
+            targetSubject: cleanSceneText(panel?.targetSubject, defaultTargetSubject),
+            targetActor: cleanSceneText(panel?.targetActor, primaryActor),
             allowedSupportSubject: cleanSceneText(
               panel?.allowedSupportSubject,
-              supportingSubject
+              supportSubjects[0] || ""
             ),
+            serviceableArea: cleanSceneText(
+              panel?.serviceableArea,
+              serviceableArea
+            ),
+            problemStateOwner: cleanSceneText(
+              panel?.problemStateOwner,
+              role === "outcome" ? "" : problemStateSubject
+            ),
+            resolvedStateOwner: cleanSceneText(
+              panel?.resolvedStateOwner,
+              role === "outcome" ? resolvedStateSubject : ""
+            ),
+            mustShow: cleanSceneText(panel?.mustShow, ""),
+            mustNotShow: cleanSceneText(panel?.mustNotShow, ""),
             scene: cleanSceneText(
               panel?.scene,
-              `Panel ${panelNumber} shows ${mainSubject} in a grounded real-world moment.`
+              panelNumber === 1
+                ? `Establish ${primarySubject} in the real environment described by the request.`
+                : panelNumber === 2
+                ? `Show inspection, setup, or preparation focused on ${primarySubject}.`
+                : panelNumber === 3
+                ? `Show the main process or action involving ${primarySubject}.`
+                : `Show the resolved outcome or lived result connected to ${resolvedStateSubject}.`
             ),
           };
         })
@@ -138,54 +228,97 @@ function normalizeLockedScenePlan(rawPlan = {}, imagePrompt = "") {
 
   while (panels.length < 4) {
     const panelNumber = panels.length + 1;
+    const role = panelRoleFallbacks[panelNumber];
+
     panels.push({
       panel: panelNumber,
-      role: panelRoleFallbacks[panelNumber],
-      lockedSubject: mainSubject,
-      allowedSupportSubject: supportingSubject,
+      role,
+      shotType:
+        panelNumber === 1
+          ? "wide establishing shot"
+          : panelNumber === 2
+          ? "medium inspection shot"
+          : panelNumber === 3
+          ? "close process shot"
+          : "medium outcome shot",
+      lockedSubject: primarySubject,
+      targetSubject: panelNumber === 4 ? resolvedStateSubject : primarySubject,
+      targetActor: primaryActor,
+      allowedSupportSubject: supportSubjects[0] || "",
+      serviceableArea,
+      problemStateOwner: panelNumber === 4 ? "" : problemStateSubject,
+      resolvedStateOwner: panelNumber === 4 ? resolvedStateSubject : "",
+      mustShow: "",
+      mustNotShow: "",
       scene:
         panelNumber === 1
-          ? `Establish ${mainSubject} in the real environment described by the request.`
+          ? `Establish ${primarySubject} in the real environment described by the request.`
           : panelNumber === 2
-          ? `Show inspection, setup, or preparation focused on ${mainSubject}.`
+          ? `Show inspection, setup, or preparation focused on ${primarySubject}.`
           : panelNumber === 3
-          ? `Show the main process or action involving ${mainSubject}.`
-          : `Show the resolved outcome or lived result connected to ${mainSubject}.`,
+          ? `Show the main process or action involving ${primarySubject}.`
+          : `Show the resolved outcome or lived result connected to ${resolvedStateSubject}.`,
     });
   }
 
   const finalContinuityRules = [
-    `The main subject is locked as: ${mainSubject}`,
-    supportingSubject ? `The support subject is only: ${supportingSubject}` : "",
-    "Do not switch the main subject between panels.",
-    "Do not promote a support object into the hero subject.",
+    `The primary subject is locked as: ${primarySubject}`,
+    supportSubjects.length > 0
+      ? `Support subjects are secondary only: ${supportSubjects.join(", ")}`
+      : "",
+    `The problem-state subject is: ${problemStateSubject}`,
+    `The resolved-state subject is: ${resolvedStateSubject}`,
+    `The primary actor is: ${primaryActor}`,
+    sameSubjectInstanceAcrossPanels
+      ? "Use the same exact subject instance across all panels."
+      : "",
+    sameActorIdentityAcrossPanels
+      ? "Use the same exact actor identity across all panels unless explicitly changed."
+      : "",
+    sameEnvironmentAcrossPanels
+      ? "Keep the same environment, place, and event continuity across panels unless explicitly changed."
+      : "",
+    "Do not switch the primary subject between panels.",
+    "Do not promote a support subject into the hero subject.",
     "Do not swap product type, vehicle type, machine type, service type, or job type.",
     ...continuityRules,
   ]
     .filter(Boolean)
-    .slice(0, 10);
+    .slice(0, 14);
 
   const finalForbiddenSwaps = [
-    "Do not replace the main subject with a nearby support object.",
+    "Do not replace the primary subject with a nearby support subject.",
     "Do not reinterpret the panel as a different product, vehicle, machine, or job.",
+    ...forbiddenRoleSwaps,
     ...forbiddenSwaps,
   ]
     .filter(Boolean)
-    .slice(0, 10);
+    .slice(0, 14);
 
   return {
     globalScene,
-    mainSubject,
-    supportingSubject,
+    primarySubject,
+    supportSubjects,
+    problemStateSubject,
+    resolvedStateSubject,
+    primaryActor,
+    secondaryActors,
+    serviceableArea,
+    sameSubjectInstanceAcrossPanels,
+    sameActorIdentityAcrossPanels,
+    sameEnvironmentAcrossPanels,
+    forbiddenRoleSwaps,
     forbiddenSwaps: finalForbiddenSwaps,
     continuityRules: finalContinuityRules,
     panels,
+    mainSubject: primarySubject,
+    supportingSubject: supportSubjects[0] || "",
   };
 }
 
 async function buildImageScenePlan(imagePrompt = "") {
   const prompt = `
-Turn this image request into a strict 4-panel visual scene plan with hard subject locking, panel target locking, and framing control.
+Turn this image request into a strict 4-panel visual scene plan using a universal subject-role control system.
 
 INPUT IMAGE REQUEST:
 ${clipText(imagePrompt || "", 3000)}
@@ -193,8 +326,26 @@ ${clipText(imagePrompt || "", 3000)}
 Return valid JSON in exactly this shape:
 {
   "globalScene": "one sentence describing the overall world of the image",
-  "mainSubject": "the one object/person/process that must stay central across the collage",
-  "supportingSubject": "optional secondary object/person allowed to appear but never replace the main subject",
+  "primarySubject": "the one exact physical subject instance the sequence is really about",
+  "supportSubjects": [
+    "secondary subject 1",
+    "secondary subject 2"
+  ],
+  "problemStateSubject": "the subject carrying the fault, stress, disruption, or problem state",
+  "resolvedStateSubject": "the same subject after the problem is resolved",
+  "primaryActor": "the one main person performing the key action across the sequence",
+  "secondaryActors": [
+    "secondary actor 1",
+    "secondary actor 2"
+  ],
+  "serviceableArea": "the plausible serviceable area, component, zone, or part where hands-on work can realistically happen",
+  "sameSubjectInstanceAcrossPanels": true,
+  "sameActorIdentityAcrossPanels": true,
+  "sameEnvironmentAcrossPanels": true,
+  "forbiddenRoleSwaps": [
+    "support subject must not become the primary subject",
+    "secondary actor must not become the primary actor"
+  ],
   "forbiddenSwaps": [
     "swap that must never happen",
     "swap that must never happen"
@@ -209,40 +360,60 @@ Return valid JSON in exactly this shape:
       "panel": 1,
       "role": "establishing",
       "shotType": "wide establishing shot",
-      "lockedSubject": "same main subject",
+      "lockedSubject": "same primary subject",
       "targetSubject": "exact subject this panel must focus on",
+      "targetActor": "exact actor this panel must focus on",
       "allowedSupportSubject": "optional support subject",
+      "serviceableArea": "same plausible serviceable area when relevant",
+      "problemStateOwner": "who or what owns the problem state in this panel",
+      "resolvedStateOwner": "who or what owns the resolved state in this panel",
       "mustShow": "what must be clearly visible in frame",
+      "mustNotShow": "what must not appear or take over",
       "scene": "..."
     },
     {
       "panel": 2,
       "role": "inspection",
       "shotType": "medium inspection shot",
-      "lockedSubject": "same main subject",
+      "lockedSubject": "same primary subject",
       "targetSubject": "exact subject this panel must focus on",
+      "targetActor": "exact actor this panel must focus on",
       "allowedSupportSubject": "optional support subject",
+      "serviceableArea": "same plausible serviceable area when relevant",
+      "problemStateOwner": "who or what owns the problem state in this panel",
+      "resolvedStateOwner": "who or what owns the resolved state in this panel",
       "mustShow": "what must be clearly visible in frame",
+      "mustNotShow": "what must not appear or take over",
       "scene": "..."
     },
     {
       "panel": 3,
       "role": "process",
       "shotType": "close process shot",
-      "lockedSubject": "same main subject",
+      "lockedSubject": "same primary subject",
       "targetSubject": "exact subject this panel must focus on",
+      "targetActor": "exact actor this panel must focus on",
       "allowedSupportSubject": "optional support subject",
+      "serviceableArea": "same plausible serviceable area when relevant",
+      "problemStateOwner": "who or what owns the problem state in this panel",
+      "resolvedStateOwner": "who or what owns the resolved state in this panel",
       "mustShow": "what must be clearly visible in frame",
+      "mustNotShow": "what must not appear or take over",
       "scene": "..."
     },
     {
       "panel": 4,
       "role": "outcome",
       "shotType": "medium outcome shot",
-      "lockedSubject": "same main subject",
+      "lockedSubject": "same primary subject",
       "targetSubject": "exact subject this panel must focus on",
+      "targetActor": "exact actor this panel must focus on",
       "allowedSupportSubject": "optional support subject",
+      "serviceableArea": "same plausible serviceable area when relevant",
+      "problemStateOwner": "who or what owns the problem state in this panel",
+      "resolvedStateOwner": "who or what owns the resolved state in this panel",
       "mustShow": "what must be clearly visible in frame",
+      "mustNotShow": "what must not appear or take over",
       "scene": "..."
     }
   ]
@@ -251,16 +422,22 @@ Return valid JSON in exactly this shape:
 PLANNING RULES:
 - create exactly 4 panels
 - each panel must be visually distinct but logically connected
-- identify one main subject and keep it locked across the full collage
-- if a support object appears, it must stay secondary and never become the hero subject
-- do not switch vehicle type, machine type, product type, service type, or job type unless explicitly required
+- identify one exact physical primary subject instance and keep that same instance locked across the full collage
+- identify one exact primary actor and keep that same actor identity locked across the full collage unless the request explicitly requires otherwise
+- support subjects may appear, but they must remain secondary and must never replace the primary subject
+- secondary actors may appear, but they must remain secondary and must never replace the primary actor
+- define which subject owns the problem state
+- define which subject owns the resolved state
+- if hands-on work is involved, define one plausible serviceable area where the work can realistically happen
+- do not switch vehicle type, machine type, product type, service type, job type, or subject instance unless explicitly required
 - panel 1 must establish the situation
 - panel 2 must show inspection, setup, or method
 - panel 3 must show the key process or active work
 - panel 4 must show the outcome or resolved state
 - for every panel, explicitly name the target subject
-- for every panel, explicitly name what must be clearly visible in frame
-- if the request involves repair or inspection, do not crop the engine bay, repair zone, or primary working area so tightly that it becomes partial or unclear
+- for every panel, explicitly name the target actor
+- for every panel, explicitly define who owns the problem state and who owns the resolved state
+- if the request involves repair or inspection, do not place the action on an implausible seam, hinge, invented access point, or non-serviceable area
 - keep the plan grounded, realistic, and literal
 - avoid abstract symbolism
 - avoid generic lifestyle filler
@@ -269,10 +446,6 @@ PLANNING RULES:
 
   const rawPlan = await runJsonChat(prompt);
   return normalizeLockedScenePlan(rawPlan, imagePrompt);
-}
-
-function clampNumber(value, min, max) {
-  return Math.max(min, Math.min(max, value));
 }
 
 function normalizeStringArray(input, maxItems = 8) {
