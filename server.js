@@ -6073,12 +6073,21 @@ NON-NEGOTIABLE IMAGE SAFETY RULES:
       return res.status(500).json({ error: "No image returned from OpenAI." });
     }
 
-    res.json({
-      imageUrl: `data:image/png;base64,${base64Image}`,
-      scenePlan,
+   res.json({
+  imageUrl: `data:image/png;base64,${base64Image}`,
+  scenePlan,
+});
+  } catch (err) {
+    console.error("IMAGE GENERATION ERROR:", err);
+    res.status(500).json({
+      error:
+        err?.response?.data?.error?.message ||
+        err?.message ||
+        "Unknown image generation error",
     });
+  }
+});
 
 app.listen(PORT, () => {
-  ensureOwnerKbFile();
   console.log(`Server running on port ${PORT}`);
-}); 
+});
