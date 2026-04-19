@@ -321,12 +321,27 @@ function normalizeLockedScenePlan(rawPlan = {}, imagePrompt = "") {
   };
 }
 
-async function buildImageScenePlan(imagePrompt = "") {
+async function buildImageScenePlan(imagePrompt = "", discoveryProfile = {}) {
+  const locationContext = discoveryProfile?.locationContext || {};
+  const visualIdentity = discoveryProfile?.visualIdentity || {};
+
   const prompt = `
 Turn this image request into a strict 4-panel visual scene plan using a universal subject-role control system.
 
 INPUT IMAGE REQUEST:
 ${clipText(imagePrompt || "", 3000)}
+
+LOCATION CONTEXT:
+- country: ${locationContext.country || "not specified"}
+- state: ${locationContext.state || "not specified"}
+- city: ${locationContext.city || "not specified"}
+- environment type: ${locationContext.environmentType || "real working environment"}
+
+VISUAL IDENTITY:
+- tone: ${visualIdentity.tone || "grounded, real, business-appropriate"}
+- palette: ${visualIdentity.palette || "natural business-appropriate colours"}
+- environment: ${visualIdentity.environment || "real working environments"}
+- branding style: ${visualIdentity.brandingStyle || "unbranded, practical, context-led"}
 
 Return valid JSON in exactly this shape:
 {
@@ -344,6 +359,18 @@ Return valid JSON in exactly this shape:
     "secondary actor 2"
   ],
   "serviceableArea": "the plausible serviceable area, component, zone, or part where hands-on work can realistically happen",
+  "locationContext": {
+    "country": "country for the scene",
+    "state": "state or region for the scene",
+    "city": "city or area for the scene",
+    "environmentType": "the matching environment type for the scene"
+  },
+  "visualIdentity": {
+    "tone": "matching visual tone",
+    "palette": "matching colour palette",
+    "environment": "matching environment style",
+    "brandingStyle": "matching branding style"
+  },
   "sameSubjectInstanceAcrossPanels": true,
   "sameActorIdentityAcrossPanels": true,
   "sameEnvironmentAcrossPanels": true,
@@ -434,6 +461,11 @@ PLANNING RULES:
 - define which subject owns the problem state
 - define which subject owns the resolved state
 - if hands-on work is involved, define one plausible serviceable area where the work can realistically happen
+- use the provided location context as the scene anchor when it is available
+- if country, state, city, or environment type are provided, keep the scene visually consistent with them
+- do not invent a different country, city, streetscape, or environment if location context was provided
+- use the provided visual identity as the style anchor when it is available
+- match the tone, palette, environment, and branding style to the business identity instead of default generic stock imagery
 - do not switch vehicle type, machine type, product type, service type, job type, or subject instance unless explicitly required
 - panel 1 must establish the situation
 - panel 2 must show inspection, setup, or method
@@ -984,6 +1016,18 @@ function extractWebsiteData(html, url) {
     .map((m) => stripHtml(m[1]))
     .filter((text) => text && text.length > 60);
 
+  const bodyText = [
+    title,
+    metaDescription,
+    ...h1Matches,
+    ...h2Matches,
+    ...pMatches.slice(0, 20),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+
   return {
     url,
     title,
@@ -991,6 +1035,141 @@ function extractWebsiteData(html, url) {
     h1: h1Matches[0] || "",
     headings: [...h1Matches, ...h2Matches].slice(0, 12),
     paragraphs: pMatches,
+    bodyText,
+  };
+}
+
+function inferWebsiteLocationContext(pages = [], normalizedUrl = "") {
+  const combinedText = pages
+    .map((page) =>
+      [
+        page?.title || "",
+        page?.metaDescription || "",
+        ...(page?.headings || []),
+        ...(page?.paragraphs || []).slice(0, 8),
+      ]
+        .filter(Boolean)
+        .join(" ")
+    )
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const lower = combinedText.toLowerCase();
+  const urlLower = String(normalizedUrl || "").toLowerCase();
+
+  const hasAustralia =
+    /\baustralia\b|\baustralian\b|\bnsw\b|\bnew south wales\b|\bsydney\b|\bliverpool\b/.test(lower) ||
+    /\.com\.au\b/.test(urlLower);
+
+  const city =
+    /\bliverpool\b/.test(lower)
+      ? "Liverpool"
+      : /\bsydney\b/.test(lower)
+      ? "Sydney"
+      : "";
+
+  const state =
+    /\bnsw\b|\bnew south wales\b/.test(lower) ? "NSW" : "";
+
+  const country = hasAustralia ? "Australia" : "";
+
+  let environmentType = "real working environment";
+
+  if (/warehouse|industrial|factory|logistics|dispatch|loading dock|commercial site/.test(lower)) {
+    environmentType = "industrial commercial environment";
+  } else if (/clinic|medical|dental|patient|treatment room/.test(lower)) {
+    environmentType = "clinical environment";
+  } else if (/construction|fitout|site|builder|compliance|project/.test(lower)) {
+    environmentType = "construction site environment";
+  } else if (/home|residential|driveway|family home/.test(lower)) {
+    environmentType = "residential service environment";
+  } else if (/roadside|mobile mechanic|fleet|truck|vehicle|breakdown/.test(lower)) {
+    environmentType = "roadside service environment";
+  }
+
+  return {
+    country,
+    state,
+    city,
+    environmentType,
+    combinedText,
+  };
+}
+
+function inferWebsiteVisualIdentity(pages = [], groupedPages = {}, lanes = {}) {
+  const combinedText = pages
+    .map((page) =>
+      [
+        page?.title || "",
+        page?.metaDescription || "",
+        ...(page?.headings || []),
+        ...(page?.paragraphs || []).slice(0, 8),
+      ]
+        .filter(Boolean)
+        .join(" ")
+    )
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const lower = combinedText.toLowerCase();
+  const productTruthText = (lanes?.brandProductTruth || []).join(" ").toLowerCase();
+
+  const toneTags = [];
+  const paletteTags = [];
+  const environmentTags = [];
+  const brandingTags = [];
+
+  if (/industrial|fleet|truck|mechanic|commercial driver|heavy vehicle|mobile mechanical/.test(lower + " " + productTruthText)) {
+    toneTags.push("industrial", "practical", "no-nonsense");
+    paletteTags.push("neutral", "workwear black", "white", "grey");
+    environmentTags.push("real working environments");
+    brandingTags.push("trade-focused", "functional");
+  }
+
+  if (/clinical|medical|doctor|dental|patient|sleep|implant|treatment/.test(lower + " " + productTruthText)) {
+    toneTags.push("clinical", "clean", "professional");
+    paletteTags.push("clean neutrals", "soft whites", "medical tones");
+    environmentTags.push("treatment and consultation environments");
+    brandingTags.push("professional", "trust-led");
+  }
+
+  if (/construction|fitout|builder|site|compliance|project|commercial project/.test(lower + " " + productTruthText)) {
+    toneTags.push("practical", "disciplined", "site-led");
+    paletteTags.push("neutral construction tones", "safety colours", "workwear tones");
+    environmentTags.push("real commercial build environments");
+    brandingTags.push("functional", "project-focused");
+  }
+
+  if (/coolroom|refrigeration|hvac|branch|service team|stock|cooling/.test(lower + " " + productTruthText)) {
+    toneTags.push("technical", "responsive", "commercial");
+    paletteTags.push("neutral industrial tones", "whites", "greys", "utility colours");
+    environmentTags.push("plant rooms, loading areas, service spaces");
+    brandingTags.push("service-led", "operational");
+  }
+
+  if (/luxury|premium|bespoke|handcrafted|artisan/.test(lower)) {
+    toneTags.push("premium");
+    paletteTags.push("refined neutrals");
+    brandingTags.push("elevated");
+  }
+
+  if (/family|community|friendly|local/.test(lower)) {
+    toneTags.push("human", "grounded");
+    environmentTags.push("real local environments");
+  }
+
+  const tone = uniqueStrings(toneTags, 6).join(", ") || "grounded, real, business-appropriate";
+  const palette = uniqueStrings(paletteTags, 6).join(", ") || "natural business-appropriate colours";
+  const environment = uniqueStrings(environmentTags, 6).join(", ") || "real working environments";
+  const brandingStyle = uniqueStrings(brandingTags, 6).join(", ") || "unbranded, practical, context-led";
+
+  return {
+    tone,
+    palette,
+    environment,
+    brandingStyle,
   };
 }
 
@@ -1293,6 +1472,8 @@ async function gatherLaneSources(normalizedUrl) {
   }
 
   const classified = classifyBlocks(dedupeBlocks(allBlocks));
+  const locationContext = inferWebsiteLocationContext(allPages, normalizedUrl);
+  const visualIdentity = inferWebsiteVisualIdentity(allPages, groupedPages, classified);
 
   return {
     pages: allPages,
@@ -1301,6 +1482,8 @@ async function gatherLaneSources(normalizedUrl) {
     socialLinks,
     groupedPages,
     lanes: classified,
+    locationContext,
+    visualIdentity,
   };
 }
 
@@ -5159,36 +5342,49 @@ app.post("/build-profile", async (req, res) => {
     };
 
     const discoveryProfile = {
-      channelsFound: socialLinks,
-      sourcePages: groupedPages,
-      trustSignals: inferTrustSignals({
-        groupedPages,
-        lanes: laneGather?.lanes || {},
-        pages: laneGather?.pages || [],
-      }),
-      educationSignals: inferEducationSignals({
-        groupedPages,
-        lanes: laneGather?.lanes || {},
-        pages: laneGather?.pages || [],
-      }),
-      activitySignals: inferActivitySignals({
-        groupedPages,
-        pages: laneGather?.pages || [],
-      }),
-      founderVisibilitySignals: inferFounderVisibilitySignals({
-        groupedPages,
-        founderText,
-        pages: laneGather?.pages || [],
-      }),
-      sourceConfidence: inferSourceConfidence({
-        channelsFound: socialLinks,
-        groupedPages,
-        pagesScanned: laneGather?.pages?.length || 0,
-        hasOwnerWriting: Boolean(
-          ownerWritingSample || manualBusinessContext || pastedSourceText
-        ),
-      }),
-    };
+  channelsFound: socialLinks,
+  sourcePages: groupedPages,
+  locationContext: laneGather?.locationContext || {
+    country: "",
+    state: "",
+    city: "",
+    environmentType: "real working environment",
+    combinedText: "",
+  },
+  visualIdentity: laneGather?.visualIdentity || {
+    tone: "grounded, real, business-appropriate",
+    palette: "natural business-appropriate colours",
+    environment: "real working environments",
+    brandingStyle: "unbranded, practical, context-led",
+  },
+  trustSignals: inferTrustSignals({
+    groupedPages,
+    lanes: laneGather?.lanes || {},
+    pages: laneGather?.pages || [],
+  }),
+  educationSignals: inferEducationSignals({
+    groupedPages,
+    lanes: laneGather?.lanes || {},
+    pages: laneGather?.pages || [],
+  }),
+  activitySignals: inferActivitySignals({
+    groupedPages,
+    pages: laneGather?.pages || [],
+  }),
+  founderVisibilitySignals: inferFounderVisibilitySignals({
+    groupedPages,
+    founderText,
+    pages: laneGather?.pages || [],
+  }),
+  sourceConfidence: inferSourceConfidence({
+    channelsFound: socialLinks,
+    groupedPages,
+    pagesScanned: laneGather?.pages?.length || 0,
+    hasOwnerWriting: Boolean(
+      ownerWritingSample || manualBusinessContext || pastedSourceText
+    ),
+  }),
+};
 
     const profile = {
       founderGoal: founderGoal || "",
@@ -5819,10 +6015,13 @@ ${extraCategoryRule}
 });
 
 app.post("/generate-image", async (req, res) => {
-  const { imagePrompt } = req.body;
+  const { imagePrompt, discoveryProfile } = req.body;
 
   try {
-    const scenePlan = await buildImageScenePlan(imagePrompt || "");
+    const scenePlan = await buildImageScenePlan(
+      imagePrompt || "",
+      discoveryProfile || {}
+    );
 
        const panelLines =
       scenePlan.panels.length === 4
