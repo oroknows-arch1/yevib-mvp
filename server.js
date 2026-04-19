@@ -5653,7 +5653,10 @@ app.post("/generate-image", async (req, res) => {
               (p) => `PANEL ${p.panel}:
 ROLE: ${p.role}
 LOCKED SUBJECT: ${p.lockedSubject}
-${p.allowedSupportSubject ? `ALLOWED SUPPORT SUBJECT: ${p.allowedSupportSubject}\n` : ""}SCENE:
+TARGET SUBJECT: ${p.targetSubject || p.lockedSubject || scenePlan.mainSubject || "the primary subject described in the request"}
+${p.allowedSupportSubject ? `ALLOWED SUPPORT SUBJECT: ${p.allowedSupportSubject}\n` : ""}MUST SHOW: ${p.mustShow || "the primary subject clearly as the main focus of the frame, not any supporting element"}
+MUST NOT SHOW: ${p.mustNotShow || "a supporting object, background element, or secondary subject taking over as the main focus, mixed object identities, or contradictory states"}
+SCENE:
 ${p.scene}`
             )
             .join("\n\n")
@@ -5661,24 +5664,36 @@ ${p.scene}`
 PANEL 1:
 ROLE: establishing
 LOCKED SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
+TARGET SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
+MUST SHOW: the main subject clearly in the real-world environment where the issue happens
+MUST NOT SHOW: fault symbols, warning lights, or problem signals on the wrong vehicle
 SCENE:
 Establish the main situation, environment, or source described in the request.
 
 PANEL 2:
 ROLE: inspection
 LOCKED SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
+TARGET SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
+MUST SHOW: the exact working area of the same subject clearly in frame
+MUST NOT SHOW: inspection focus drifting onto the mechanic vehicle or support vehicle
 SCENE:
 Show preparation, inspection, or method focused on the same subject.
 
 PANEL 3:
 ROLE: process
 LOCKED SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
+TARGET SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
+MUST SHOW: the key repair process on the same target subject
+MUST NOT SHOW: unrelated vehicle parts, contradictory fault signals, or a different repair target
 SCENE:
 Show the key process, intervention, or transformation focused on the same subject.
 
 PANEL 4:
 ROLE: outcome
 LOCKED SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
+TARGET SUBJECT: ${scenePlan.mainSubject || "the main subject from the request"}
+MUST SHOW: the resolved state of the same subject after the work is complete
+MUST NOT SHOW: open bonnets, exposed engine bays, active repair posture, or leftover fault-state artifacts
 SCENE:
 Show the outcome, result, lived use, or resolved state tied to the same subject.
 `.trim();
@@ -5742,6 +5757,8 @@ SUBJECT CONSISTENCY ENFORCEMENT:
 - each panel must keep focus on its intended target subject
 - do not let a nearby support object or support vehicle steal panel focus
 - if the broken or serviced object is the target, the mechanic vehicle must remain secondary
+- fault symbols, warning lights, and visible problem signals must belong only to the correct target subject
+- panel 4 must show a resolved state only, with no active repair-state leftovers
 
 NON-NEGOTIABLE OBJECT CONSISTENCY RULES:
 - do not change the core machine, vehicle, product, service type, or job type unless explicitly required
