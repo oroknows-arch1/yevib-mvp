@@ -956,7 +956,7 @@ NON-NEGOTIABLE SAFETY / VISUAL RULES:
 - no social media post text inside the image
 `;
 
-        const res = await fetch("/generate-image", {
+           const res = await fetch("/generate-image", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"

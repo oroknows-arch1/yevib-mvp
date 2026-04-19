@@ -484,6 +484,41 @@ PLANNING RULES:
   const rawPlan = await runJsonChat(prompt);
   return normalizeLockedScenePlan(rawPlan, imagePrompt);
 }
+function classifySceneType(text = "") {
+  const t = String(text || "").toLowerCase();
+
+  if (
+    /midnight|burst|flood|urgent|emergency|water damage|water everywhere|sudden/i.test(t)
+  ) {
+    return "emergency_response";
+  }
+
+  if (
+    /plan|planning|renovation|timeline|quote|discussion|explaining|walkthrough|next steps|bathroom renovation/i.test(t)
+  ) {
+    return "planning_consultation";
+  }
+
+  if (
+    /i run|i make sure|i insist|responsibility|with that at the front of my mind|i keep|i focus/i.test(t)
+  ) {
+    return "founder_reflection";
+  }
+
+  if (
+    /reliable|backbone|functioning home|on call 24\/7|on call|dependable|keep your home back on track/i.test(t)
+  ) {
+    return "system_reliability";
+  }
+
+  if (
+    /maintenance|regular|routine|check|servicing|prevent|standard service/i.test(t)
+  ) {
+    return "routine_maintenance";
+  }
+
+  return "inspection_diagnosis";
+}
 
 function normalizeStringArray(input, maxItems = 8) {
   if (!Array.isArray(input)) return [];
@@ -6016,12 +6051,13 @@ ${extraCategoryRule}
 
 app.post("/generate-image", async (req, res) => {
   const { imagePrompt, discoveryProfile } = req.body;
+  const sceneType = classifySceneType(imagePrompt || "");
 
   try {
-    const scenePlan = await buildImageScenePlan(
-      imagePrompt || "",
-      discoveryProfile || {}
-    );
+    const scenePlan = await buildImageScenePlan(imagePrompt || "", {
+      ...(discoveryProfile || {}),
+      sceneType,
+    });
 
        const panelLines =
       scenePlan.panels.length === 4
@@ -6272,10 +6308,11 @@ NON-NEGOTIABLE IMAGE SAFETY RULES:
       return res.status(500).json({ error: "No image returned from OpenAI." });
     }
 
-   res.json({
-  imageUrl: `data:image/png;base64,${base64Image}`,
-  scenePlan,
-});
+    res.json({
+   imageUrl: `data:image/png;base64,${base64Image}`,
+   scenePlan,
+   sceneType,
+ });
   } catch (err) {
     console.error("IMAGE GENERATION ERROR:", err);
     res.status(500).json({
