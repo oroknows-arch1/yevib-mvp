@@ -3962,8 +3962,13 @@ You must correct this now:
     return posts;
   }
 
-  return [];
+  throw new Error(
+    retryReason
+      ? `Post generation failed after retries: ${retryReason}`
+      : "Post generation failed after retries: Unknown output enforcement failure."
+  );
 }
+
 
 function enforceFinalQuietRules(posts = [], category = "") {
   if (category === "Quiet Value") {
