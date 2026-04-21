@@ -3724,8 +3724,8 @@ function repeatedOpenerGuard(posts = [], category = "") {
     firstWordCounts[first] = (firstWordCounts[first] || 0) + 1;
   }
 
-  if (Object.values(firstWordCounts).some((count) => count >= 2)) {
-    return { failed: true, reason: "Too many posts start with the same first word." };
+  if (Object.values(firstWordCounts).some((count) => count >= 3)) {
+    return { failed: true, reason: "All posts start with the same first word." };
   }
 
   for (let i = 0; i < openerTokens.length; i += 1) {
