@@ -3926,7 +3926,10 @@ You must correct this now:
 
     const rawText = response.choices?.[0]?.message?.content || "";
 
-    let posts = parseGeneratedPosts(rawText);
+    let posts = rawText
+      .split("---")
+      .map((p) => p.trim())
+      .filter(Boolean);
 
     if (posts.length !== 3) {
       posts = rawText
@@ -3938,24 +3941,71 @@ You must correct this now:
 
     if (posts.length < 3) {
       retryReason = "Model did not return 3 usable posts.";
+
+      console.log("POST RETRY FAILURE:", {
+        attempt: attempt + 1,
+        model,
+        category,
+        reason: retryReason,
+        rawText,
+        parsedPosts: posts,
+      });
+
       continue;
     }
 
     const openerCheck = repeatedOpenerGuard(posts, category);
     if (openerCheck.failed) {
       retryReason = openerCheck.reason;
+
+      console.log("POST RETRY FAILURE:", {
+        attempt: attempt + 1,
+        model,
+        category,
+        reason: retryReason,
+        rawText,
+        parsedPosts: posts,
+        openingStyles: posts.map((post) => detectOpeningStyle(post)),
+      });
+
       continue;
     }
 
     const quietCheck = hardQuietGuard(posts, category);
     if (quietCheck.failed) {
       retryReason = quietCheck.reason;
+
+      console.log("POST RETRY FAILURE:", {
+        attempt: attempt + 1,
+        model,
+        category,
+        reason: retryReason,
+        rawText,
+        parsedPosts: posts,
+        openingStyles: posts.map((post) => detectOpeningStyle(post)),
+      });
+
       continue;
     }
 
     const batchValidation = validatePostBatch(posts);
     if (!batchValidation.isValid) {
       retryReason = batchValidation.failedReasons.join(" ");
+
+      console.log("POST RETRY FAILURE:", {
+        attempt: attempt + 1,
+        model,
+        category,
+        reason: retryReason,
+        rawText,
+        parsedPosts: posts,
+        openingStyles: batchValidation.openingStyles || posts.map((post) => detectOpeningStyle(post)),
+        primaryClaims: batchValidation.primaryClaims || [],
+        narrativeLanes: batchValidation.narrativeLanes || [],
+        proofTypes: batchValidation.proofTypes || [],
+        scaffoldRepeatCount: batchValidation.scaffoldRepeatCount || 0,
+      });
+
       continue;
     }
 
