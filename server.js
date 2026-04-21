@@ -3589,6 +3589,51 @@ function getFeelingRules(ownerNudge = "") {
   const feeling = String(ownerNudge || "").trim();
   const lower = feeling.toLowerCase();
 
+  if (!feeling) return "";
+
+  if (lower.includes("tired") || lower.includes("flat") || lower.includes("not feeling it")) {
+    return `
+FEELING RULE:
+- Let the tone be honest, flatter, or more matter-of-fact
+- Do not force energy or inspiration
+- Keep it grounded and believable
+`.trim();
+  }
+
+  if (lower.includes("reflective") || lower.includes("grateful")) {
+    return `
+FEELING RULE:
+- Let one post carry more reflection or appreciation
+- Keep it simple and real, not poetic
+- Do not let all 3 posts drift into the same soft reflective tone
+`.trim();
+  }
+
+  if (lower.includes("fired up") || lower.includes("proud") || lower.includes("focused")) {
+    return `
+FEELING RULE:
+- Let the tone be clearer, firmer, and more assertive
+- Keep the confidence grounded in real business truth
+- Do not sound like hype or motivation content
+`.trim();
+  }
+
+  if (lower.includes("random")) {
+    return `
+FEELING RULE:
+- Allow more variation in rhythm and entry angle
+- Keep the posts believable and on-brand
+- Do not become messy or abstract
+`.trim();
+  }
+
+  return `
+FEELING RULE:
+- Respect the owner feeling without letting all 3 posts collapse into the same tone
+- Keep the wording human, grounded, and usable
+`.trim();
+}
+
 function getVariationRules(category = "") {
   const quietOnlyRule =
     category === "Quiet Value"
@@ -3601,11 +3646,14 @@ LANGUAGE SEPARATION RULE:
 - Use clearly different opening styles across the 3 posts
 - Vary sentence length and rhythm more aggressively
 - At least one post should open with a direct statement
--SCENE RULE (STRICT):
+
+SCENE RULE (STRICT):
 - At least one post MUST begin with a real-world moment
 - This means a specific situation, time, or action (e.g. “I remember…”, “Last week…”, “Woke up…”, “Sat there…”)
 - Do NOT begin that post with an abstract idea or reflection
 - The reader should be able to picture the moment immediately
+
+INSIGHT RULE:
 - At least one post should open with an insight, decision, or truth
 - Avoid repeating the same emotional posture across all 3 posts
 - Avoid repeating the same nouns, same transitions, and same cadence too closely
