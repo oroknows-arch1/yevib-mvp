@@ -3820,7 +3820,7 @@ function cleanPost(post = "") {
   return text;
 }
 function getPostGenerationModel(attempt = 0) {
-  if (attempt >= 2) return "gpt-5.3";
+  if (attempt >= 2) return "gpt-5.2";
   return "gpt-4.1-mini";
 }
 
