@@ -3560,13 +3560,14 @@ function validatePostBatch(posts = []) {
   const claimSet = new Set(claims);
 
   const failedReasons = [];
+  const warnings = [];
 
   if (openingSet.size < 3) {
-    failedReasons.push("Opening styles are not diverse.");
+    warnings.push("Opening styles are not diverse.");
   }
 
   if (claimSet.size < 2) {
-    failedReasons.push("Primary claims are too similar.");
+    warnings.push("Primary claims are too similar.");
   }
 
   if (!openingStyles.includes("direct_statement")) {
@@ -3580,6 +3581,7 @@ function validatePostBatch(posts = []) {
   return {
     isValid: failedReasons.length === 0,
     failedReasons,
+    warnings,
     openingStyles,
     claims
   };
