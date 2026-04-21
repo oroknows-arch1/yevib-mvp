@@ -3837,6 +3837,58 @@ function soundsTooGeneric(text = "") {
   return badPhrases.some((p) => lower.includes(p));
 }
 
+function parseGeneratedPosts(rawText = "") {
+  const text = String(rawText || "").trim();
+  if (!text) return [];
+
+  const byDivider = text
+    .split(/\n?\s*---\s*\n?/g)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  if (byDivider.length >= 3) {
+    return byDivider.slice(0, 3);
+  }
+
+  const hashtagMatches = [...text.matchAll(/(?:^|\n)(#[^\n]+(?:\s+#[^\n]+)*)\s*(?=\n|$)/g)];
+
+  if (hashtagMatches.length >= 3) {
+    const posts = [];
+    let start = 0;
+
+    for (const match of hashtagMatches) {
+      const fullMatch = match[0] || "";
+      const hashtagIndex = match.index ?? -1;
+
+      if (hashtagIndex < 0) continue;
+
+      const end = hashtagIndex + fullMatch.length;
+      const chunk = text.slice(start, end).trim();
+
+      if (chunk) {
+        posts.push(chunk);
+      }
+
+      start = end;
+    }
+
+    if (posts.length >= 3) {
+      return posts.slice(0, 3);
+    }
+  }
+
+  const byLargeBreak = text
+    .split(/\n{2,}(?=[A-Z"'0-9])/g)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  if (byLargeBreak.length >= 3) {
+    return byLargeBreak.slice(0, 3);
+  }
+
+  return [];
+}
+
 async function generatePostsWithRetry(promptBase, category) {
   let retryReason = "";
 
@@ -3874,10 +3926,7 @@ You must correct this now:
 
     const rawText = response.choices?.[0]?.message?.content || "";
 
-    let posts = rawText
-      .split("---")
-      .map((p) => p.trim())
-      .filter(Boolean);
+    let posts = parseGeneratedPosts(rawText);
 
     if (posts.length !== 3) {
       posts = rawText
