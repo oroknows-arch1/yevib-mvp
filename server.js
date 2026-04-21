@@ -3647,6 +3647,15 @@ LANGUAGE SEPARATION RULE:
 - Vary sentence length and rhythm more aggressively
 - At least one post should open with a direct statement
 
+LENGTH SPREAD RULE:
+- Do NOT let all 3 posts land at the same length
+- Make one post short and sharp
+- Make one post medium length
+- Make one post more developed
+- The shorter post should still feel complete, clear, and usable
+- Do not pad the longer post just to make it longer
+- Let length variation help the batch feel more human and less templated
+
 SCENE RULE (STRICT):
 - At least one post MUST begin with a real-world moment
 - This means a specific situation, time, or action (e.g. “I remember…”, “Last week…”, “Woke up…”, “Sat there…”)
