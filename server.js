@@ -3430,9 +3430,13 @@ function validatePostBatch(posts = []) {
 
   const openingStyles = cleanPosts.map(detectOpeningStyle);
   const primaryClaims = cleanPosts.map(detectPrimaryClaim);
+  const narrativeLanes = cleanPosts.map(detectNarrativeLane);
+  const proofTypes = cleanPosts.map(detectProofType);
 
   const openingCounts = {};
   const claimCounts = {};
+  const laneCounts = {};
+  const proofCounts = {};
 
   for (const style of openingStyles) {
     openingCounts[style] = (openingCounts[style] || 0) + 1;
@@ -3442,13 +3446,25 @@ function validatePostBatch(posts = []) {
     claimCounts[claim] = (claimCounts[claim] || 0) + 1;
   }
 
+  for (const lane of narrativeLanes) {
+    laneCounts[lane] = (laneCounts[lane] || 0) + 1;
+  }
+
+  for (const proof of proofTypes) {
+    proofCounts[proof] = (proofCounts[proof] || 0) + 1;
+  }
+
   const repeatedOpenings = Object.values(openingCounts).some((count) => count >= 3);
   const repeatedClaims = Object.values(claimCounts).some((count) => count >= 3);
+  const repeatedNarrativeLanes = Object.values(laneCounts).some((count) => count >= 3);
+  const repeatedProofTypes = Object.values(proofCounts).some((count) => count >= 3);
   const scaffoldRepeatCount = countScaffoldRepeats(cleanPosts);
 
   const hasDirectStatement = openingStyles.includes("direct_statement");
   const hasSceneOrMemory = openingStyles.includes("memory_scene");
-  const hasDecisionOrStandard = openingStyles.includes("decision_standard") || openingStyles.includes("framing_statement");
+  const hasDecisionOrStandard =
+    openingStyles.includes("decision_standard") ||
+    openingStyles.includes("framing_statement");
 
   const failedReasons = [];
 
@@ -3476,6 +3492,14 @@ function validatePostBatch(posts = []) {
     failedReasons.push("All posts are centering the same primary claim.");
   }
 
+  if (repeatedNarrativeLanes) {
+    failedReasons.push("All posts are collapsing into the same narrative lane.");
+  }
+
+  if (repeatedProofTypes) {
+    failedReasons.push("All posts are relying on the same proof type.");
+  }
+
   if (scaffoldRepeatCount >= 2) {
     failedReasons.push("Repeated familiar scaffolding detected across the batch.");
   }
@@ -3485,9 +3509,12 @@ function validatePostBatch(posts = []) {
     failedReasons,
     openingStyles,
     primaryClaims,
+    narrativeLanes,
+    proofTypes,
     scaffoldRepeatCount,
   };
 }
+
 function detectOpeningStyle(post = "") {
   const text = String(post || "").trim();
   const lower = text.toLowerCase();
@@ -6187,6 +6214,179 @@ function getHashtags(category, idea, businessName, initialProfile, postText) {
 
   return `${brandTag} ${detectPlanTag()} ${detectPostTag()}`;
 }
+function detectNarrativeLane(post = "") {
+  const lower = String(post || "").toLowerCase();
+
+  if (
+    /kyoto|honeymoon|first tried|first taste|first sip|first cup|café|cafe|remember standing|that day/i.test(lower)
+  ) {
+    return "founder_origin_memory";
+  }
+
+  if (
+    /most mornings|this morning|woke up|first thing|kitchen|whisk|froth|pause before the first sip|morning habit|daily ritual|routine/i.test(lower)
+  ) {
+    return "daily_ritual_moment";
+  }
+
+  if (
+    /uji|farmers|shaded|shade-grown|shade grown|stone-ground|stone ground|soil|mist|terrain|harvest|steaming|air-drying|air drying|tencha|traditional farming|origin/i.test(lower)
+  ) {
+    return "origin_method_proof";
+  }
+
+  if (
+    /energy|jitters|crash|caffeine|focus|clear focus|steady energy|slow-release|slow release/i.test(lower)
+  ) {
+    return "functional_benefit";
+  }
+
+  if (
+    /why we source|we decided|we insist|we don.?t blend|don.?t cut corners|sourcing matters|our standard|the defining factor/i.test(lower)
+  ) {
+    return "founder_standard";
+  }
+
+  if (
+    /history|centuries|heritage|tradition|passed down generations|practice|ceremony/i.test(lower)
+  ) {
+    return "cultural_context";
+  }
+
+  return "general_value";
+}
+
+function detectProofType(post = "") {
+  const lower = String(post || "").toLowerCase();
+
+  if (
+    /i remember|honeymoon|first tried|first sip|that day|i noticed|i found myself|woke up|this morning/i.test(lower)
+  ) {
+    return "personal_experience";
+  }
+
+  if (
+    /uji|farmers|shaded|shade-grown|stone-ground|stone ground|soil|mist|terrain|harvest|steaming|air-drying|air drying|tencha/i.test(lower)
+  ) {
+    return "production_origin_detail";
+  }
+
+  if (
+    /whole leaf|nutrients|caffeine|jitters|crash|slow-release|slow release|antioxidants|health benefits|energy/i.test(lower)
+  ) {
+    return "functional_explanation";
+  }
+
+  if (
+    /we insist|we make sure|we don.?t blend|we don.?t cut corners|we compare every harvest|we settled on|we decided early/i.test(lower)
+  ) {
+    return "founder_standard";
+  }
+
+  if (
+    /history|heritage|centuries|passed down generations|tradition/i.test(lower)
+  ) {
+    return "historical_context";
+  }
+
+  return "general_support";
+}
+
+function validateNarrativeDiversity(posts = []) {
+  const cleanPosts = Array.isArray(posts)
+    ? posts.map((post) => String(post || "").trim()).filter(Boolean)
+    : [];
+
+  const narrativeLanes = cleanPosts.map(detectNarrativeLane);
+  const proofTypes = cleanPosts.map(detectProofType);
+
+  const laneCounts = {};
+  const proofCounts = {};
+
+  for (const lane of narrativeLanes) {
+    laneCounts[lane] = (laneCounts[lane] || 0) + 1;
+  }
+
+  for (const proof of proofTypes) {
+    proofCounts[proof] = (proofCounts[proof] || 0) + 1;
+  }
+
+  const repeatedNarrativeLane = Object.values(laneCounts).some((count) => count >= 3);
+  const repeatedProofType = Object.values(proofCounts).some((count) => count >= 3);
+
+  const failedReasons = [];
+
+  if (repeatedNarrativeLane) {
+    failedReasons.push("All posts are collapsing into the same narrative lane.");
+  }
+
+  if (repeatedProofType) {
+    failedReasons.push("All posts are relying on the same proof type.");
+  }
+
+  return {
+    isValid: failedReasons.length === 0,
+    failedReasons,
+    narrativeLanes,
+    proofTypes,
+  };
+}
+
+function validateAgainstRecentNarrativeHistory(posts = [], recentChosenPosts = []) {
+  const cleanPosts = Array.isArray(posts)
+    ? posts.map((post) => String(post || "").trim()).filter(Boolean)
+    : [];
+
+  const cleanRecentPosts = Array.isArray(recentChosenPosts)
+    ? recentChosenPosts.map((post) => String(post || "").trim()).filter(Boolean)
+    : [];
+
+  if (cleanPosts.length === 0 || cleanRecentPosts.length === 0) {
+    return {
+      isValid: true,
+      failedReasons: [],
+      repeatedNarrativeLanes: [],
+      repeatedProofTypes: [],
+    };
+  }
+
+  const currentNarrativeLanes = cleanPosts.map(detectNarrativeLane).filter(Boolean);
+  const currentProofTypes = cleanPosts.map(detectProofType).filter(Boolean);
+
+  const recentNarrativeLanes = cleanRecentPosts.map(detectNarrativeLane).filter(Boolean);
+  const recentProofTypes = cleanRecentPosts.map(detectProofType).filter(Boolean);
+
+  const repeatedNarrativeLanes = uniqueStrings(
+    currentNarrativeLanes.filter((lane) => recentNarrativeLanes.includes(lane)),
+    6
+  );
+
+  const repeatedProofTypes = uniqueStrings(
+    currentProofTypes.filter((proof) => recentProofTypes.includes(proof)),
+    6
+  );
+
+  const narrativeOverlapCount = repeatedNarrativeLanes.length;
+  const proofOverlapCount = repeatedProofTypes.length;
+
+  const failedReasons = [];
+
+  if (narrativeOverlapCount >= 2) {
+    failedReasons.push("Too much overlap with recent narrative lanes.");
+  }
+
+  if (proofOverlapCount >= 2) {
+    failedReasons.push("Too much overlap with recent proof types.");
+  }
+
+  return {
+    isValid: failedReasons.length === 0,
+    failedReasons,
+    repeatedNarrativeLanes,
+    repeatedProofTypes,
+  };
+}
+
 function getRecentChosenPostsForBusiness(businessName = "", limit = 6) {
   const kb = readOwnerKb();
   const key = businessKey(businessName);
@@ -6274,8 +6474,10 @@ async function generatePostsWithHistoryGuard(
     return posts;
   }
 
-  let historyCheck = validateAgainstRecentPostHistory(posts, recentChosenPosts);
-  if (historyCheck.isValid) {
+  const openerHistoryCheck = validateAgainstRecentPostHistory(posts, recentChosenPosts);
+  const narrativeHistoryCheck = validateAgainstRecentNarrativeHistory(posts, recentChosenPosts);
+
+  if (openerHistoryCheck.isValid && narrativeHistoryCheck.isValid) {
     return posts;
   }
 
@@ -6289,12 +6491,22 @@ async function generatePostsWithHistoryGuard(
     6
   );
 
+  const blockedNarrativeLanes = uniqueStrings(
+    recentChosenPosts.map(detectNarrativeLane).filter(Boolean),
+    6
+  );
+
+  const blockedProofTypes = uniqueStrings(
+    recentChosenPosts.map(detectProofType).filter(Boolean),
+    6
+  );
+
   const historyRetryBlock = `
 RECENT POST HISTORY GUARD:
 The batch is too close to recent approved posts for this business.
 
 FAILED FOR:
-- ${historyCheck.failedReasons.join("\n- ")}
+- ${[...openerHistoryCheck.failedReasons, ...narrativeHistoryCheck.failedReasons].join("\n- ")}
 
 RECENT OPENING STYLES TO AVOID OVERUSING:
 - ${blockedStyles.join("\n- ") || "none"}
@@ -6302,12 +6514,20 @@ RECENT OPENING STYLES TO AVOID OVERUSING:
 RECENT OPENER SIGNATURES TO AVOID:
 - ${blockedSignatures.join("\n- ") || "none"}
 
+RECENT NARRATIVE LANES TO AVOID OVERUSING:
+- ${blockedNarrativeLanes.join("\n- ") || "none"}
+
+RECENT PROOF TYPES TO AVOID OVERUSING:
+- ${blockedProofTypes.join("\n- ") || "none"}
+
 STRICT CORRECTION:
 - do not reuse those recent opener signatures
-- do not open multiple new posts using the same opener-style family seen in recent approved posts
-- keep owner identity, but change the opener construction
-- use fresher first-sentence shape, fresher framing, and fresher entry angle
-- do not paraphrase the same beginning with minor word swaps
+- do not overuse those recent opener-style families
+- do not overuse those recent narrative lanes
+- do not rely on the same proof type across the new batch
+- keep owner identity, but change the entry angle
+- use fresher first-sentence shape, fresher framing, fresher proof, and fresher thought path
+- do not paraphrase the same beginning or same idea path with minor word swaps
 `.trim();
 
   posts = await generatePostsWithRetry(`${promptBase}\n\n${historyRetryBlock}`, category);
@@ -6646,6 +6866,8 @@ AVOID:
 - repeated sentence structures across all 3 posts
 - repeating the same opener structure across all 3 posts
 - repeating opener structures used in recent past posts
+- repeating the same narrative lane used in recent past posts
+- repeating the same proof type used in recent past posts
 - defaulting to phrases like "There’s a reason..."
 - defaulting to phrases like "It’s not just..."
 - defaulting to phrases like "This isn’t about..."
