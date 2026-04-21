@@ -6187,6 +6187,132 @@ function getHashtags(category, idea, businessName, initialProfile, postText) {
 
   return `${brandTag} ${detectPlanTag()} ${detectPostTag()}`;
 }
+function getRecentChosenPostsForBusiness(businessName = "", limit = 6) {
+  const kb = readOwnerKb();
+  const key = businessKey(businessName);
+  const business = kb.businesses[key];
+
+  if (!business || !Array.isArray(business.entries)) return [];
+
+  return business.entries
+    .slice(-limit)
+    .map((entry) => String(entry?.chosenPost || "").trim())
+    .filter(Boolean);
+}
+
+function normalizeOpeningSignature(text = "") {
+  return getFirstSentence(text)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .slice(0, 6)
+    .join(" ");
+}
+
+function validateAgainstRecentPostHistory(posts = [], recentChosenPosts = []) {
+  const cleanPosts = Array.isArray(posts)
+    ? posts.map((post) => String(post || "").trim()).filter(Boolean)
+    : [];
+
+  const cleanRecentPosts = Array.isArray(recentChosenPosts)
+    ? recentChosenPosts.map((post) => String(post || "").trim()).filter(Boolean)
+    : [];
+
+  if (cleanPosts.length === 0 || cleanRecentPosts.length === 0) {
+    return {
+      isValid: true,
+      failedReasons: [],
+      repeatedExactSignatures: [],
+      repeatedOpeningStyles: [],
+    };
+  }
+
+  const currentSignatures = cleanPosts.map(normalizeOpeningSignature).filter(Boolean);
+  const recentSignatures = cleanRecentPosts.map(normalizeOpeningSignature).filter(Boolean);
+
+  const currentStyles = cleanPosts.map(detectOpeningStyle).filter(Boolean);
+  const recentStyles = cleanRecentPosts.map(detectOpeningStyle).filter(Boolean);
+
+  const repeatedExactSignatures = uniqueStrings(
+    currentSignatures.filter((signature) => recentSignatures.includes(signature)),
+    6
+  );
+
+  const repeatedOpeningStyles = uniqueStrings(
+    currentStyles.filter((style) => recentStyles.includes(style)),
+    6
+  );
+
+  const failedReasons = [];
+
+  if (repeatedExactSignatures.length > 0) {
+    failedReasons.push("Recent exact opener signature reused.");
+  }
+
+  if (repeatedOpeningStyles.length >= 2) {
+    failedReasons.push("Too much overlap with recent opener style history.");
+  }
+
+  return {
+    isValid: failedReasons.length === 0,
+    failedReasons,
+    repeatedExactSignatures,
+    repeatedOpeningStyles,
+  };
+}
+
+async function generatePostsWithHistoryGuard(
+  promptBase,
+  category,
+  recentChosenPosts = []
+) {
+  let posts = await generatePostsWithRetry(promptBase, category);
+
+  if (!recentChosenPosts.length) {
+    return posts;
+  }
+
+  let historyCheck = validateAgainstRecentPostHistory(posts, recentChosenPosts);
+  if (historyCheck.isValid) {
+    return posts;
+  }
+
+  const blockedSignatures = uniqueStrings(
+    recentChosenPosts.map(normalizeOpeningSignature).filter(Boolean),
+    6
+  );
+
+  const blockedStyles = uniqueStrings(
+    recentChosenPosts.map(detectOpeningStyle).filter(Boolean),
+    6
+  );
+
+  const historyRetryBlock = `
+RECENT POST HISTORY GUARD:
+The batch is too close to recent approved posts for this business.
+
+FAILED FOR:
+- ${historyCheck.failedReasons.join("\n- ")}
+
+RECENT OPENING STYLES TO AVOID OVERUSING:
+- ${blockedStyles.join("\n- ") || "none"}
+
+RECENT OPENER SIGNATURES TO AVOID:
+- ${blockedSignatures.join("\n- ") || "none"}
+
+STRICT CORRECTION:
+- do not reuse those recent opener signatures
+- do not open multiple new posts using the same opener-style family seen in recent approved posts
+- keep owner identity, but change the opener construction
+- use fresher first-sentence shape, fresher framing, and fresher entry angle
+- do not paraphrase the same beginning with minor word swaps
+`.trim();
+
+  posts = await generatePostsWithRetry(`${promptBase}\n\n${historyRetryBlock}`, category);
+  return posts;
+}
 
 app.post("/generate", async (req, res) => {
   const {
@@ -6531,7 +6657,13 @@ ${extraCategoryRule}
 
 `;
 
-    let posts = await generatePostsWithRetry(prompt, category);
+const recentChosenPosts = getRecentChosenPostsForBusiness(finalBusinessName, 6);
+
+let posts = await generatePostsWithHistoryGuard(
+  prompt,
+  category,
+  recentChosenPosts
+);
 
     if (posts.length < 3) {
       return res.status(500).json({
