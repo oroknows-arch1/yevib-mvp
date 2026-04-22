@@ -3429,12 +3429,22 @@ function detectPrimaryClaim(post = "") {
 
   return "general";
 }
+function getPostLengthBucket(post = "") {
+  const length = String(post || "").trim().length;
+
+  if (length <= 180) return "short";
+  if (length >= 420) return "near_max";
+  return "medium";
+}
+
 function validatePostBatch(posts = []) {
   const openingStyles = posts.map(detectOpeningStyle);
   const claims = posts.map(detectPrimaryClaim);
+  const lengthBuckets = posts.map(getPostLengthBucket);
 
   const openingSet = new Set(openingStyles);
   const claimSet = new Set(claims);
+  const lengthBucketSet = new Set(lengthBuckets);
 
   const failedReasons = [];
   const warnings = [];
@@ -3455,12 +3465,21 @@ function validatePostBatch(posts = []) {
     failedReasons.push("Missing scene/memory opener.");
   }
 
+  if (
+    !lengthBucketSet.has("short") ||
+    !lengthBucketSet.has("medium") ||
+    !lengthBucketSet.has("near_max")
+  ) {
+    failedReasons.push("Batch is missing a clear short / medium / near-max length spread.");
+  }
+
   return {
     isValid: failedReasons.length === 0,
     failedReasons,
     warnings,
     openingStyles,
     claims,
+    lengthBuckets,
   };
 }
 
@@ -3528,9 +3547,9 @@ LANGUAGE SEPARATION RULE:
 
 LENGTH SPREAD RULE:
 - Do NOT let all 3 posts land at the same length
-- Make one post short and sharp
-- Make one post medium length
-- Make one post more developed
+- Make one post short and sharp (around 120-180 characters)
+- Make one post medium length (around 220-340 characters)
+- Make one post near the maximum allowed length (around 420-${maxChars} characters)
 - The shorter post should still feel complete, clear, and usable
 - Do not pad the longer post just to make it longer
 - Let length variation help the batch feel more human and less templated
