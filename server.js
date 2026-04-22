@@ -4787,6 +4787,60 @@ function buildBrandIntelligence(profile = {}) {
     ? [...groupedSnapshot.groups].sort((a, b) => (a.score / a.max) - (b.score / b.max))[0]
     : null;
 
+  const strengths = uniqueStrings(
+    [
+      strongestGroup?.title
+        ? `${strongestGroup.title} is currently the strongest area of the business signal.`
+        : "",
+      ...trustSignals.map((item) => `Trust signal present: ${item}`),
+      ...educationSignals.slice(0, 2).map((item) => `Education asset present: ${item}`),
+      primaryStrategy?.name
+        ? `The current strongest strategic direction is ${primaryStrategy.name}.`
+        : "",
+    ],
+    6
+  );
+
+  const weaknesses = uniqueStrings(
+    [
+      weakestGroup?.title
+        ? `${weakestGroup.title} is currently the weakest area of the business signal.`
+        : "",
+      ...blindSpots.map((item) => `Blind spot: ${item}`),
+      ...(founderVisibilitySignals.length === 0
+        ? ["Founder visibility signal is currently limited."]
+        : []),
+    ],
+    6
+  );
+
+  const swotOpportunities = uniqueStrings(
+    [
+      ...opportunities,
+      ...activitySignals.slice(0, 2).map((item) => `Opportunity to build outward signal: ${item}`),
+      groupedSnapshot?.recommendedFocus || advisorSnapshot?.recommendedFocus || "",
+    ],
+    6
+  );
+
+  const threats = uniqueStrings(
+    [
+      weakestGroup?.title
+        ? `If ${weakestGroup.title} stays weak, the business may struggle to improve public signal consistently.`
+        : "",
+      blindSpots.length > 0
+        ? "Unresolved blind spots may reduce trust, clarity, or conversion over time."
+        : "",
+      trustSignals.length === 0
+        ? "Limited visible trust signals may slow buyer confidence."
+        : "",
+      founderVisibilitySignals.length === 0
+        ? "Low founder visibility may keep the brand feeling generic or interchangeable."
+        : "",
+    ],
+    6
+  );
+
   const readParts = [];
 
   if (strongestGroup?.title) {
@@ -4813,7 +4867,10 @@ function buildBrandIntelligence(profile = {}) {
       groupedSnapshot?.recommendedFocus ||
       advisorSnapshot?.recommendedFocus ||
       "No clear recommended focus yet.",
-    opportunities,
+    strengths,
+    weaknesses,
+    opportunities: swotOpportunities,
+    threats,
     blindSpots,
     trustSignals,
     educationSignals,
