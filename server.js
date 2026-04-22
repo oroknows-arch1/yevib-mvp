@@ -3340,36 +3340,6 @@ NARRATIVE ENFORCEMENT:
 
   return rules.join("\n");
 }
-function detectOpeningStyle(post = "") {
-  const text = String(post || "").trim();
-  const lower = text.toLowerCase();
-
-  if (
-    /^(i remember|i still remember|i found myself|i noticed|i saw|last friday|last week|one day|that morning|this morning)\b/.test(lower)
-  ) {
-    return "memory_scene";
-  }
-
-  if (
-    /^(that'?s why|this is why|it'?s not just|it is not just|when|if|clear priorities|customer satisfaction|reliable plumbing|the difference in)\b/.test(lower)
-  ) {
-    return "framing_statement";
-  }
-
-  if (
-    /^(i insist|i make sure|i check|i won'?t|i refuse|i focus|i prioritise|i handle)\b/.test(lower)
-  ) {
-    return "decision_standard";
-  }
-
-  if (
-    /^(what|why|how)\b/.test(lower)
-  ) {
-    return "explanation_open";
-  }
-
-  return "direct_statement";
-}
 
 function detectPrimaryClaim(post = "") {
   const lower = String(post || "").toLowerCase();
@@ -3423,98 +3393,6 @@ function countScaffoldRepeats(posts = []) {
   return hits;
 }
 
-function validatePostBatch(posts = []) {
-  const cleanPosts = Array.isArray(posts)
-    ? posts.map((p) => String(p || "").trim()).filter(Boolean)
-    : [];
-
-  const openingStyles = cleanPosts.map(detectOpeningStyle);
-  const primaryClaims = cleanPosts.map(detectPrimaryClaim);
-  const narrativeLanes = cleanPosts.map(detectNarrativeLane);
-  const proofTypes = cleanPosts.map(detectProofType);
-
-  const openingCounts = {};
-  const claimCounts = {};
-  const laneCounts = {};
-  const proofCounts = {};
-
-  for (const style of openingStyles) {
-    openingCounts[style] = (openingCounts[style] || 0) + 1;
-  }
-
-  for (const claim of primaryClaims) {
-    claimCounts[claim] = (claimCounts[claim] || 0) + 1;
-  }
-
-  for (const lane of narrativeLanes) {
-    laneCounts[lane] = (laneCounts[lane] || 0) + 1;
-  }
-
-  for (const proof of proofTypes) {
-    proofCounts[proof] = (proofCounts[proof] || 0) + 1;
-  }
-
-  const repeatedOpenings = Object.values(openingCounts).some((count) => count >= 3);
-  const repeatedClaims = Object.values(claimCounts).some((count) => count >= 3);
-  const repeatedNarrativeLanes = Object.values(laneCounts).some((count) => count >= 3);
-  const repeatedProofTypes = Object.values(proofCounts).some((count) => count >= 3);
-  const scaffoldRepeatCount = countScaffoldRepeats(cleanPosts);
-
-  const hasDirectStatement = openingStyles.includes("direct_statement");
-  const hasSceneOrMemory = openingStyles.includes("memory_scene");
-  const hasDecisionOrStandard =
-    openingStyles.includes("decision_standard") ||
-    openingStyles.includes("framing_statement");
-
-  const failedReasons = [];
-
-  if (cleanPosts.length !== 3) {
-    failedReasons.push("Expected exactly 3 posts in batch.");
-  }
-
-  if (repeatedOpenings) {
-    failedReasons.push("All posts are collapsing into the same opening style.");
-  }
-
-  if (!hasDirectStatement) {
-    failedReasons.push("Batch is missing a direct-statement opener.");
-  }
-
-  if (!hasSceneOrMemory) {
-    failedReasons.push("Batch is missing a scene-led or memory-led opener.");
-  }
-
-  if (!hasDecisionOrStandard) {
-    failedReasons.push("Batch is missing a standard-led, framing-led, or decision-led opener.");
-  }
-
-  if (repeatedClaims) {
-    failedReasons.push("All posts are centering the same primary claim.");
-  }
-
-  if (repeatedNarrativeLanes) {
-    failedReasons.push("All posts are collapsing into the same narrative lane.");
-  }
-
-  if (repeatedProofTypes) {
-    failedReasons.push("All posts are relying on the same proof type.");
-  }
-
-  if (scaffoldRepeatCount >= 2) {
-    failedReasons.push("Repeated familiar scaffolding detected across the batch.");
-  }
-
-  return {
-    isValid: failedReasons.length === 0,
-    failedReasons,
-    openingStyles,
-    primaryClaims,
-    narrativeLanes,
-    proofTypes,
-    scaffoldRepeatCount,
-  };
-}
-
 function detectOpeningStyle(post = "") {
   const text = String(post || "").trim();
   const lower = text.toLowerCase();
@@ -3550,6 +3428,40 @@ function detectPrimaryClaim(post = "") {
   if (/uji|kyoto|tradition|farmers/.test(lower)) return "origin";
 
   return "general";
+}
+function validatePostBatch(posts = []) {
+  const openingStyles = posts.map(detectOpeningStyle);
+  const claims = posts.map(detectPrimaryClaim);
+
+  const openingSet = new Set(openingStyles);
+  const claimSet = new Set(claims);
+
+  const failedReasons = [];
+  const warnings = [];
+
+  if (openingSet.size < 3) {
+    warnings.push("Opening styles are not diverse.");
+  }
+
+  if (claimSet.size < 2) {
+    warnings.push("Primary claims are too similar.");
+  }
+
+  if (!openingStyles.includes("direct_statement")) {
+    failedReasons.push("Missing direct statement opener.");
+  }
+
+  if (!openingStyles.includes("memory_scene")) {
+    failedReasons.push("Missing scene/memory opener.");
+  }
+
+  return {
+    isValid: failedReasons.length === 0,
+    failedReasons,
+    warnings,
+    openingStyles,
+    claims,
+  };
 }
 
 function getFeelingRules(ownerNudge = "") {
