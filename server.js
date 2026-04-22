@@ -3433,18 +3433,23 @@ function getPostLengthBucket(post = "") {
   const length = String(post || "").trim().length;
 
   if (length <= 180) return "short";
-  if (length >= 420) return "near_max";
+  if (length >= 360) return "long";
   return "medium";
 }
 
 function validatePostBatch(posts = []) {
   const openingStyles = posts.map(detectOpeningStyle);
   const claims = posts.map(detectPrimaryClaim);
+  const lengths = posts.map((post) => String(post || "").trim().length);
   const lengthBuckets = posts.map(getPostLengthBucket);
 
   const openingSet = new Set(openingStyles);
   const claimSet = new Set(claims);
   const lengthBucketSet = new Set(lengthBuckets);
+
+  const shortest = lengths.length ? Math.min(...lengths) : 0;
+  const longest = lengths.length ? Math.max(...lengths) : 0;
+  const lengthSpread = longest - shortest;
 
   const failedReasons = [];
   const warnings = [];
@@ -3465,12 +3470,16 @@ function validatePostBatch(posts = []) {
     failedReasons.push("Missing scene/memory opener.");
   }
 
-  if (
-    !lengthBucketSet.has("short") ||
-    !lengthBucketSet.has("medium") ||
-    !lengthBucketSet.has("near_max")
-  ) {
-    failedReasons.push("Batch is missing a clear short / medium / near-max length spread.");
+  if (!lengthBucketSet.has("short")) {
+    failedReasons.push("Batch is missing a clearly shorter post.");
+  }
+
+  if (!lengthBucketSet.has("long")) {
+    failedReasons.push("Batch is missing a clearly longer post.");
+  }
+
+  if (lengthSpread < 140) {
+    failedReasons.push("Post lengths are too similar.");
   }
 
   return {
@@ -3480,6 +3489,8 @@ function validatePostBatch(posts = []) {
     openingStyles,
     claims,
     lengthBuckets,
+    lengths,
+    lengthSpread,
   };
 }
 
@@ -3543,16 +3554,7 @@ LANGUAGE SEPARATION RULE:
 - The 3 posts must not sound like rewrites of each other
 - Use clearly different opening styles across the 3 posts
 - Vary sentence length and rhythm more aggressively
-- At least one post should open with a direct statement
-
-LENGTH SPREAD RULE:
-- Do NOT let all 3 posts land at the same length
-- Make one post short and sharp (around 120-180 characters)
-- Make one post medium length (around 220-340 characters)
-- Make one post near the maximum allowed length (around 420-${maxChars} characters)
-- The shorter post should still feel complete, clear, and usable
-- Do not pad the longer post just to make it longer
-- Let length variation help the batch feel more human and less templated
+- At least one post should open with a direct statemen
 
 SCENE RULE (STRICT):
 - At least one post MUST begin with a real-world moment
