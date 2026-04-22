@@ -4758,44 +4758,374 @@ function buildExecutionAssets(strategy = {}, layers = {}) {
   };
 }
 
-function buildBrandIntelligence(profile = {}) {
-  const groupedSnapshot = profile?.groupedSnapshot || {};
-  const advisorSnapshot = profile?.advisorSnapshot || {};
+function hasUsefulArrayItems(items = []) {
+  return Array.isArray(items) && items.some((item) => String(item || "").trim());
+}
+
+function scorePresence(items = [], pointsIfPresent = 1) {
+  return hasUsefulArrayItems(items) ? pointsIfPresent : 0;
+}
+
+function buildEvidenceProfile(profile = {}) {
+  const sourceProfile = profile?.sourceProfile || {};
   const discoveryProfile = profile?.discoveryProfile || {};
+  const brandProductTruth = profile?.brandProductTruth || {};
+  const founderVoice = profile?.founderVoice || {};
+  const customerOutcome = profile?.customerOutcome || {};
+  const debug = profile?.debug || {};
+
+  const pagesScanned = Number(debug?.pagesScanned || 0);
+  const hasWebsite = Boolean(sourceProfile?.urlUsed);
+  const hasOwnerWriting = Boolean(
+    sourceProfile?.pastedTextUsed ||
+    sourceProfile?.manualContextUsed ||
+    !sourceProfile?.weakVoiceSource
+  );
+
+  const trustSignals = normalizeStringArray(discoveryProfile?.trustSignals, 10);
+  const educationSignals = normalizeStringArray(discoveryProfile?.educationSignals, 10);
+  const activitySignals = normalizeStringArray(discoveryProfile?.activitySignals, 10);
+  const founderVisibilitySignals = normalizeStringArray(
+    discoveryProfile?.founderVisibilitySignals,
+    10
+  );
+  const offers = normalizeStringArray(brandProductTruth?.offers, 10);
+  const audience = normalizeStringArray(brandProductTruth?.audience, 10);
+  const lifeMoments = normalizeStringArray(customerOutcome?.lifeMoments, 10);
+
+  const evidenceScore = clampNumber(
+    (hasWebsite ? 22 : 0) +
+      (pagesScanned >= 3 ? 12 : pagesScanned > 0 ? 6 : 0) +
+      (hasOwnerWriting ? 16 : 0) +
+      scorePresence(trustSignals, 12) +
+      scorePresence(educationSignals, 8) +
+      scorePresence(activitySignals, 8) +
+      scorePresence(founderVisibilitySignals, 8) +
+      scorePresence(offers, 8) +
+      scorePresence(audience, 4) +
+      scorePresence(lifeMoments, 2),
+    0,
+    100
+  );
+
+  const missingEvidence = uniqueStrings(
+    [
+      !hasWebsite ? "No live website evidence was available." : "",
+      pagesScanned === 0 ? "No owned-site pages were successfully scanned." : "",
+      !hasOwnerWriting ? "No meaningful owner-written voice signal was supplied." : "",
+      trustSignals.length === 0 ? "Visible trust and proof signals are limited." : "",
+      founderVisibilitySignals.length === 0 ? "Visible founder presence is limited." : "",
+      offers.length === 0 ? "Offer or service clarity is still limited." : "",
+      audience.length === 0 ? "Audience clarity is still limited." : "",
+    ],
+    8
+  );
+
+  const availableEvidence = uniqueStrings(
+    [
+      hasWebsite ? "Owned-site signal is available." : "",
+      pagesScanned > 0 ? `${pagesScanned} owned-site page(s) were scanned.` : "",
+      hasOwnerWriting ? "Owner voice signal is available." : "",
+      trustSignals.length > 0 ? `Trust/proof signals found: ${trustSignals.length}` : "",
+      educationSignals.length > 0 ? `Education signals found: ${educationSignals.length}` : "",
+      activitySignals.length > 0 ? `Activity signals found: ${activitySignals.length}` : "",
+      founderVisibilitySignals.length > 0
+        ? `Founder visibility signals found: ${founderVisibilitySignals.length}`
+        : "",
+      offers.length > 0 ? `Offers/services found: ${offers.length}` : "",
+      audience.length > 0 ? `Audience clues found: ${audience.length}` : "",
+    ],
+    10
+  );
+
+  let evidenceState = "thin";
+  if (evidenceScore >= 75) evidenceState = "strong";
+  else if (evidenceScore >= 50) evidenceState = "usable";
+  else if (evidenceScore >= 28) evidenceState = "limited";
+
+  return {
+    score: evidenceScore,
+    state: evidenceState,
+    pagesScanned,
+    hasWebsite,
+    hasOwnerWriting,
+    availableEvidence,
+    missingEvidence,
+    signals: {
+      trustSignals,
+      educationSignals,
+      activitySignals,
+      founderVisibilitySignals,
+      offers,
+      audience,
+      lifeMoments,
+      voiceSummary: clipText(founderVoice?.voiceSummary || "", 300),
+      sourceConfidence: discoveryProfile?.sourceConfidence || "",
+    },
+  };
+}
+
+function buildQualificationProfile(evidenceProfile = {}, profile = {}) {
+  const founderGoal = String(profile?.founderGoal || "").trim();
+  const evidenceScore = Number(evidenceProfile?.score || 0);
+  const hasWebsite = Boolean(evidenceProfile?.hasWebsite);
+  const hasOwnerWriting = Boolean(evidenceProfile?.hasOwnerWriting);
+  const pagesScanned = Number(evidenceProfile?.pagesScanned || 0);
+  const trustSignalCount = Array.isArray(evidenceProfile?.signals?.trustSignals)
+    ? evidenceProfile.signals.trustSignals.length
+    : 0;
+  const offerCount = Array.isArray(evidenceProfile?.signals?.offers)
+    ? evidenceProfile.signals.offers.length
+    : 0;
+
+  let level = "blocked";
+  let swotLevel = "none";
+  let strategyLevel = "none";
+  let executionEligible = false;
+  let confidence = "low";
+  let summary = "YEVIB does not yet have enough evidence to produce a trustworthy diagnosis.";
+  let nextMove = "Add a stronger source of evidence before asking YEVIB for strategy or execution.";
+
+  if (evidenceScore >= 75 && hasWebsite && pagesScanned >= 3 && (trustSignalCount > 0 || offerCount > 0)) {
+    level = "strong";
+    swotLevel = "full";
+    strategyLevel = "full";
+    executionEligible = true;
+    confidence = "high";
+    summary =
+      "YEVIB has enough evidence to produce a strong diagnosis, a full SWOT view, and a strategy recommendation.";
+    nextMove =
+      founderGoal
+        ? `Use the current evidence to recommend the best move toward: ${founderGoal}.`
+        : "Recommend the strongest next strategic move from the current evidence.";
+  } else if (evidenceScore >= 50 && hasWebsite) {
+    level = "standard";
+    swotLevel = "standard";
+    strategyLevel = "standard";
+    executionEligible = true;
+    confidence = "medium";
+    summary =
+      "YEVIB has enough evidence for a standard diagnosis and a controlled strategy recommendation.";
+    nextMove =
+      "Proceed with a ranked diagnosis, but keep confidence and blind spots visible.";
+  } else if (evidenceScore >= 28 && (hasWebsite || hasOwnerWriting)) {
+    level = "limited";
+    swotLevel = "limited";
+    strategyLevel = "cautious";
+    executionEligible = false;
+    confidence = "low";
+    summary =
+      "YEVIB can produce a limited diagnosis, but should not overreach into confident strategy or execution.";
+    nextMove =
+      "Show the clearest visible gaps and ask for the minimum extra evidence that would unlock deeper help.";
+  }
+
+  return {
+    level,
+    swotLevel,
+    strategyLevel,
+    executionEligible,
+    confidence,
+    summary,
+    nextMove,
+  };
+}
+
+function buildReadinessProfile(profile = {}) {
+  const evidenceProfile = profile?.evidenceProfile || buildEvidenceProfile(profile);
+  const qualificationProfile =
+    profile?.qualificationProfile || buildQualificationProfile(evidenceProfile, profile);
+
+  const signals = evidenceProfile?.signals || {};
+  const trustSignals = normalizeStringArray(signals?.trustSignals, 10);
+  const educationSignals = normalizeStringArray(signals?.educationSignals, 10);
+  const activitySignals = normalizeStringArray(signals?.activitySignals, 10);
+  const founderVisibilitySignals = normalizeStringArray(signals?.founderVisibilitySignals, 10);
+  const offers = normalizeStringArray(signals?.offers, 10);
+  const audience = normalizeStringArray(signals?.audience, 10);
+  const lifeMoments = normalizeStringArray(signals?.lifeMoments, 10);
+
+  function makeGroup({
+    key,
+    title,
+    score,
+    strengths,
+    weaknesses,
+    nextMove,
+  }) {
+    const safeScore = clampNumber(score, 0, 100);
+    const state = getOverallState(safeScore);
+
+    return {
+      key,
+      title,
+      score: safeScore,
+      max: 100,
+      stateLabel: state.label,
+      colorKey: state.colorKey,
+      confidence: qualificationProfile?.confidence || "low",
+      summary:
+        `${title} is ${state.label.toLowerCase()} based on the evidence currently available.`,
+      strengths: uniqueStrings(strengths, 4),
+      weaknesses: uniqueStrings(weaknesses, 4),
+      nextMove,
+    };
+  }
+
+  const groups = [
+    makeGroup({
+      key: "trust_readiness",
+      title: "Trust Readiness",
+      score: 30 + (trustSignals.length > 0 ? 40 : 0) + (founderVisibilitySignals.length > 0 ? 10 : 0),
+      strengths: [
+        trustSignals.length > 0 ? "Visible trust or proof signals are present." : "",
+        founderVisibilitySignals.length > 0 ? "Some visible human/founder signal is present." : "",
+      ],
+      weaknesses: [
+        trustSignals.length === 0 ? "Trust and proof signals are still limited." : "",
+        founderVisibilitySignals.length === 0 ? "Founder visibility is limited." : "",
+      ],
+      nextMove:
+        trustSignals.length === 0
+          ? "Add visible proof, standards, reviews, outcomes, or reassurance signals."
+          : "Turn the strongest existing proof into reusable public trust assets.",
+    }),
+    makeGroup({
+      key: "legibility_readiness",
+      title: "Legibility Readiness",
+      score: 25 + (offers.length > 0 ? 35 : 0) + (audience.length > 0 ? 20 : 0) + (lifeMoments.length > 0 ? 10 : 0),
+      strengths: [
+        offers.length > 0 ? "The offer or service is visible enough to identify." : "",
+        audience.length > 0 ? "Audience clues are visible." : "",
+      ],
+      weaknesses: [
+        offers.length === 0 ? "Offer clarity is limited." : "",
+        audience.length === 0 ? "Audience clarity is limited." : "",
+      ],
+      nextMove:
+        offers.length === 0
+          ? "Clarify what the business actually does, sells, or solves first."
+          : "Tighten how the offer, audience, and outcome are described together.",
+    }),
+    makeGroup({
+      key: "visibility_readiness",
+      title: "Visibility Readiness",
+      score: 20 + (activitySignals.length > 0 ? 35 : 0) + (educationSignals.length > 0 ? 20 : 0) + (evidenceProfile?.hasWebsite ? 15 : 0),
+      strengths: [
+        activitySignals.length > 0 ? "Public activity signals are present." : "",
+        educationSignals.length > 0 ? "Educational signal exists." : "",
+      ],
+      weaknesses: [
+        activitySignals.length === 0 ? "Public visibility signal is still light." : "",
+        educationSignals.length === 0 ? "Educational visibility signal is limited." : "",
+      ],
+      nextMove:
+        activitySignals.length === 0
+          ? "Build visible outward activity before expecting stronger market response."
+          : "Turn current activity into more repeatable visibility and discovery.",
+    }),
+    makeGroup({
+      key: "transaction_readiness",
+      title: "Transaction Readiness",
+      score: 20 + (offers.length > 0 ? 35 : 0) + (trustSignals.length > 0 ? 20 : 0) + (audience.length > 0 ? 10 : 0),
+      strengths: [
+        offers.length > 0 ? "There is enough signal to identify a transaction path." : "",
+        trustSignals.length > 0 ? "Trust signals support conversion readiness." : "",
+      ],
+      weaknesses: [
+        offers.length === 0 ? "The path from attention to offer is still weak." : "",
+        trustSignals.length === 0 ? "Conversion support proof is still weak." : "",
+      ],
+      nextMove:
+        offers.length === 0
+          ? "Make the commercial next step easier to understand and easier to trust."
+          : "Support the offer with stronger proof and clearer next-step language.",
+    }),
+    makeGroup({
+      key: "execution_readiness",
+      title: "Execution Readiness",
+      score: 25 + (evidenceProfile?.hasWebsite ? 20 : 0) + (evidenceProfile?.hasOwnerWriting ? 20 : 0) + (activitySignals.length > 0 ? 15 : 0) + (offers.length > 0 ? 10 : 0),
+      strengths: [
+        evidenceProfile?.hasWebsite ? "The system has owned-site evidence to work from." : "",
+        evidenceProfile?.hasOwnerWriting ? "The system has owner voice signal to work from." : "",
+      ],
+      weaknesses: [
+        !evidenceProfile?.hasWebsite ? "Execution is constrained without owned-site evidence." : "",
+        !evidenceProfile?.hasOwnerWriting ? "Execution tone control is weaker without owner writing." : "",
+      ],
+      nextMove:
+        qualificationProfile?.executionEligible
+          ? "Proceed with controlled execution under the current qualification level."
+          : "Hold execution and unlock stronger evidence first.",
+    }),
+    makeGroup({
+      key: "differentiation_readiness",
+      title: "Differentiation Readiness",
+      score: 20 + (founderVisibilitySignals.length > 0 ? 30 : 0) + (educationSignals.length > 0 ? 20 : 0) + (trustSignals.length > 0 ? 10 : 0),
+      strengths: [
+        founderVisibilitySignals.length > 0 ? "There is some visible human distinction in the brand signal." : "",
+        educationSignals.length > 0 ? "Educational signal can support differentiation." : "",
+      ],
+      weaknesses: [
+        founderVisibilitySignals.length === 0 ? "The brand risks feeling generic or interchangeable." : "",
+        educationSignals.length === 0 ? "Distinctive expertise signal is still limited." : "",
+      ],
+      nextMove:
+        founderVisibilitySignals.length === 0
+          ? "Make the business feel more specific, human, and recognisable."
+          : "Turn the strongest distinct signal into repeatable public positioning.",
+    }),
+  ];
+
+  const overallScore = Math.round(
+    groups.reduce((sum, group) => sum + Number(group.score || 0), 0) / (groups.length || 1)
+  );
+  const overallState = getOverallState(overallScore);
+
+  return {
+    overallScore,
+    overallStateLabel: overallState.label,
+    confidence: qualificationProfile?.confidence || "low",
+    groups,
+  };
+}
+
+function buildBrandIntelligence(profile = {}) {
+  const advisorSnapshot = profile?.advisorSnapshot || {};
   const strategyEngine = profile?.strategyEngine || {};
+  const evidenceProfile = profile?.evidenceProfile || buildEvidenceProfile(profile);
+  const qualificationProfile =
+    profile?.qualificationProfile || buildQualificationProfile(evidenceProfile, profile);
+  const readinessProfile = profile?.readinessProfile || buildReadinessProfile({
+    ...profile,
+    evidenceProfile,
+    qualificationProfile,
+  });
 
   const primaryStrategy = strategyEngine?.primaryStrategy || null;
   const supportingStrategies = Array.isArray(strategyEngine?.supportingStrategies)
     ? strategyEngine.supportingStrategies
     : [];
 
-  const opportunities = normalizeStringArray(advisorSnapshot?.opportunities, 6);
-  const blindSpots = normalizeStringArray(advisorSnapshot?.blindSpots, 6);
-  const trustSignals = normalizeStringArray(discoveryProfile?.trustSignals, 6);
-  const educationSignals = normalizeStringArray(discoveryProfile?.educationSignals, 6);
-  const activitySignals = normalizeStringArray(discoveryProfile?.activitySignals, 6);
-  const founderVisibilitySignals = normalizeStringArray(
-    discoveryProfile?.founderVisibilitySignals,
-    6
-  );
-
-  const strongestGroup = Array.isArray(groupedSnapshot?.groups)
-    ? [...groupedSnapshot.groups].sort((a, b) => (b.score / b.max) - (a.score / a.max))[0]
+  const groups = Array.isArray(readinessProfile?.groups) ? readinessProfile.groups : [];
+  const strongestGroup = groups.length
+    ? [...groups].sort((a, b) => (b.score / b.max) - (a.score / a.max))[0]
+    : null;
+  const weakestGroup = groups.length
+    ? [...groups].sort((a, b) => (a.score / a.max) - (b.score / b.max))[0]
     : null;
 
-  const weakestGroup = Array.isArray(groupedSnapshot?.groups)
-    ? [...groupedSnapshot.groups].sort((a, b) => (a.score / a.max) - (b.score / b.max))[0]
-    : null;
+  const readinessWeaknesses = groups.flatMap((group) => group?.weaknesses || []).slice(0, 8);
+  const readinessStrengths = groups.flatMap((group) => group?.strengths || []).slice(0, 8);
 
   const strengths = uniqueStrings(
     [
       strongestGroup?.title
-        ? `${strongestGroup.title} is currently the strongest area of the business signal.`
+        ? `${strongestGroup.title} is currently the strongest readiness area.`
         : "",
-      ...trustSignals.map((item) => `Trust signal present: ${item}`),
-      ...educationSignals.slice(0, 2).map((item) => `Education asset present: ${item}`),
+      ...readinessStrengths,
       primaryStrategy?.name
-        ? `The current strongest strategic direction is ${primaryStrategy.name}.`
+        ? `The strongest current strategic direction is ${primaryStrategy.name}.`
         : "",
     ],
     6
@@ -4804,21 +5134,24 @@ function buildBrandIntelligence(profile = {}) {
   const weaknesses = uniqueStrings(
     [
       weakestGroup?.title
-        ? `${weakestGroup.title} is currently the weakest area of the business signal.`
+        ? `${weakestGroup.title} is currently the weakest readiness area.`
         : "",
-      ...blindSpots.map((item) => `Blind spot: ${item}`),
-      ...(founderVisibilitySignals.length === 0
-        ? ["Founder visibility signal is currently limited."]
+      ...readinessWeaknesses,
+      ...(qualificationProfile?.level === "limited" || qualificationProfile?.level === "blocked"
+        ? ["The current diagnosis is constrained by limited evidence."]
         : []),
     ],
     6
   );
 
-  const swotOpportunities = uniqueStrings(
+  const opportunities = uniqueStrings(
     [
-      ...opportunities,
-      ...activitySignals.slice(0, 2).map((item) => `Opportunity to build outward signal: ${item}`),
-      groupedSnapshot?.recommendedFocus || advisorSnapshot?.recommendedFocus || "",
+      advisorSnapshot?.recommendedFocus || "",
+      strongestGroup?.title
+        ? `Use ${strongestGroup.title} as leverage while improving the weakest area.`
+        : "",
+      weakestGroup?.nextMove || "",
+      qualificationProfile?.nextMove || "",
     ],
     6
   );
@@ -4826,56 +5159,58 @@ function buildBrandIntelligence(profile = {}) {
   const threats = uniqueStrings(
     [
       weakestGroup?.title
-        ? `If ${weakestGroup.title} stays weak, the business may struggle to improve public signal consistently.`
+        ? `If ${weakestGroup.title} stays weak, business performance may remain constrained.`
         : "",
-      blindSpots.length > 0
-        ? "Unresolved blind spots may reduce trust, clarity, or conversion over time."
+      qualificationProfile?.level === "blocked"
+        ? "The current evidence is too thin for trustworthy strategy or execution."
         : "",
-      trustSignals.length === 0
-        ? "Limited visible trust signals may slow buyer confidence."
+      qualificationProfile?.level === "limited"
+        ? "Overreaching beyond the available evidence would risk false confidence."
         : "",
-      founderVisibilitySignals.length === 0
-        ? "Low founder visibility may keep the brand feeling generic or interchangeable."
+      evidenceProfile?.missingEvidence?.length
+        ? `Missing evidence remains: ${evidenceProfile.missingEvidence[0]}`
         : "",
     ],
     6
   );
 
-  const readParts = [];
-
-  if (strongestGroup?.title) {
-    readParts.push(
-      `${strongestGroup.title} is currently the strongest part of the brand signal, which means the business already has usable momentum there.`
-    );
-  }
-
-  if (weakestGroup?.title) {
-    readParts.push(
-      `${weakestGroup.title} is the weakest part right now, so that is where the biggest practical improvement opportunity sits.`
-    );
-  }
-
-  if (primaryStrategy?.name) {
-    readParts.push(
-      `The best strategy right now is ${primaryStrategy.name} because it matches what the scan says the business needs most.`
-    );
-  }
+  const readParts = [
+    qualificationProfile?.summary || "",
+    strongestGroup?.title
+      ? `${strongestGroup.title} is the strongest readiness area right now.`
+      : "",
+    weakestGroup?.title
+      ? `${weakestGroup.title} is the weakest readiness area right now.`
+      : "",
+    primaryStrategy?.name && qualificationProfile?.strategyLevel !== "none"
+      ? `The best current strategy is ${primaryStrategy.name} at a ${qualificationProfile.strategyLevel} qualification level.`
+      : "",
+  ].filter(Boolean);
 
   return {
     read: readParts.join(" "),
+    qualification: qualificationProfile,
+    evidence: {
+      score: evidenceProfile?.score || 0,
+      state: evidenceProfile?.state || "thin",
+      availableEvidence: evidenceProfile?.availableEvidence || [],
+      missingEvidence: evidenceProfile?.missingEvidence || [],
+    },
+    readiness: readinessProfile,
     recommendedFocus:
-      groupedSnapshot?.recommendedFocus ||
       advisorSnapshot?.recommendedFocus ||
+      weakestGroup?.nextMove ||
+      qualificationProfile?.nextMove ||
       "No clear recommended focus yet.",
     strengths,
     weaknesses,
-    opportunities: swotOpportunities,
+    opportunities,
     threats,
-    blindSpots,
-    trustSignals,
-    educationSignals,
-    activitySignals,
-    founderVisibilitySignals,
+    blindSpots: evidenceProfile?.missingEvidence || [],
+    trustSignals: evidenceProfile?.signals?.trustSignals || [],
+    educationSignals: evidenceProfile?.signals?.educationSignals || [],
+    activitySignals: evidenceProfile?.signals?.activitySignals || [],
+    founderVisibilitySignals: evidenceProfile?.signals?.founderVisibilitySignals || [],
     primaryStrategy: primaryStrategy
       ? {
           key: primaryStrategy.key,
@@ -6121,6 +6456,13 @@ app.post("/build-profile", async (req, res) => {
       ),
     });
 
+    profile.evidenceProfile = buildEvidenceProfile(profile);
+    profile.qualificationProfile = buildQualificationProfile(
+      profile.evidenceProfile,
+      profile
+    );
+    profile.readinessProfile = buildReadinessProfile(profile);
+
     profile.strategyEngine = buildStrategyEngine(profile);
     profile.brandIntelligence = buildBrandIntelligence(profile);
     profile.chosenMove = buildChosenMove(profile);
@@ -6147,10 +6489,17 @@ app.post("/run-agent-cycle", async (req, res) => {
 
     const refreshedProfile = {
       ...profile,
-      strategyEngine: buildStrategyEngine(profile),
-      brandIntelligence: buildBrandIntelligence(profile),
-      chosenMove: buildChosenMove(profile),
     };
+
+    refreshedProfile.evidenceProfile = buildEvidenceProfile(refreshedProfile);
+    refreshedProfile.qualificationProfile = buildQualificationProfile(
+      refreshedProfile.evidenceProfile,
+      refreshedProfile
+    );
+    refreshedProfile.readinessProfile = buildReadinessProfile(refreshedProfile);
+    refreshedProfile.strategyEngine = buildStrategyEngine(refreshedProfile);
+    refreshedProfile.brandIntelligence = buildBrandIntelligence(refreshedProfile);
+    refreshedProfile.chosenMove = buildChosenMove(refreshedProfile);
 
     refreshedProfile.executionPlan = buildExecutionPlan(refreshedProfile);
     refreshedProfile.multiAgentSystem = buildMultiAgentSystem(refreshedProfile);
