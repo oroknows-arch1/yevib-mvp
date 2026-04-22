@@ -3471,15 +3471,15 @@ function validatePostBatch(posts = []) {
   }
 
   if (!lengthBucketSet.has("short")) {
-    failedReasons.push("Batch is missing a clearly shorter post.");
+    warnings.push("Batch is missing a clearly shorter post.");
   }
 
   if (!lengthBucketSet.has("long")) {
-    failedReasons.push("Batch is missing a clearly longer post.");
+    warnings.push("Batch is missing a clearly longer post.");
   }
 
   if (lengthSpread < 140) {
-    failedReasons.push("Post lengths are too similar.");
+    warnings.push("Post lengths are too similar.");
   }
 
   return {
