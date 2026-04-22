@@ -3552,41 +3552,6 @@ function detectPrimaryClaim(post = "") {
   return "general";
 }
 
-function validatePostBatch(posts = []) {
-  const openingStyles = posts.map(detectOpeningStyle);
-  const claims = posts.map(detectPrimaryClaim);
-
-  const openingSet = new Set(openingStyles);
-  const claimSet = new Set(claims);
-
-  const failedReasons = [];
-  const warnings = [];
-
-  if (openingSet.size < 3) {
-    warnings.push("Opening styles are not diverse.");
-  }
-
-  if (claimSet.size < 2) {
-    warnings.push("Primary claims are too similar.");
-  }
-
-  if (!openingStyles.includes("direct_statement")) {
-    failedReasons.push("Missing direct statement opener.");
-  }
-
-  if (!openingStyles.includes("memory_scene")) {
-    failedReasons.push("Missing scene/memory opener.");
-  }
-
-  return {
-    isValid: failedReasons.length === 0,
-    failedReasons,
-    warnings,
-    openingStyles,
-    claims
-  };
-}
-
 function getFeelingRules(ownerNudge = "") {
   const feeling = String(ownerNudge || "").trim();
   const lower = feeling.toLowerCase();
