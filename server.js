@@ -5232,7 +5232,16 @@ function buildBrandIntelligence(profile = {}) {
 }
 
 function buildChosenMove(profile = {}) {
+  const qualificationProfile = profile?.qualificationProfile || {};
   const strategyEngine = profile?.strategyEngine || buildStrategyEngine(profile);
+
+  const qualificationLevel = qualificationProfile?.level || "blocked";
+  const strategyLevel = strategyEngine?.strategyLevel || qualificationProfile?.strategyLevel || "none";
+  const executionEligible =
+    typeof qualificationProfile?.executionEligible === "boolean"
+      ? qualificationProfile.executionEligible
+      : Boolean(strategyEngine?.executionEligible);
+
   const primary = strategyEngine?.primaryStrategy || null;
   const supporting = Array.isArray(strategyEngine?.supportingStrategies)
     ? strategyEngine.supportingStrategies
@@ -5241,54 +5250,179 @@ function buildChosenMove(profile = {}) {
   const strategyLibrary = buildStrategyLibrary(profile, getGroupMap(profile));
   const selectedStrategy = strategyLibrary[primary?.key] || null;
 
-  if (!primary || !selectedStrategy) {
+  if (strategyLevel === "none" || qualificationLevel === "blocked") {
     return {
-      strategyKey: "general",
-      title: "General Strategy System",
-      operatorRole: "YEVIB acts as a digital strategy operator across content, visibility, and conversion.",
-      instruction: "Run one clear campaign direction instead of scattered activity.",
-      reason: "No stronger strategy signal was available, so YEVIB selected a general execution path.",
+      strategyKey: "blocked",
+      title: "Evidence-Limited Guidance",
+      operatorRole:
+        "YEVIB stays in diagnostic mode until there is enough evidence for a trustworthy strategy.",
+      instruction:
+        "Do not present a full campaign direction yet. First strengthen the evidence base.",
+      reason:
+        qualificationProfile?.summary ||
+        "There is not enough evidence yet to unlock a trustworthy strategy.",
       actions: [
-        "Choose one campaign direction.",
-        "Create posts and images under that one direction.",
-        "Distribute consistently enough for the market to feel it."
+        "Show the clearest visible gaps in the current business signal.",
+        "Ask for the minimum extra evidence that would unlock a stronger diagnosis.",
+        "Hold execution until the system is qualified to recommend it."
       ],
       supportActions: [
-        "Keep message consistency.",
-        "Use proof where possible.",
-        "Turn attention into next-step movement."
+        "Keep the scan honest about what it can and cannot see.",
+        "Prefer evidence gathering over confident execution language.",
+        "Only unlock strategy when the diagnosis is strong enough to support it."
       ],
-      tools: ["social posts", "images"],
-      constraint: "Do not split focus across too many unrelated themes.",
-      schedule: "30 days",
-      campaignType: "general",
-      successSignal: "Clearer public signal and more coordinated business movement.",
+      tools: ["diagnostic guidance"],
+      constraint:
+        "Do not pretend a full execution path is available when the evidence is still too thin.",
+      schedule: "Unlock after stronger evidence",
+      campaignType: "diagnostic_only",
+      successSignal:
+        "A stronger evidence base that justifies a more confident strategy recommendation.",
       secondaryStrategies: []
     };
   }
 
+  if (!primary || !selectedStrategy) {
+    return {
+      strategyKey: strategyLevel === "cautious" ? "cautious_general" : "general",
+      title:
+        strategyLevel === "cautious"
+          ? "Cautious Strategy Guidance"
+          : "General Strategy System",
+      operatorRole:
+        strategyLevel === "cautious"
+          ? "YEVIB acts carefully, using only the business signal it can actually justify."
+          : "YEVIB acts as a digital strategy operator across content, visibility, and conversion.",
+      instruction:
+        strategyLevel === "cautious"
+          ? "Use one controlled direction, but keep claims and execution scope modest."
+          : "Run one clear campaign direction instead of scattered activity.",
+      reason:
+        strategyLevel === "cautious"
+          ? qualificationProfile?.summary ||
+            "The scan can suggest a direction, but it is not strong enough for a fully confident strategy."
+          : "No stronger strategy signal was available, so YEVIB selected a general execution path.",
+      actions:
+        strategyLevel === "cautious"
+          ? [
+              "Choose one low-risk campaign direction.",
+              "Create a small set of aligned outputs under that direction.",
+              "Use the next cycle to strengthen evidence before expanding execution."
+            ]
+          : [
+              "Choose one campaign direction.",
+              "Create posts and images under that one direction.",
+              "Distribute consistently enough for the market to feel it."
+            ],
+      supportActions:
+        strategyLevel === "cautious"
+          ? [
+              "Keep message consistency.",
+              "Use only proof already visible in the scan.",
+              "Avoid over-claiming what the business has not yet proven publicly."
+            ]
+          : [
+              "Keep message consistency.",
+              "Use proof where possible.",
+              "Turn attention into next-step movement."
+            ],
+      tools:
+        strategyLevel === "cautious" || !executionEligible
+          ? ["social posts"]
+          : ["social posts", "images"],
+      constraint:
+        strategyLevel === "cautious"
+          ? "Keep the move narrow, evidence-backed, and easy to revise as stronger signal appears."
+          : "Do not split focus across too many unrelated themes.",
+      schedule: strategyLevel === "cautious" ? "14 days" : "30 days",
+      campaignType: strategyLevel === "cautious" ? "cautious_general" : "general",
+      successSignal:
+        strategyLevel === "cautious"
+          ? "Clearer signal with less overreach and a stronger base for the next recommendation."
+          : "Clearer public signal and more coordinated business movement.",
+      secondaryStrategies: []
+    };
+  }
+
+  const baseActions = Array.isArray(selectedStrategy.actions)
+    ? selectedStrategy.actions
+    : [];
+  const baseSupportActions = Array.isArray(selectedStrategy.supportActions)
+    ? selectedStrategy.supportActions
+    : [];
+  const baseTools = Array.isArray(selectedStrategy.tools)
+    ? selectedStrategy.tools
+    : [];
+
+  const chosenActions =
+    strategyLevel === "cautious"
+      ? [
+          `Run a narrower version of ${selectedStrategy.title}.`,
+          ...baseActions.slice(0, 2),
+          "Use the next scan cycle to validate whether stronger execution is justified."
+        ]
+      : baseActions;
+
+  const chosenSupportActions =
+    strategyLevel === "cautious"
+      ? [
+          ...baseSupportActions.slice(0, 2),
+          "Keep claims, promises, and campaign scope tightly tied to the current evidence."
+        ]
+      : baseSupportActions;
+
+  const chosenTools =
+    !executionEligible
+      ? baseTools.filter((tool) => !/image|distribution|community|comment/i.test(String(tool || "")))
+      : baseTools;
+
   return {
     strategyKey: selectedStrategy.key,
-    title: selectedStrategy.title,
-    operatorRole: selectedStrategy.operatorRole,
-    instruction: selectedStrategy.strategySummary,
-    reason: selectedStrategy.reason,
-    actions: selectedStrategy.actions,
-    supportActions: selectedStrategy.supportActions,
-    tools: selectedStrategy.tools,
+    title:
+      strategyLevel === "cautious"
+        ? `${selectedStrategy.title} (Cautious Mode)`
+        : selectedStrategy.title,
+    operatorRole:
+      strategyLevel === "cautious"
+        ? "YEVIB acts with a controlled, evidence-limited strategy posture."
+        : selectedStrategy.operatorRole,
+    instruction:
+      strategyLevel === "cautious"
+        ? `Use ${selectedStrategy.title} carefully and keep the move proportional to the current evidence base.`
+        : selectedStrategy.strategySummary,
+    reason:
+      strategyLevel === "cautious"
+        ? `${selectedStrategy.reason} Current qualification level requires a narrower execution posture.`
+        : selectedStrategy.reason,
+    actions: chosenActions,
+    supportActions: chosenSupportActions,
+    tools: chosenTools.length ? chosenTools : ["social posts"],
     constraint:
-      "Keep the strategy grounded in the real business, execute one clear system at a time, and make every output serve the same campaign direction.",
-    schedule: `${selectedStrategy.duration} • ${selectedStrategy.cadence}`,
-    campaignType: selectedStrategy.campaignType,
-    successSignal: selectedStrategy.successSignal,
-    secondaryStrategies: supporting.map((item) => ({
-      key: item.key,
-      title: item.name,
-      reason: item.objective
-    }))
+      strategyLevel === "cautious"
+        ? "Keep the strategy grounded in the real business, limit scope, and avoid presenting full execution certainty too early."
+        : "Keep the strategy grounded in the real business, execute one clear system at a time, and make every output serve the same campaign direction.",
+    schedule:
+      strategyLevel === "cautious"
+        ? `Start smaller • ${selectedStrategy.cadence}`
+        : `${selectedStrategy.duration} • ${selectedStrategy.cadence}`,
+    campaignType:
+      strategyLevel === "cautious"
+        ? `${selectedStrategy.campaignType}_cautious`
+        : selectedStrategy.campaignType,
+    successSignal:
+      strategyLevel === "cautious"
+        ? "A cleaner, evidence-backed public signal that earns stronger strategy confidence next cycle."
+        : selectedStrategy.successSignal,
+    secondaryStrategies:
+      strategyLevel === "cautious"
+        ? []
+        : supporting.map((item) => ({
+            key: item.key,
+            title: item.name,
+            reason: item.objective
+          }))
   };
 }
-
 function canYevibSayIsGoingTo(profile = {}, chosenMove = {}) {
   const hasStrategy =
     Boolean(profile?.strategyEngine?.primaryStrategy?.key) ||
