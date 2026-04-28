@@ -18,7 +18,9 @@ const openai = new OpenAI({
 const PORT = process.env.PORT || 3000;
 const maxChars = 500;
 const OWNER_KB_PATH = path.join(__dirname, "owner-kb.json");
+const PHASE3_TEST_MATRIX_PATH = path.join(__dirname, "phase3-test-matrix.json");
 
+const QUIET_FAMILY_WORDS = ["quiet", "calm", "gentle", "subtle", "steady", "small"];
 const QUIET_FAMILY_WORDS = ["quiet", "calm", "gentle", "subtle", "steady", "small"];
 const NON_QUIET_REPLACEMENTS = {
   quiet: "real",
@@ -638,6 +640,205 @@ function readOwnerKb() {
 function writeOwnerKb(data) {
   ensureOwnerKbFile();
   fs.writeFileSync(OWNER_KB_PATH, JSON.stringify(data, null, 2), "utf8");
+}
+
+function getDefaultPhase3TestMatrix() {
+  return {
+    meta: {
+      name: "YEVIB Phase 3 Intelligence Regression Matrix",
+      version: "2026-04-27",
+      purpose:
+        "Tests whether YEVIB can qualify business signal, diagnose readiness, choose a useful strategy, and avoid overclaiming when source evidence is weak.",
+      status: "active",
+    },
+    defaults: {
+      mode: "hybrid",
+      founderGoal: "Build more trust",
+      pastedSourceText: "",
+      ownerWritingSample: "",
+    },
+    sites: [
+      {
+        id: "local_service_01",
+        group: "local_service",
+        label: "Local service business 1",
+        businessUrl: "",
+        expectedQualification: "diagnosable",
+        expectedSignalLevel: "medium_to_strong",
+        expectedStrategyPressure: "trust_or_visibility",
+        notes: "Replace businessUrl with a real local service business test URL.",
+      },
+      {
+        id: "local_service_02",
+        group: "local_service",
+        label: "Local service business 2",
+        businessUrl: "",
+        expectedQualification: "diagnosable",
+        expectedSignalLevel: "medium_to_strong",
+        expectedStrategyPressure: "trust_or_visibility",
+        notes: "Replace businessUrl with a real local service business test URL.",
+      },
+      {
+        id: "local_service_03",
+        group: "local_service",
+        label: "Local service business 3",
+        businessUrl: "",
+        expectedQualification: "diagnosable",
+        expectedSignalLevel: "medium_to_strong",
+        expectedStrategyPressure: "trust_or_visibility",
+        notes: "Replace businessUrl with a real local service business test URL.",
+      },
+      {
+        id: "ecommerce_01",
+        group: "small_ecommerce",
+        label: "Small e-commerce brand 1",
+        businessUrl: "",
+        expectedQualification: "diagnosable",
+        expectedSignalLevel: "medium_to_strong",
+        expectedStrategyPressure: "product_truth_or_trust",
+        notes: "Replace businessUrl with a real small e-commerce brand test URL.",
+      },
+      {
+        id: "ecommerce_02",
+        group: "small_ecommerce",
+        label: "Small e-commerce brand 2",
+        businessUrl: "",
+        expectedQualification: "diagnosable",
+        expectedSignalLevel: "medium_to_strong",
+        expectedStrategyPressure: "product_truth_or_trust",
+        notes: "Replace businessUrl with a real small e-commerce brand test URL.",
+      },
+      {
+        id: "ecommerce_03",
+        group: "small_ecommerce",
+        label: "Small e-commerce brand 3",
+        businessUrl: "",
+        expectedQualification: "diagnosable",
+        expectedSignalLevel: "medium_to_strong",
+        expectedStrategyPressure: "product_truth_or_trust",
+        notes: "Replace businessUrl with a real small e-commerce brand test URL.",
+      },
+      {
+        id: "mixed_signal_01",
+        group: "mixed_signal",
+        label: "Mixed-signal business 1",
+        businessUrl: "",
+        expectedQualification: "cautious",
+        expectedSignalLevel: "limited_to_medium",
+        expectedStrategyPressure: "clarity_or_trust",
+        notes: "Replace businessUrl with a real mixed-signal business test URL.",
+      },
+      {
+        id: "mixed_signal_02",
+        group: "mixed_signal",
+        label: "Mixed-signal business 2",
+        businessUrl: "",
+        expectedQualification: "cautious",
+        expectedSignalLevel: "limited_to_medium",
+        expectedStrategyPressure: "clarity_or_trust",
+        notes: "Replace businessUrl with a real mixed-signal business test URL.",
+      },
+      {
+        id: "mixed_signal_03",
+        group: "mixed_signal",
+        label: "Mixed-signal business 3",
+        businessUrl: "",
+        expectedQualification: "cautious",
+        expectedSignalLevel: "limited_to_medium",
+        expectedStrategyPressure: "clarity_or_trust",
+        notes: "Replace businessUrl with a real mixed-signal business test URL.",
+      },
+      {
+        id: "thin_signal_01",
+        group: "thin_signal",
+        label: "Thin-signal business 1",
+        businessUrl: "",
+        expectedQualification: "blocked_or_low_confidence",
+        expectedSignalLevel: "weak",
+        expectedStrategyPressure: "request_more_source_signal",
+        notes: "Replace businessUrl with a real thin-signal business test URL.",
+      },
+      {
+        id: "thin_signal_02",
+        group: "thin_signal",
+        label: "Thin-signal business 2",
+        businessUrl: "",
+        expectedQualification: "blocked_or_low_confidence",
+        expectedSignalLevel: "weak",
+        expectedStrategyPressure: "request_more_source_signal",
+        notes: "Replace businessUrl with a real thin-signal business test URL.",
+      },
+      {
+        id: "thin_signal_03",
+        group: "thin_signal",
+        label: "Thin-signal business 3",
+        businessUrl: "",
+        expectedQualification: "blocked_or_low_confidence",
+        expectedSignalLevel: "weak",
+        expectedStrategyPressure: "request_more_source_signal",
+        notes: "Replace businessUrl with a real thin-signal business test URL.",
+      },
+    ],
+  };
+}
+
+function ensurePhase3TestMatrixFile() {
+  if (!fs.existsSync(PHASE3_TEST_MATRIX_PATH)) {
+    fs.writeFileSync(
+      PHASE3_TEST_MATRIX_PATH,
+      JSON.stringify(getDefaultPhase3TestMatrix(), null, 2),
+      "utf8"
+    );
+  }
+}
+
+function readPhase3TestMatrix() {
+  ensurePhase3TestMatrixFile();
+
+  try {
+    const raw = fs.readFileSync(PHASE3_TEST_MATRIX_PATH, "utf8");
+    const parsed = JSON.parse(raw);
+
+    if (!parsed || typeof parsed !== "object") {
+      return getDefaultPhase3TestMatrix();
+    }
+
+    if (!Array.isArray(parsed.sites)) {
+      parsed.sites = [];
+    }
+
+    return parsed;
+  } catch (err) {
+    console.error("PHASE 3 TEST MATRIX READ ERROR:", err.message);
+    return getDefaultPhase3TestMatrix();
+  }
+}
+
+function writePhase3TestMatrix(matrix = {}) {
+  const safeMatrix =
+    matrix && typeof matrix === "object"
+      ? {
+          ...matrix,
+          sites: Array.isArray(matrix.sites) ? matrix.sites : [],
+        }
+      : getDefaultPhase3TestMatrix();
+
+  fs.writeFileSync(
+    PHASE3_TEST_MATRIX_PATH,
+    JSON.stringify(safeMatrix, null, 2),
+    "utf8"
+  );
+
+  return safeMatrix;
+}
+
+function getRunnablePhase3Sites(matrix = {}) {
+  const sites = Array.isArray(matrix?.sites) ? matrix.sites : [];
+
+  return sites.filter((site) => {
+    const url = String(site?.businessUrl || "").trim();
+    return Boolean(url);
+  });
 }
 
 function businessKey(name = "") {
