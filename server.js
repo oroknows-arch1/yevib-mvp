@@ -7557,6 +7557,67 @@ STRICT CORRECTION:
   return posts;
 }
 
+app.post("/phase3/run-regression", async (req, res) => {
+  const startedAt = new Date().toISOString();
+
+  try {
+    const matrix = readPhase3TestMatrix();
+    const runnableSites = getRunnablePhase3Sites(matrix);
+
+    const requestedLimit = Number(req.body?.limit || runnableSites.length);
+    const safeLimit = clampInt(requestedLimit, 1, runnableSites.length || 1);
+    const selectedSites = runnableSites.slice(0, safeLimit);
+
+    if (selectedSites.length === 0) {
+      return res.status(400).json({
+        error:
+          "No runnable Phase 3 regression sites found. Add businessUrl values to phase3-test-matrix.json first.",
+        matrixPath: PHASE3_TEST_MATRIX_PATH,
+        totalSites: Array.isArray(matrix?.sites) ? matrix.sites.length : 0,
+        runnableSites: 0,
+      });
+    }
+
+    const results = [];
+
+    for (const site of selectedSites) {
+      const result = await runSinglePhase3RegressionSite(
+        site,
+        matrix.defaults || {}
+      );
+
+      results.push(result);
+    }
+
+    const passedCount = results.filter((item) => item.passed).length;
+    const failedCount = results.length - passedCount;
+
+    res.json({
+      ok: failedCount === 0,
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      matrix: {
+        name: matrix?.meta?.name || "YEVIB Phase 3 Intelligence Regression Matrix",
+        version: matrix?.meta?.version || "",
+        totalSites: Array.isArray(matrix?.sites) ? matrix.sites.length : 0,
+        runnableSites: runnableSites.length,
+        executedSites: results.length,
+      },
+      summary: {
+        passed: passedCount,
+        failed: failedCount,
+      },
+      results,
+    });
+  } catch (err) {
+    console.error("PHASE 3 REGRESSION ROUTE ERROR:", err);
+
+    res.status(500).json({
+      error: err?.message || "Unknown Phase 3 regression route error.",
+    });
+  }
+});
+
 app.post("/generate", async (req, res) => {
   const {
     mode,
