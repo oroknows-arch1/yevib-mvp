@@ -6799,7 +6799,7 @@ function buildStrategyEngine(profile = {}) {
     rankedStrategies: scored
   };
 }
-app.post("/build-profile", async (req, res) => {
+async function buildBusinessProfile(input = {}) {
   const {
     mode,
     businessUrl,
@@ -6807,276 +6807,273 @@ app.post("/build-profile", async (req, res) => {
     manualBusinessContext,
     founderGoal,
     ownerWritingSample,
-  } = req.body;
+  } = input;
 
-  try {
-    let laneGather = null;
-    const normalizedUrl = normalizeUrl(businessUrl);
+  let laneGather = null;
+  const normalizedUrl = normalizeUrl(businessUrl);
 
-    if (normalizedUrl) {
-      laneGather = await gatherLaneSources(normalizedUrl);
-    }
+  if (normalizedUrl) {
+    laneGather = await gatherLaneSources(normalizedUrl);
+  }
 
-    const founderText = laneText(
-      laneGather?.lanes?.founderVoice || [],
-      manualBusinessContext || pastedSourceText || ownerWritingSample || ""
-    );
+  const founderText = laneText(
+    laneGather?.lanes?.founderVoice || [],
+    manualBusinessContext || pastedSourceText || ownerWritingSample || ""
+  );
 
-    const customerText = laneText(
-      laneGather?.lanes?.customerOutcome || [],
-      ""
-    );
+  const customerText = laneText(
+    laneGather?.lanes?.customerOutcome || [],
+    ""
+  );
 
-    const productText = laneText(
-      laneGather?.lanes?.brandProductTruth || [],
-      ""
-    );
+  const productText = laneText(
+    laneGather?.lanes?.brandProductTruth || [],
+    ""
+  );
 
-    const founderSourceInput = clipText(
-      mode === "manual"
-        ? manualBusinessContext || pastedSourceText || ownerWritingSample
-        : mode === "hybrid"
-        ? pastedSourceText || manualBusinessContext || ownerWritingSample || founderText
-        : founderText || pastedSourceText || manualBusinessContext || ownerWritingSample || productText,
-      5000
-    );
+  const founderSourceInput = clipText(
+    mode === "manual"
+      ? manualBusinessContext || pastedSourceText || ownerWritingSample
+      : mode === "hybrid"
+      ? pastedSourceText || manualBusinessContext || ownerWritingSample || founderText
+      : founderText || pastedSourceText || manualBusinessContext || ownerWritingSample || productText,
+    5000
+  );
 
-    const [sourceProfile, customerOutcome, brandProductTruth] = await Promise.all([
-      runJsonChat(
-        sourceProfilePrompt({
-          mode,
-          founderText,
-          customerText,
-          productText,
-          pastedSourceText,
-          manualBusinessContext,
-        })
-      ),
-      runJsonChat(
-        customerOutcomePrompt(
-          clipText(customerText || pastedSourceText || "", 3000)
-        )
-      ),
-      runJsonChat(
-        productTruthPrompt(
-          clipText(productText || founderText || pastedSourceText || "", 3000)
-        )
-      ),
-    ]);
-
-    const safeVoiceSourceText = chooseVoiceSourceText({
-      mode,
-      founderText,
-      customerText,
-      productText,
-      pastedSourceText,
-      manualBusinessContext,
-      sourceProfileSummary: sourceProfile?.businessProfile?.summary || "",
-    });
-
-    const safeFounderVoice = await runJsonChat(
-      voiceAgentPrompt(
-        clipText(safeVoiceSourceText || founderSourceInput || "", 5000)
-      )
-    );
-
-    const finalBusinessName =
-      sourceProfile?.businessProfile?.name ||
-      brandProductTruth?.productType ||
-      "Unknown Business";
-
-    const socialLinks = laneGather?.socialLinks || {};
-    const groupedPages = laneGather?.groupedPages || {
-      aboutPages: [],
-      blogPages: [],
-      faqPages: [],
-      reviewPages: [],
-      activityPages: [],
-      pressPages: [],
-      productPages: [],
-    };
-
-    const discoveryProfile = {
-  channelsFound: socialLinks,
-  sourcePages: groupedPages,
-  locationContext: laneGather?.locationContext || {
-    country: "",
-    state: "",
-    city: "",
-    environmentType: "real working environment",
-    combinedText: "",
-  },
-  visualIdentity: laneGather?.visualIdentity || {
-    tone: "grounded, real, business-appropriate",
-    palette: "natural business-appropriate colours",
-    environment: "real working environments",
-    brandingStyle: "unbranded, practical, context-led",
-  },
-  trustSignals: inferTrustSignals({
-    groupedPages,
-    lanes: laneGather?.lanes || {},
-    pages: laneGather?.pages || [],
-  }),
-  educationSignals: inferEducationSignals({
-    groupedPages,
-    lanes: laneGather?.lanes || {},
-    pages: laneGather?.pages || [],
-  }),
-  activitySignals: inferActivitySignals({
-    groupedPages,
-    pages: laneGather?.pages || [],
-  }),
-  founderVisibilitySignals: inferFounderVisibilitySignals({
-    groupedPages,
-    founderText,
-    pages: laneGather?.pages || [],
-  }),
-  sourceConfidence: inferSourceConfidence({
-    channelsFound: socialLinks,
-    groupedPages,
-    pagesScanned: laneGather?.pages?.length || 0,
-    hasOwnerWriting: Boolean(
-      ownerWritingSample || manualBusinessContext || pastedSourceText
+  const [sourceProfile, customerOutcome, brandProductTruth] = await Promise.all([
+    runJsonChat(
+      sourceProfilePrompt({
+        mode,
+        founderText,
+        customerText,
+        productText,
+        pastedSourceText,
+        manualBusinessContext,
+      })
     ),
-  }),
-};
+    runJsonChat(
+      customerOutcomePrompt(
+        clipText(customerText || pastedSourceText || "", 3000)
+      )
+    ),
+    runJsonChat(
+      productTruthPrompt(
+        clipText(productText || founderText || pastedSourceText || "", 3000)
+      )
+    ),
+  ]);
 
-    const profile = {
-      founderGoal: founderGoal || "",
-      businessProfile: {
-        name: finalBusinessName,
-        summary: sourceProfile?.businessProfile?.summary || "",
-      },
-      contentProfile: {
-        suggestedCategory:
-          sourceProfile?.contentProfile?.suggestedCategory || "Product in Real Life",
-        suggestedIdea:
-          sourceProfile?.contentProfile?.suggestedIdea ||
-          "How this business makes everyday life feel easier or better",
-      },
-      visualProfile: {
-        visualDirections: sourceProfile?.visualProfile?.visualDirections || [],
-        avoidRules: sourceProfile?.visualProfile?.avoidRules || [],
-      },
-      sourceProfile: {
-        dominantSource: sourceProfile?.sourceProfile?.dominantSource || "mixed",
-        voiceSourceText: safeVoiceSourceText,
-        voiceSourceLane:
-          mode === "manual"
-            ? "manual"
-            : safeVoiceSourceText === founderText
-            ? "founder"
-            : safeVoiceSourceText === pastedSourceText
-            ? "pasted"
-            : safeVoiceSourceText === manualBusinessContext
-            ? "manual"
-            : "fallback",
-        weakVoiceSource: isWeakVoiceSource(safeVoiceSourceText),
-        founderLanePreview: founderText,
-        customerLanePreview: customerText,
-        productLanePreview: productText,
-        urlUsed: Boolean(normalizedUrl),
-        pastedTextUsed: Boolean(pastedSourceText),
-        manualContextUsed: Boolean(manualBusinessContext),
-      },
-      founderVoice: safeFounderVoice,
-      customerOutcome,
-      brandProductTruth,
-      discoveryProfile,
-      ownerKbMeta: getBusinessKbMeta(finalBusinessName),
-      debug: {
-        pagesScanned: laneGather?.pages?.length || 0,
-      },
-    };
+  const safeVoiceSourceText = chooseVoiceSourceText({
+    mode,
+    founderText,
+    customerText,
+    productText,
+    pastedSourceText,
+    manualBusinessContext,
+    sourceProfileSummary: sourceProfile?.businessProfile?.summary || "",
+  });
 
-    profile.advisorSnapshot = inferAdvisorSnapshot({
-      founderGoal,
-      founderVoice: profile.founderVoice,
-      brandProductTruth: profile.brandProductTruth,
-      customerOutcome: profile.customerOutcome,
-      sourceProfile: profile.sourceProfile,
-      discoveryProfile: profile.discoveryProfile,
-      contentProfile: profile.contentProfile,
-    });
+  const safeFounderVoice = await runJsonChat(
+    voiceAgentPrompt(
+      clipText(safeVoiceSourceText || founderSourceInput || "", 5000)
+    )
+  );
 
-    profile.intelligenceRead = buildIntelligenceRead({
-      advisorSnapshot: profile.advisorSnapshot,
-      discoveryProfile: profile.discoveryProfile,
-    });
+  const finalBusinessName =
+    sourceProfile?.businessProfile?.name ||
+    brandProductTruth?.productType ||
+    "Unknown Business";
 
-    profile.groupedSnapshot = buildGroupedSnapshot({
-      founderGoal,
-      initialProfile: profile,
+  const socialLinks = laneGather?.socialLinks || {};
+  const groupedPages = laneGather?.groupedPages || {
+    aboutPages: [],
+    blogPages: [],
+    faqPages: [],
+    reviewPages: [],
+    activityPages: [],
+    pressPages: [],
+    productPages: [],
+  };
+
+  const discoveryProfile = {
+    channelsFound: socialLinks,
+    sourcePages: groupedPages,
+    locationContext: laneGather?.locationContext || {
+      country: "",
+      state: "",
+      city: "",
+      environmentType: "real working environment",
+      combinedText: "",
+    },
+    visualIdentity: laneGather?.visualIdentity || {
+      tone: "grounded, real, business-appropriate",
+      palette: "natural business-appropriate colours",
+      environment: "real working environments",
+      brandingStyle: "unbranded, practical, context-led",
+    },
+    trustSignals: inferTrustSignals({
+      groupedPages,
+      lanes: laneGather?.lanes || {},
+      pages: laneGather?.pages || [],
+    }),
+    educationSignals: inferEducationSignals({
+      groupedPages,
+      lanes: laneGather?.lanes || {},
+      pages: laneGather?.pages || [],
+    }),
+    activitySignals: inferActivitySignals({
+      groupedPages,
+      pages: laneGather?.pages || [],
+    }),
+    founderVisibilitySignals: inferFounderVisibilitySignals({
+      groupedPages,
+      founderText,
+      pages: laneGather?.pages || [],
+    }),
+    sourceConfidence: inferSourceConfidence({
+      channelsFound: socialLinks,
+      groupedPages,
+      pagesScanned: laneGather?.pages?.length || 0,
       hasOwnerWriting: Boolean(
         ownerWritingSample || manualBusinessContext || pastedSourceText
       ),
-    });
+    }),
+  };
 
-    profile.evidenceProfile = buildEvidenceProfile(profile);
-    profile.qualificationProfile = buildQualificationProfile(
-      profile.evidenceProfile,
-      profile
-    );
-    profile.readinessProfile = buildReadinessProfile(profile);
+  const profile = {
+    founderGoal: founderGoal || "",
+    businessProfile: {
+      name: finalBusinessName,
+      summary: sourceProfile?.businessProfile?.summary || "",
+    },
+    contentProfile: {
+      suggestedCategory:
+        sourceProfile?.contentProfile?.suggestedCategory || "Product in Real Life",
+      suggestedIdea:
+        sourceProfile?.contentProfile?.suggestedIdea ||
+        "How this business makes everyday life feel easier or better",
+    },
+    visualProfile: {
+      visualDirections: sourceProfile?.visualProfile?.visualDirections || [],
+      avoidRules: sourceProfile?.visualProfile?.avoidRules || [],
+    },
+    sourceProfile: {
+      dominantSource: sourceProfile?.sourceProfile?.dominantSource || "mixed",
+      voiceSourceText: safeVoiceSourceText,
+      voiceSourceLane:
+        mode === "manual"
+          ? "manual"
+          : safeVoiceSourceText === founderText
+          ? "founder"
+          : safeVoiceSourceText === pastedSourceText
+          ? "pasted"
+          : safeVoiceSourceText === manualBusinessContext
+          ? "manual"
+          : "fallback",
+      weakVoiceSource: isWeakVoiceSource(safeVoiceSourceText),
+      founderLanePreview: founderText,
+      customerLanePreview: customerText,
+      productLanePreview: productText,
+      urlUsed: Boolean(normalizedUrl),
+      pastedTextUsed: Boolean(pastedSourceText),
+      manualContextUsed: Boolean(manualBusinessContext),
+    },
+    founderVoice: safeFounderVoice,
+    customerOutcome,
+    brandProductTruth,
+    discoveryProfile,
+    ownerKbMeta: getBusinessKbMeta(finalBusinessName),
+    debug: {
+      pagesScanned: laneGather?.pages?.length || 0,
+    },
+  };
 
-    profile.strategyEngine = buildStrategyEngine(profile);
-    profile.brandIntelligence = buildBrandIntelligence(profile);
-    profile.chosenMove = buildChosenMove(profile);
-    profile.executionPlan = buildExecutionPlan(profile);
-    profile.multiAgentSystem = buildMultiAgentSystem(profile);
-    return res.json({
-      profile,
-    });
-  } catch (err) {
-    console.error("BUILD PROFILE ERROR:", err);
-    res.status(500).json({
-      error: err.message || "Failed to build profile.",
-    });
+  profile.advisorSnapshot = inferAdvisorSnapshot({
+    founderGoal,
+    founderVoice: profile.founderVoice,
+    brandProductTruth: profile.brandProductTruth,
+    customerOutcome: profile.customerOutcome,
+    sourceProfile: profile.sourceProfile,
+    discoveryProfile: profile.discoveryProfile,
+    contentProfile: profile.contentProfile,
+  });
+
+  profile.intelligenceRead = buildIntelligenceRead({
+    advisorSnapshot: profile.advisorSnapshot,
+    discoveryProfile: profile.discoveryProfile,
+  });
+
+  profile.groupedSnapshot = buildGroupedSnapshot({
+    founderGoal,
+    initialProfile: profile,
+    hasOwnerWriting: Boolean(
+      ownerWritingSample || manualBusinessContext || pastedSourceText
+    ),
+  });
+
+  profile.evidenceProfile = buildEvidenceProfile(profile);
+  profile.qualificationProfile = buildQualificationProfile(
+    profile.evidenceProfile,
+    profile
+  );
+  profile.readinessProfile = buildReadinessProfile(profile);
+
+  profile.strategyEngine = buildStrategyEngine(profile);
+  profile.brandIntelligence = buildBrandIntelligence(profile);
+  profile.chosenMove = buildChosenMove(profile);
+  profile.executionPlan = buildExecutionPlan(profile);
+  profile.multiAgentSystem = buildMultiAgentSystem(profile);
+
+  return profile;
+}
+
+function runAgentCycleForProfile(profile = {}) {
+  if (!profile || typeof profile !== "object") {
+    throw new Error("profile is required.");
   }
-});
+
+  const refreshedProfile = {
+    ...profile,
+  };
+
+  refreshedProfile.evidenceProfile = buildEvidenceProfile(refreshedProfile);
+  refreshedProfile.qualificationProfile = buildQualificationProfile(
+    refreshedProfile.evidenceProfile,
+    refreshedProfile
+  );
+  refreshedProfile.readinessProfile = buildReadinessProfile(refreshedProfile);
+  refreshedProfile.strategyEngine = buildStrategyEngine(refreshedProfile);
+  refreshedProfile.brandIntelligence = buildBrandIntelligence(refreshedProfile);
+  refreshedProfile.chosenMove = buildChosenMove(refreshedProfile);
+
+  refreshedProfile.executionPlan = buildExecutionPlan(refreshedProfile);
+  refreshedProfile.multiAgentSystem = buildMultiAgentSystem(refreshedProfile);
+
+  const strategist = refreshedProfile.multiAgentSystem?.strategist || {};
+  const operator = refreshedProfile.multiAgentSystem?.operator || {};
+  const analyst = refreshedProfile.multiAgentSystem?.analyst || {};
+
+  const runLog = createAgentRunLog({
+    businessName: refreshedProfile?.businessProfile?.name,
+    strategist,
+    operator,
+    analyst,
+    executionPlan: refreshedProfile.executionPlan,
+  });
+
+  return {
+    ok: true,
+    profile: refreshedProfile,
+    runLog,
+  };
+}
 
 app.post("/run-agent-cycle", async (req, res) => {
   try {
     const { profile } = req.body || {};
+    const result = runAgentCycleForProfile(profile);
 
-    if (!profile) {
-      return res.status(400).json({ error: "profile is required." });
-    }
-
-    const refreshedProfile = {
-      ...profile,
-    };
-
-    refreshedProfile.evidenceProfile = buildEvidenceProfile(refreshedProfile);
-    refreshedProfile.qualificationProfile = buildQualificationProfile(
-      refreshedProfile.evidenceProfile,
-      refreshedProfile
-    );
-    refreshedProfile.readinessProfile = buildReadinessProfile(refreshedProfile);
-    refreshedProfile.strategyEngine = buildStrategyEngine(refreshedProfile);
-    refreshedProfile.brandIntelligence = buildBrandIntelligence(refreshedProfile);
-    refreshedProfile.chosenMove = buildChosenMove(refreshedProfile);
-
-    refreshedProfile.executionPlan = buildExecutionPlan(refreshedProfile);
-    refreshedProfile.multiAgentSystem = buildMultiAgentSystem(refreshedProfile);
-
-    const strategist = refreshedProfile.multiAgentSystem?.strategist || {};
-    const operator = refreshedProfile.multiAgentSystem?.operator || {};
-    const analyst = refreshedProfile.multiAgentSystem?.analyst || {};
-
-    const runLog = createAgentRunLog({
-      businessName: refreshedProfile?.businessProfile?.name,
-      strategist,
-      operator,
-      analyst,
-      executionPlan: refreshedProfile.executionPlan,
-    });
-
-    return res.json({
-      ok: true,
-      profile: refreshedProfile,
-      runLog,
-    });
+    return res.json(result);
   } catch (err) {
     console.error("RUN AGENT CYCLE ERROR:", err);
     res.status(500).json({

@@ -15,122 +15,122 @@
     {
       "id": "local_service_01",
       "group": "local_service",
-      "label": "Local service business 1",
-      "businessUrl": "",
+      "label": "Sydney CBD Plumbing",
+      "businessUrl": "https://cbdplumbers.com.au/",
       "expectedQualification": "diagnosable",
       "expectedSignalLevel": "medium_to_strong",
       "expectedStrategyPressure": "trust_or_visibility",
-      "notes": "Replace businessUrl with a real local service business test URL."
+      "notes": "Local service test with clear service category, location signal, and emergency/service language."
     },
     {
       "id": "local_service_02",
       "group": "local_service",
-      "label": "Local service business 2",
-      "businessUrl": "",
+      "label": "Lukins Plumbing",
+      "businessUrl": "https://lukinsplumbing.com.au/",
       "expectedQualification": "diagnosable",
       "expectedSignalLevel": "medium_to_strong",
       "expectedStrategyPressure": "trust_or_visibility",
-      "notes": "Replace businessUrl with a real local service business test URL."
+      "notes": "Local service test with Sydney-area signal, plumbing offer clarity, and service proof."
     },
     {
       "id": "local_service_03",
       "group": "local_service",
-      "label": "Local service business 3",
-      "businessUrl": "",
+      "label": "Network Plumbing",
+      "businessUrl": "https://networkplumbing.com.au/",
       "expectedQualification": "diagnosable",
       "expectedSignalLevel": "medium_to_strong",
       "expectedStrategyPressure": "trust_or_visibility",
-      "notes": "Replace businessUrl with a real local service business test URL."
+      "notes": "Local service test with broad service signals, review/proof language, and strong local positioning."
     },
     {
       "id": "ecommerce_01",
       "group": "small_ecommerce",
-      "label": "Small e-commerce brand 1",
-      "businessUrl": "",
+      "label": "Go-To Skincare",
+      "businessUrl": "https://gotoskincare.com/",
       "expectedQualification": "diagnosable",
       "expectedSignalLevel": "medium_to_strong",
       "expectedStrategyPressure": "product_truth_or_trust",
-      "notes": "Replace businessUrl with a real small e-commerce brand test URL."
+      "notes": "E-commerce brand test with clear product positioning, founder/brand voice, and product truth."
     },
     {
       "id": "ecommerce_02",
       "group": "small_ecommerce",
-      "label": "Small e-commerce brand 2",
-      "businessUrl": "",
+      "label": "Sand & Sky",
+      "businessUrl": "https://www.sandandsky.com/",
       "expectedQualification": "diagnosable",
       "expectedSignalLevel": "medium_to_strong",
       "expectedStrategyPressure": "product_truth_or_trust",
-      "notes": "Replace businessUrl with a real small e-commerce brand test URL."
+      "notes": "E-commerce brand test with ingredient claims, product values, and visible brand positioning."
     },
     {
       "id": "ecommerce_03",
       "group": "small_ecommerce",
-      "label": "Small e-commerce brand 3",
-      "businessUrl": "",
+      "label": "Allkinds",
+      "businessUrl": "https://allkinds.com/au/",
       "expectedQualification": "diagnosable",
       "expectedSignalLevel": "medium_to_strong",
       "expectedStrategyPressure": "product_truth_or_trust",
-      "notes": "Replace businessUrl with a real small e-commerce brand test URL."
+      "notes": "E-commerce brand test with product category clarity and audience positioning."
     },
     {
       "id": "mixed_signal_01",
       "group": "mixed_signal",
-      "label": "Mixed-signal business 1",
-      "businessUrl": "",
+      "label": "Ozi Construction Sydney",
+      "businessUrl": "https://www.oziconstruction.com.au/locations/construction-sydney",
       "expectedQualification": "cautious",
       "expectedSignalLevel": "limited_to_medium",
       "expectedStrategyPressure": "clarity_or_trust",
-      "notes": "Replace businessUrl with a real mixed-signal business test URL."
+      "notes": "Mixed-signal test: service and location exist, but page may be location-template style."
     },
     {
       "id": "mixed_signal_02",
       "group": "mixed_signal",
-      "label": "Mixed-signal business 2",
-      "businessUrl": "",
+      "label": "Utopia Constructions",
+      "businessUrl": "https://www.utopiaconstructions.com.au/",
       "expectedQualification": "cautious",
       "expectedSignalLevel": "limited_to_medium",
       "expectedStrategyPressure": "clarity_or_trust",
-      "notes": "Replace businessUrl with a real mixed-signal business test URL."
+      "notes": "Mixed-signal test with some proof and history, but likely less content depth than stronger sites."
     },
     {
       "id": "mixed_signal_03",
       "group": "mixed_signal",
-      "label": "Mixed-signal business 3",
-      "businessUrl": "",
+      "label": "Premier Construction",
+      "businessUrl": "https://premierconstruction.com.au/",
       "expectedQualification": "cautious",
       "expectedSignalLevel": "limited_to_medium",
       "expectedStrategyPressure": "clarity_or_trust",
-      "notes": "Replace businessUrl with a real mixed-signal business test URL."
+      "notes": "Mixed-signal test with service clarity, but may need caution if proof/source depth is thin."
     },
     {
       "id": "thin_signal_01",
       "group": "thin_signal",
-      "label": "Thin-signal business 1",
-      "businessUrl": "",
+      "label": "NicheWorks",
+      "businessUrl": "https://nicheworks.com.au/",
       "expectedQualification": "blocked_or_low_confidence",
       "expectedSignalLevel": "weak",
       "expectedStrategyPressure": "request_more_source_signal",
-      "notes": "Replace businessUrl with a real thin-signal business test URL."
+      "notes": "Thin-signal test because the website is under construction and should trigger cautious output."
     },
     {
       "id": "thin_signal_02",
       "group": "thin_signal",
-      "label": "Thin-signal business 2",
-      "businessUrl": "",
-      "expectedQualification": "blocked_or_low_confidence",
-      "expectedSignalLevel": "weak",
-      "expectedStrategyPressure": "request_more_source_signal",
-      "notes": "Replace businessUrl with a real thin-signal business test URL."
+      "label": "Service Sites",
+      "businessUrl": "https://servicesites.com.au/",
+      "expectedQualification": "cautious",
+      "expectedSignalLevel": "limited_to_medium",
+      "expectedStrategyPressure": "clarity_or_trust",
+      "notes": "Lower-content service website test. Should not be over-read if evidence is basic."
     },
     {
       "id": "thin_signal_03",
       "group": "thin_signal",
-      "label": "Thin-signal business 3",
-      "businessUrl": "",
-      "expectedQualification": "blocked_or_low_confidence",
-      "expectedSignalLevel": "weak",
-      "expectedStrategyPressure": "request_more_source_signal",
-      "notes": "Replace businessUrl with a real thin-signal business test URL."
+      "label": "LocalPages",
+      "businessUrl": "https://www.localpages.au/",
+      "expectedQualification": "cautious",
+      "expectedSignalLevel": "limited_to_medium",
+      "expectedStrategyPressure": "clarity_or_trust",
+      "notes": "Simple small-business website provider test. Useful for checking if YEVIB overclaims from generic service copy."
     }
   ]
 }
