@@ -6405,7 +6405,84 @@ function buildMultiAgentSystem(profile = {}) {
 
 function buildExecutionPlan(profile = {}) {
   const chosenMove = profile?.chosenMove || buildChosenMove(profile);
-  const canCommit = canYevibSayIsGoingTo(profile, chosenMove);
+  const sourceConfidence = String(
+    profile?.discoveryProfile?.sourceConfidence || "medium"
+  ).toLowerCase();
+
+  const sourceConfidenceBlocksExecution = sourceConfidence === "low";
+  const canCommit =
+    !sourceConfidenceBlocksExecution &&
+    canYevibSayIsGoingTo(profile, chosenMove);
+
+  if (sourceConfidenceBlocksExecution) {
+    return {
+      title: "Source Strengthening Required",
+      summary:
+        "YEVIB needs stronger source material before it can run an active campaign for this business.",
+      commitmentMode: "source_required",
+      canSayIsGoingTo: false,
+
+      reason:
+        "The scan found low source confidence, so YEVIB should strengthen the evidence base before committing to execution.",
+
+      operatorRole:
+        "YEVIB acts as a source-strengthening assistant until the business has enough visible evidence for a confident campaign.",
+
+      actions: [
+        "Collect clearer business source material before running a campaign.",
+        "Add or paste stronger founder, offer, proof, customer, and public activity signals.",
+        "Re-scan the business once the source base is stronger."
+      ],
+
+      supportActions: [
+        "Avoid overclaiming from thin evidence.",
+        "Use the current scan as a starting diagnosis, not a final campaign commitment.",
+        "Prioritise source quality before output volume."
+      ],
+
+      tools: [
+        "source checklist",
+        "owner writing prompt",
+        "proof collection prompt"
+      ],
+
+      constraint:
+        "Do not frame YEVIB as actively running a campaign until source confidence improves.",
+
+      schedule:
+        "Source strengthening first, then re-run the strategy cycle.",
+
+      campaignType: "source_strengthening",
+
+      successSignal:
+        "The next scan has enough source evidence for a more confident diagnosis and execution plan.",
+
+      eta: {
+        setup: "Same day",
+        firstSignal: "After stronger source material is added",
+        compounding: "After re-scan",
+        confidence: "Execution blocked until source confidence improves",
+        readinessScore: 0,
+        readinessBand: "blocked"
+      },
+
+      expectedOutcome: {
+        minimum:
+          "YEVIB avoids overcommitting from weak source material.",
+        likely:
+          "The owner adds enough evidence for a more useful scan.",
+        maximum:
+          "The next scan can produce a confident strategy and execution plan."
+      },
+
+      riskNotes: [
+        "Low source confidence means the business may be underrepresented or unclear from available public material.",
+        "Running active campaign language too early may reduce trust in YEVIB's judgement."
+      ],
+
+      secondaryStrategies: [],
+    };
+  }
 
   return {
     title: chosenMove?.title || "Execution Plan",
