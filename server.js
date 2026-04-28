@@ -4269,7 +4269,7 @@ function buildStrategyLibrary(profile = {}, groupMap = {}) {
         "Stronger trust-bearing engagement, better conversion conversations, and more confident public perception."
     },
 
-    visibility_push: {
+        visibility_push: {
       key: "visibility_push",
       title: "Visibility Push System",
       reason:
@@ -4296,6 +4296,35 @@ function buildStrategyLibrary(profile = {}, groupMap = {}) {
       cadence: "4-6 visibility outputs per week",
       successSignal:
         "More impressions, more repeated audience exposure, more profile visits, and more public familiarity."
+    },
+
+    product_truth_system: {
+      key: "product_truth_system",
+      title: "Product Truth System",
+      reason:
+        "The business has enough product, use-case, quality, standards, or ingredient signal to make the product truth clearer in public.",
+      operatorRole:
+        "YEVIB acts as product truth editor, offer translator, standards explainer, and product-value content operator.",
+      strategySummary:
+        `Run a product truth system for ${businessName} using real product qualities, use cases, standards, proof, and customer value signals.`,
+      actions: [
+        `Build a product-truth post and image pack focused on ${offers[0] || "the clearest product or offer signal"}.`,
+        "Turn product facts, ingredients, standards, quality markers, or use cases into simple public explanations.",
+        "Show who the product is for, when it is used, why it matters, and what makes it trustworthy.",
+        "Create content that connects product details to real customer moments instead of generic promotion.",
+        "Use proof, standards, reviews, process, and product education to make buying confidence easier."
+      ],
+      supportActions: [
+        "Make product value easier to understand at first glance.",
+        "Use real product details rather than vague lifestyle claims.",
+        "Connect product quality to customer use, trust, and repeat value."
+      ],
+      tools: ["social posts", "image pack", "product proof", "offer messaging"],
+      campaignType: "product_truth",
+      duration: "4 weeks",
+      cadence: "3-5 product-truth outputs per week",
+      successSignal:
+        "Clearer product understanding, stronger buyer trust, and more confident product-led engagement."
     },
 
     founder_presence: {
@@ -4687,20 +4716,39 @@ function buildStrategyCatalog() {
         "authority email sequence"
       ]
     },
-    {
+        {
       key: "offer_clarification_run",
-      title: "Offer Clarification Run",
-      objective: "Make the offer easier to understand so buyers quickly grasp what it is, who it is for, and why it matters.",
-      channels: ["social_posts", "image_posts", "website_copy", "email"],
-      defaultDurationDays: 21,
-      defaultCadence: "3 offer-clarity posts per week, 1 offer email, 1 website offer rewrite",
-      outputs: [
+      name: "Offer Clarification Run",
+      objective: "Make the business offer easier to understand, remember, and act on.",
+      triggers: [
+        "unclear_offer",
+        "weak_value_explanation",
+        "confusing_positioning"
+      ],
+      primaryOutputs: [
         "offer clarity post pack",
-        "offer image pack",
-        "offer email",
-        "offer page rewrite"
+        "simple value explanation",
+        "product/service explanation series",
+        "homepage offer clarity direction"
       ]
-    }
+    },
+    {
+      key: "product_truth_system",
+      name: "Product Truth System",
+      objective: "Turn real product qualities, use cases, standards, ingredients, proof, and customer value into clearer public content.",
+      triggers: [
+        "clear_product_signal",
+        "product_value_needs_explaining",
+        "quality_or_standard_signal",
+        "ecommerce_product_brand"
+      ],
+      primaryOutputs: [
+        "product truth post pack",
+        "product value explanation series",
+        "use-case content angles",
+        "standards and proof content direction"
+      ]
+    },
   ];
 }
 
@@ -5862,16 +5910,16 @@ function getPhase3ActualStrategyPressure(profile = {}, executionPlan = {}) {
     return "request_more_source_signal";
   }
 
+  if (/product_truth|product_truth_system|product|offer|truth|quality|origin|standard|ingredient|routine|use-case|use case/.test(combined)) {
+    return "product_truth_or_trust";
+  }
+
   if (/proof|trust|credibility|review|reassurance/.test(combined)) {
     return "trust_or_visibility";
   }
 
   if (/visibility|awareness|posting|consistency|channel|presence/.test(combined)) {
     return "trust_or_visibility";
-  }
-
-  if (/product|offer|service|truth|quality|origin|standard/.test(combined)) {
-    return "product_truth_or_trust";
   }
 
   if (/clarity|positioning|message|voice|brand core/.test(combined)) {
@@ -5969,6 +6017,11 @@ function buildPhase3RegressionResult({
         profile?.strategyEngine?.primaryStrategy?.title ||
         profile?.strategyEngine?.primaryStrategy?.key ||
         "",
+      rankedStrategies: Array.isArray(profile?.strategyEngine?.rankedStrategies)
+        ? profile.strategyEngine.rankedStrategies.map((item) => {
+            return `${item?.name || item?.key || "Unknown"}:${item?.score || 0}`;
+          })
+        : [],
       executionSummary: executionPlan?.summary || "",
       successSignal: executionPlan?.successSignal || "",
       canSayIsGoingTo: Boolean(executionPlan?.canSayIsGoingTo),
@@ -6625,7 +6678,7 @@ function getStrategyCatalog() {
         "authority-building content prompts"
       ]
     },
-    {
+        {
       key: "offer_clarification_run",
       name: "Offer Clarification Run",
       objective: "Make the offer easier to understand so people know what is sold, who it is for, and why it matters.",
@@ -6639,6 +6692,23 @@ function getStrategyCatalog() {
         "value proposition rewrite direction",
         "real-life use-case series",
         "homepage/service explanation copy"
+      ]
+    },
+    {
+      key: "product_truth_system",
+      name: "Product Truth System",
+      objective: "Turn real product qualities, use cases, standards, ingredients, proof, and customer value into clearer public content.",
+      triggers: [
+        "clear_product_signal",
+        "product_value_needs_explaining",
+        "quality_or_standard_signal",
+        "ecommerce_product_brand"
+      ],
+      primaryOutputs: [
+        "product truth post pack",
+        "product value explanation series",
+        "use-case content angles",
+        "standards and proof content direction"
       ]
     },
     {
@@ -6746,7 +6816,35 @@ function scoreStrategy(strategy = {}, profile = {}) {
 
   const offers = normalizeStringArray(brandProductTruth?.offers, 6);
   const audience = normalizeStringArray(brandProductTruth?.audience, 6);
+  const facts = normalizeStringArray(brandProductTruth?.facts, 8);
   const lifeMoments = normalizeStringArray(customerOutcome?.lifeMoments, 6);
+
+  const productType = String(brandProductTruth?.productType || "").toLowerCase();
+  const businessName = String(profile?.businessProfile?.name || "").toLowerCase();
+  const suggestedCategory = String(contentProfile?.suggestedCategory || "").toLowerCase();
+
+  const productSignalText = [
+    productType,
+    businessName,
+    suggestedCategory,
+    offers.join(" "),
+    audience.join(" "),
+    facts.join(" "),
+    recommendedFocus
+  ].join(" ").toLowerCase();
+
+  const ecommerceProductSignal =
+    /shop|store|skincare|skin|beauty|cosmetic|cream|serum|cleanser|mask|oil|ingredient|ingredients|product|products|range|collection|collections|kids|body|routine|ecommerce|e-commerce|cart|checkout/.test(
+      productSignalText
+    );
+
+  const serviceBusinessSignal =
+    /plumbing|plumber|electrical|electrician|air conditioning|construction|builder|building|repair|maintenance|installation|service|services|tradie|trade/.test(
+      productSignalText
+    );
+
+  const productHeavySignal =
+    ecommerceProductSignal && !serviceBusinessSignal;
 
   const scoreBreakdown = [];
   let score = 0;
@@ -6818,6 +6916,20 @@ function scoreStrategy(strategy = {}, profile = {}) {
         add(18, "Recommended focus points toward offer clarity.");
       }
       if (hasLifeMoment) add(10, "Real-life use moments can make offer clarification stronger.");
+      break;
+
+    case "product_truth_system":
+      if (!productHeavySignal) break;
+      add(50, "Strong ecommerce or product-brand signal is present.");
+      if (offers.length >= 2) add(18, "There is enough product or offer signal to build product-truth content.");
+      if (facts.length >= 2) add(14, "Product facts can support clearer product-truth messaging.");
+      if (hasAudience) add(12, "Audience signal exists for product positioning.");
+      if (hasLifeMoment) add(12, "Real-life use moments support product-truth messaging.");
+      if (hasEducation) add(10, "Education signal can explain product value more clearly.");
+      if (hasTrust) add(8, "Trust signal can support product proof.");
+      if (/product|quality|standard|ingredient|skincare|routine/.test(recommendedFocus)) {
+        add(18, "Recommended focus supports product truth, value, or standards.");
+      }
       break;
 
     case "reactivation_sequence":
