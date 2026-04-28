@@ -77,10 +77,10 @@
       "group": "mixed_signal",
       "label": "Ozi Construction Sydney",
       "businessUrl": "https://www.oziconstruction.com.au/locations/construction-sydney",
-      "expectedQualification": "cautious",
-      "expectedSignalLevel": "limited_to_medium",
-      "expectedStrategyPressure": "clarity_or_trust",
-      "notes": "Mixed-signal test: service and location exist, but page may be location-template style."
+     "expectedQualification": "cautious",
+     "expectedSignalLevel": "limited_to_medium",
+     "expectedStrategyPressure": "clarity_or_trust",
+     "notes": "Mixed-signal test: service and location exist, but page may be location-template style."
     },
     {
       "id": "mixed_signal_02",
@@ -117,9 +117,9 @@
       "group": "thin_signal",
       "label": "Service Sites",
       "businessUrl": "https://servicesites.com.au/",
-      "expectedQualification": "cautious",
+      "expectedQualification": "blocked_or_low_confidence",
       "expectedSignalLevel": "limited_to_medium",
-      "expectedStrategyPressure": "clarity_or_trust",
+      "expectedStrategyPressure": "request_more_source_signal",
       "notes": "Lower-content service website test. Should not be over-read if evidence is basic."
     },
     {
@@ -127,9 +127,9 @@
       "group": "thin_signal",
       "label": "LocalPages",
       "businessUrl": "https://www.localpages.au/",
-      "expectedQualification": "cautious",
+      "expectedQualification": "blocked_or_low_confidence",
       "expectedSignalLevel": "limited_to_medium",
-      "expectedStrategyPressure": "clarity_or_trust",
+      "expectedStrategyPressure": "request_more_source_signal",
       "notes": "Simple small-business website provider test. Useful for checking if YEVIB overclaims from generic service copy."
     }
   ]

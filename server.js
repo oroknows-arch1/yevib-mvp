@@ -5834,6 +5834,10 @@ function getPhase3ActualStrategyPressure(profile = {}, executionPlan = {}) {
     executionPlan?.primaryStrategy ||
     {};
 
+  const commitmentMode = String(
+    executionPlan?.commitmentMode || ""
+  ).toLowerCase();
+
   const campaignType = String(
     executionPlan?.campaignType ||
       primaryStrategy?.campaignType ||
@@ -5849,6 +5853,14 @@ function getPhase3ActualStrategyPressure(profile = {}, executionPlan = {}) {
   ).toLowerCase();
 
   const combined = `${campaignType} ${recommendedFocus}`;
+
+  if (
+    commitmentMode === "source_required" ||
+    campaignType === "source_strengthening" ||
+    /source_strengthening|source required|stronger source|source material|source evidence/.test(combined)
+  ) {
+    return "request_more_source_signal";
+  }
 
   if (/proof|trust|credibility|review|reassurance/.test(combined)) {
     return "trust_or_visibility";
