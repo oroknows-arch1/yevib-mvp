@@ -21,7 +21,6 @@ const OWNER_KB_PATH = path.join(__dirname, "owner-kb.json");
 const PHASE3_TEST_MATRIX_PATH = path.join(__dirname, "phase3-test-matrix.json");
 
 const QUIET_FAMILY_WORDS = ["quiet", "calm", "gentle", "subtle", "steady", "small"];
-const QUIET_FAMILY_WORDS = ["quiet", "calm", "gentle", "subtle", "steady", "small"];
 const NON_QUIET_REPLACEMENTS = {
   quiet: "real",
   calm: "clear",
@@ -5784,6 +5783,228 @@ function buildExecutionSummary(profile = {}, chosenMove = {}, canCommit = false)
 
   return `YEVIB recommends ${cleanInstruction.toLowerCase()} for ${businessName}, but cannot frame it as active execution until a full executable move is locked.`;
 }
+
+function normalizePhase3Expectation(value = "") {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+}
+
+function getPhase3ActualSignalLevel(profile = {}) {
+  const overallPct = Number(profile?.groupedSnapshot?.overallPct || 0);
+  const sourceConfidence = String(
+    profile?.discoveryProfile?.sourceConfidence || "medium"
+  ).toLowerCase();
+
+  if (overallPct >= 70 && sourceConfidence !== "low") {
+    return "medium_to_strong";
+  }
+
+  if (overallPct >= 40) {
+    return "limited_to_medium";
+  }
+
+  return "weak";
+}
+
+function getPhase3ActualQualification(profile = {}, executionPlan = {}) {
+  const overallPct = Number(profile?.groupedSnapshot?.overallPct || 0);
+  const sourceConfidence = String(
+    profile?.discoveryProfile?.sourceConfidence || "medium"
+  ).toLowerCase();
+
+  const weakVoice = Boolean(profile?.sourceProfile?.weakVoiceSource);
+  const canCommit = Boolean(executionPlan?.canSayIsGoingTo);
+
+  if (overallPct < 35 || sourceConfidence === "low") {
+    return "blocked_or_low_confidence";
+  }
+
+  if (weakVoice || !canCommit || overallPct < 55) {
+    return "cautious";
+  }
+
+  return "diagnosable";
+}
+
+function getPhase3ActualStrategyPressure(profile = {}, executionPlan = {}) {
+  const primaryStrategy =
+    profile?.strategyEngine?.primaryStrategy ||
+    executionPlan?.primaryStrategy ||
+    {};
+
+  const campaignType = String(
+    executionPlan?.campaignType ||
+      primaryStrategy?.campaignType ||
+      primaryStrategy?.key ||
+      primaryStrategy?.name ||
+      ""
+  ).toLowerCase();
+
+  const recommendedFocus = String(
+    profile?.groupedSnapshot?.recommendedFocus ||
+      profile?.advisorSnapshot?.recommendedFocus ||
+      ""
+  ).toLowerCase();
+
+  const combined = `${campaignType} ${recommendedFocus}`;
+
+  if (/proof|trust|credibility|review|reassurance/.test(combined)) {
+    return "trust_or_visibility";
+  }
+
+  if (/visibility|awareness|posting|consistency|channel|presence/.test(combined)) {
+    return "trust_or_visibility";
+  }
+
+  if (/product|offer|service|truth|quality|origin|standard/.test(combined)) {
+    return "product_truth_or_trust";
+  }
+
+  if (/clarity|positioning|message|voice|brand core/.test(combined)) {
+    return "clarity_or_trust";
+  }
+
+  if (/source|evidence|weak|limited|more signal|input/.test(combined)) {
+    return "request_more_source_signal";
+  }
+
+  return "general_strategy";
+}
+
+function phase3ExpectationMatches(expected = "", actual = "") {
+  const cleanExpected = normalizePhase3Expectation(expected);
+  const cleanActual = normalizePhase3Expectation(actual);
+
+  if (!cleanExpected || !cleanActual) return false;
+  if (cleanExpected === cleanActual) return true;
+
+  const expectedParts = cleanExpected.split("_or_");
+  if (expectedParts.includes(cleanActual)) return true;
+
+  if (cleanExpected.includes(cleanActual) || cleanActual.includes(cleanExpected)) {
+    return true;
+  }
+
+  return false;
+}
+
+function buildPhase3RegressionResult({
+  site = {},
+  profile = {},
+  cycleResult = {},
+  error = "",
+}) {
+  const executionPlan = profile?.executionPlan || {};
+  const actualQualification = error
+    ? "error"
+    : getPhase3ActualQualification(profile, executionPlan);
+
+  const actualSignalLevel = error
+    ? "error"
+    : getPhase3ActualSignalLevel(profile);
+
+  const actualStrategyPressure = error
+    ? "error"
+    : getPhase3ActualStrategyPressure(profile, executionPlan);
+
+  const checks = {
+    qualification: {
+      expected: site.expectedQualification || "",
+      actual: actualQualification,
+      pass: phase3ExpectationMatches(
+        site.expectedQualification,
+        actualQualification
+      ),
+    },
+    signalLevel: {
+      expected: site.expectedSignalLevel || "",
+      actual: actualSignalLevel,
+      pass: phase3ExpectationMatches(
+        site.expectedSignalLevel,
+        actualSignalLevel
+      ),
+    },
+    strategyPressure: {
+      expected: site.expectedStrategyPressure || "",
+      actual: actualStrategyPressure,
+      pass: phase3ExpectationMatches(
+        site.expectedStrategyPressure,
+        actualStrategyPressure
+      ),
+    },
+  };
+
+  const passed = Object.values(checks).every((check) => check.pass);
+
+  return {
+    id: site.id || "",
+    group: site.group || "",
+    label: site.label || "",
+    businessUrl: site.businessUrl || "",
+    passed,
+    error,
+    checks,
+    actual: {
+      businessName: profile?.businessProfile?.name || "",
+      overallPct: profile?.groupedSnapshot?.overallPct || 0,
+      overallState: profile?.groupedSnapshot?.overallState || "",
+      sourceConfidence: profile?.discoveryProfile?.sourceConfidence || "",
+      weakVoiceSource: Boolean(profile?.sourceProfile?.weakVoiceSource),
+      primaryStrategy:
+        profile?.strategyEngine?.primaryStrategy?.name ||
+        profile?.strategyEngine?.primaryStrategy?.title ||
+        profile?.strategyEngine?.primaryStrategy?.key ||
+        "",
+      executionSummary: executionPlan?.summary || "",
+      successSignal: executionPlan?.successSignal || "",
+      canSayIsGoingTo: Boolean(executionPlan?.canSayIsGoingTo),
+      runLog: cycleResult?.runLog || null,
+    },
+  };
+}
+
+async function runSinglePhase3RegressionSite(site = {}, defaults = {}) {
+  const businessUrl = String(site?.businessUrl || "").trim();
+
+  if (!businessUrl) {
+    return buildPhase3RegressionResult({
+      site,
+      error: "Missing businessUrl.",
+    });
+  }
+
+  try {
+    const profile = await buildBusinessProfile({
+      mode: site.mode || defaults.mode || "hybrid",
+      businessUrl,
+      pastedSourceText: site.pastedSourceText || defaults.pastedSourceText || "",
+      founderGoal: site.founderGoal || defaults.founderGoal || "Build more trust",
+      ownerWritingSample:
+        site.ownerWritingSample || defaults.ownerWritingSample || "",
+      manualBusinessContext:
+        site.manualBusinessContext || defaults.manualBusinessContext || "",
+    });
+
+    const cycleResult = await runAgentCycleForProfile(profile);
+    const finalProfile = cycleResult?.profile || profile;
+
+    return buildPhase3RegressionResult({
+      site,
+      profile: finalProfile,
+      cycleResult,
+    });
+  } catch (err) {
+    console.error("PHASE 3 REGRESSION SITE ERROR:", site?.id, err.message);
+
+    return buildPhase3RegressionResult({
+      site,
+      error: err?.message || "Unknown regression site error.",
+    });
+  }
+}
+
 function clampInt(value, min, max) {
   return Math.max(min, Math.min(max, Math.round(value)));
 }
