@@ -645,14 +645,10 @@ async function buildInitialProfile() {
       })
     });
 
-    const data = await res.json();
-
-    if (!res.ok) {
-      intakeStatus.innerText = data.error || "Scan failed.";
-      return;
-    }
-
+    
     initialProfile = data.profile;
+
+console.log("UBDG PACKET (RAW SCAN):", data.profile?.ubdgEvidencePacket);
 
 await runAgentCycle();
 
