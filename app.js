@@ -529,6 +529,7 @@ async function runAgentCycle() {
     }
 
     initialProfile = data.profile;
+      console.log("UBDG PACKET (SCAN):", initialProfile?.ubdgEvidencePacket);
     populateSnapshot(initialProfile);
 
     if (runPlanStatus) {
