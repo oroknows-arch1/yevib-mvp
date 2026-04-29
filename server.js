@@ -5520,6 +5520,29 @@ function buildQualificationProfile(evidenceProfile = {}, profile = {}) {
       "Show the clearest visible gaps and ask for the minimum extra evidence that would unlock deeper help.";
   }
 
+  const ubdgStrength = profile?.ubdgEvidencePacket?.strengthSummary || {};
+  const ubdgClaimWording = profile?.ubdgEvidencePacket?.claimWording || {};
+  const ubdgEvidenceState = String(ubdgStrength?.evidenceState || "").trim();
+  const ubdgSafeClaimLevel = String(ubdgStrength?.safeClaimLevel || "").trim();
+
+  if (ubdgEvidenceState === "inference_only" || ubdgSafeClaimLevel === "inference_only") {
+    level = level === "strong" ? "standard" : level;
+    swotLevel = swotLevel === "full" ? "standard" : swotLevel;
+    strategyLevel = strategyLevel === "full" ? "standard" : strategyLevel;
+    executionEligible = false;
+    confidence = "low";
+    summary =
+      "YEVIB can see some signals, but the UBDG evidence packet is inference-only, so strategy and execution must stay cautious.";
+    nextMove =
+      "Add owner input, owned website evidence, or official source evidence before asking YEVIB for stronger recommendations.";
+  } else if (ubdgSafeClaimLevel === "cautious" && confidence === "high") {
+    confidence = "medium";
+    summary =
+      "YEVIB has useful evidence, but UBDG marks the claim level as cautious, so the diagnosis should avoid overconfident language.";
+    nextMove =
+      "Proceed with the recommendation, but keep evidence limits and blind spots visible.";
+  }
+
   return {
     level,
     swotLevel,
