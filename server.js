@@ -546,6 +546,348 @@ function uniqueStrings(items = [], maxItems = 8) {
   return result;
 }
 
+const UBDG_SOURCE_HIERARCHY = Object.freeze({
+  owner_input: {
+    priority: 1,
+    tier: "owner_truth",
+    label: "Owner-provided truth",
+    rule: "Highest priority. Use owner-provided context as the clearest statement of intent, voice, goal, and business reality unless contradicted by safer factual evidence.",
+  },
+  owned_website: {
+    priority: 2,
+    tier: "business_owned_public",
+    label: "Business-owned website",
+    rule: "Strong public business signal. Use for offers, positioning, services, product truth, location, trust markers, and education signals.",
+  },
+  registry: {
+    priority: 3,
+    tier: "official_record",
+    label: "Official registry or verification source",
+    rule: "Use for factual legitimacy checks such as registration, official business identity, and public compliance-style trust signals.",
+  },
+  public_profile: {
+    priority: 4,
+    tier: "platform_profile",
+    label: "Public business profile",
+    rule: "Use for public footprint signals such as Google Business Profile, directories, platform bios, visible activity, and business presence.",
+  },
+  review: {
+    priority: 5,
+    tier: "customer_signal",
+    label: "Customer review signal",
+    rule: "Use as customer-perceived proof, not as confirmed business fact unless repeated and strongly supported.",
+  },
+  social: {
+    priority: 6,
+    tier: "social_signal",
+    label: "Social channel signal",
+    rule: "Use for activity, tone, audience hints, content style, and public consistency. Do not overclaim business quality from social posts alone.",
+  },
+  inferred: {
+    priority: 7,
+    tier: "ai_inference",
+    label: "Inferred signal",
+    rule: "Lowest priority. Use only as cautious interpretation and never present as confirmed fact.",
+  },
+});
+
+function normalizeUbdgEvidence(rawEvidence = [], maxItems = 24) {
+  if (!Array.isArray(rawEvidence)) return [];
+
+  const allowedSourceTypes = new Set(Object.keys(UBDG_SOURCE_HIERARCHY));
+  const allowedConfidence = new Set(["high", "medium", "low"]);
+  const allowedFreshness = new Set(["known", "unknown", "stale"]);
+  const allowedClaimTypes = new Set(["fact", "signal", "inference"]);
+
+  const seen = new Set();
+  const evidence = [];
+
+  for (const item of rawEvidence) {
+    if (!item || typeof item !== "object") continue;
+
+    const sourceType = String(item.sourceType || "").trim();
+    const sourceUrl = String(item.sourceUrl || "").trim();
+    const evidenceText = clipText(item.evidenceText || "", 600);
+    const confidence = String(item.confidence || "").trim();
+    const freshness = String(item.freshness || "").trim();
+    const claimType = String(item.claimType || "").trim();
+
+    if (!evidenceText) continue;
+
+    const safeSourceType = allowedSourceTypes.has(sourceType)
+      ? sourceType
+      : "inferred";
+
+    const safeConfidence = allowedConfidence.has(confidence)
+      ? confidence
+      : "low";
+
+    const safeFreshness = allowedFreshness.has(freshness)
+      ? freshness
+      : "unknown";
+
+    const safeClaimType = allowedClaimTypes.has(claimType)
+      ? claimType
+      : "inference";
+
+    const dedupeKey = `${safeSourceType}:${sourceUrl}:${evidenceText}`
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+
+    evidence.push({
+      sourceType: safeSourceType,
+      sourceUrl,
+      evidenceText,
+      confidence: safeConfidence,
+      freshness: safeFreshness,
+      claimType: safeClaimType,
+    });
+
+    if (evidence.length >= maxItems) break;
+  }
+
+  return evidence;
+}
+
+function getUbdgSourcePriority(sourceType = "") {
+  const key = String(sourceType || "").trim();
+  return UBDG_SOURCE_HIERARCHY[key]?.priority || UBDG_SOURCE_HIERARCHY.inferred.priority;
+}
+
+function sortUbdgEvidenceByPriority(evidence = []) {
+  const normalizedEvidence = normalizeUbdgEvidence(evidence);
+
+  return normalizedEvidence.sort((a, b) => {
+    const priorityA = getUbdgSourcePriority(a.sourceType);
+    const priorityB = getUbdgSourcePriority(b.sourceType);
+
+    if (priorityA !== priorityB) return priorityA - priorityB;
+
+    const confidenceRank = { high: 1, medium: 2, low: 3 };
+    const confidenceA = confidenceRank[a.confidence] || confidenceRank.low;
+    const confidenceB = confidenceRank[b.confidence] || confidenceRank.low;
+
+    if (confidenceA !== confidenceB) return confidenceA - confidenceB;
+
+    return String(a.evidenceText || "").localeCompare(String(b.evidenceText || ""));
+  });
+}
+
+function summarizeUbdgEvidenceStrength(evidence = []) {
+  const sortedEvidence = sortUbdgEvidenceByPriority(evidence);
+  const evidenceCount = sortedEvidence.length;
+
+  const sourceMix = sortedEvidence.reduce((acc, item) => {
+    const sourceType = item.sourceType || "inferred";
+    acc[sourceType] = (acc[sourceType] || 0) + 1;
+    return acc;
+  }, {});
+
+  const confidenceMix = sortedEvidence.reduce((acc, item) => {
+    const confidence = item.confidence || "low";
+    acc[confidence] = (acc[confidence] || 0) + 1;
+    return acc;
+  }, {});
+
+  const strongestEvidence = sortedEvidence[0] || null;
+  const strongestSourceType = strongestEvidence?.sourceType || "none";
+  const strongestSourcePriority = strongestEvidence
+    ? getUbdgSourcePriority(strongestEvidence.sourceType)
+    : null;
+
+  const hasOwnerTruth = Boolean(sourceMix.owner_input);
+  const hasOwnedWebsite = Boolean(sourceMix.owned_website);
+  const hasOfficialRecord = Boolean(sourceMix.registry);
+  const hasHighConfidence = Boolean(confidenceMix.high);
+  const hasOnlyInferred =
+    evidenceCount > 0 && Object.keys(sourceMix).every((key) => key === "inferred");
+
+  let evidenceState = "no_evidence";
+  let safeClaimLevel = "blocked";
+  let summary = "No usable evidence was found.";
+
+  if (evidenceCount > 0) {
+    if (hasOwnerTruth || hasOwnedWebsite || hasOfficialRecord) {
+      evidenceState = hasHighConfidence ? "strong" : "usable";
+      safeClaimLevel = hasHighConfidence ? "safe" : "cautious";
+      summary = "The evidence set includes strong source types that can support a grounded business read.";
+    } else if (hasOnlyInferred) {
+      evidenceState = "inference_only";
+      safeClaimLevel = "inference_only";
+      summary = "The evidence set is inference-only and should not be presented as confirmed fact.";
+    } else {
+      evidenceState = "limited";
+      safeClaimLevel = "cautious";
+      summary = "The evidence set has usable signals, but claims should stay cautious.";
+    }
+  }
+
+  return {
+    evidenceCount,
+    evidenceState,
+    safeClaimLevel,
+    strongestSourceType,
+    strongestSourcePriority,
+    sourceMix,
+    confidenceMix,
+    summary,
+    sortedEvidence,
+  };
+}
+
+function getUbdgClaimWording(summary = {}) {
+  const safeClaimLevel = String(summary?.safeClaimLevel || "blocked").trim();
+
+  if (safeClaimLevel === "safe") {
+    return {
+      safeClaimLevel: "safe",
+      claimLead: "YEVIB can see",
+      instruction:
+        "Use direct but grounded language. Claims may be stated confidently when supported by owner input, owned website evidence, official records, or other high-confidence source evidence.",
+    };
+  }
+
+  if (safeClaimLevel === "cautious") {
+    return {
+      safeClaimLevel: "cautious",
+      claimLead: "YEVIB can reasonably infer",
+      instruction:
+        "Use careful language. Claims should be framed as reasoned interpretation, not confirmed fact.",
+    };
+  }
+
+  if (safeClaimLevel === "inference_only") {
+    return {
+      safeClaimLevel: "inference_only",
+      claimLead: "The current scan suggests",
+      instruction:
+        "Use low-confidence language. Do not present inferred signals as confirmed business truth.",
+    };
+  }
+
+  return {
+    safeClaimLevel: "blocked",
+    claimLead: "More source signal is needed",
+    instruction:
+      "Do not make a business claim. Ask for stronger owner input, owned website evidence, official records, or clearer public source material.",
+  };
+}
+
+function buildUbdgEvidencePacket(rawEvidence = [], maxItems = 24) {
+  const normalizedEvidence = normalizeUbdgEvidence(rawEvidence, maxItems);
+  const sortedEvidence = sortUbdgEvidenceByPriority(normalizedEvidence);
+  const strengthSummary = summarizeUbdgEvidenceStrength(sortedEvidence);
+  const claimWording = getUbdgClaimWording(strengthSummary);
+
+  return {
+    normalizedEvidence,
+    sortedEvidence,
+    strengthSummary: {
+      evidenceCount: strengthSummary.evidenceCount,
+      evidenceState: strengthSummary.evidenceState,
+      safeClaimLevel: strengthSummary.safeClaimLevel,
+      strongestSourceType: strengthSummary.strongestSourceType,
+      strongestSourcePriority: strengthSummary.strongestSourcePriority,
+      sourceMix: strengthSummary.sourceMix,
+      confidenceMix: strengthSummary.confidenceMix,
+      summary: strengthSummary.summary,
+    },
+    claimWording,
+  };
+}
+
+
+function runUbdgEvidenceHelperSelfTest() {
+  const messyEvidence = [
+    {
+      sourceType: "social",
+      sourceUrl: "https://example.com/instagram",
+      evidenceText: "Posts suggest the business is active with local customers.",
+      confidence: "medium",
+      freshness: "known",
+      claimType: "signal",
+    },
+    {
+      sourceType: "owned_website",
+      sourceUrl: "https://example.com/about",
+      evidenceText: "Family-owned plumbing business serving Western Sydney.",
+      confidence: "high",
+      freshness: "known",
+      claimType: "fact",
+    },
+    {
+      sourceType: "owned_website",
+      sourceUrl: "https://example.com/about",
+      evidenceText: "Family-owned plumbing business serving Western Sydney.",
+      confidence: "high",
+      freshness: "known",
+      claimType: "fact",
+    },
+    {
+      sourceType: "unknown_source",
+      sourceUrl: "",
+      evidenceText: "Possibly focused on emergency work.",
+      confidence: "certain",
+      freshness: "",
+      claimType: "guess",
+    },
+    {
+      sourceType: "owner_input",
+      sourceUrl: "",
+      evidenceText: "The owner says the main goal is building trust with local homeowners.",
+      confidence: "high",
+      freshness: "known",
+      claimType: "fact",
+    },
+    {
+      sourceType: "registry",
+      sourceUrl: "https://example.gov/register",
+      evidenceText: "Official registration signal is visible.",
+      confidence: "high",
+      freshness: "unknown",
+      claimType: "fact",
+    },
+    {
+      sourceType: "review",
+      sourceUrl: "https://example.com/reviews",
+      evidenceText: "",
+      confidence: "medium",
+      freshness: "unknown",
+      claimType: "signal",
+    },
+    null,
+  ];
+
+  const packet = buildUbdgEvidencePacket(messyEvidence, 10);
+
+  console.log("UBDG evidence helper self-test:");
+  console.log("EVIDENCE PACKET:");
+  console.log(
+    JSON.stringify(
+      {
+        normalizedEvidenceCount: packet.normalizedEvidence.length,
+        sortedEvidenceCount: packet.sortedEvidence.length,
+        evidenceState: packet.strengthSummary.evidenceState,
+        safeClaimLevel: packet.strengthSummary.safeClaimLevel,
+        strongestSourceType: packet.strengthSummary.strongestSourceType,
+        claimLead: packet.claimWording.claimLead,
+        hasNormalizedEvidence: Array.isArray(packet.normalizedEvidence),
+        hasSortedEvidence: Array.isArray(packet.sortedEvidence),
+        hasStrengthSummary: Boolean(packet.strengthSummary),
+        hasClaimWording: Boolean(packet.claimWording),
+      },
+      null,
+      2
+    )
+  );
+
+  return packet;
+}
+
 function sentenceCase(text = "") {
   const cleaned = String(text || "").trim();
   if (!cleaned) return "";
@@ -8594,4 +8936,11 @@ NON-NEGOTIABLE IMAGE SAFETY RULES:
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-});   
+
+  if (
+    process.env.NODE_ENV !== "production" &&
+    process.argv.includes("--ubdg-self-test")
+  ) {
+    runUbdgEvidenceHelperSelfTest();
+  }
+});
