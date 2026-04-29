@@ -7743,6 +7743,22 @@ function runAgentCycleForProfile(profile = {}) {
   };
 }
 
+app.post("/build-profile", async (req, res) => {
+  try {
+    const profile = await buildBusinessProfile(req.body || {});
+
+    return res.json({
+      profile,
+    });
+  } catch (err) {
+    console.error("BUILD PROFILE ERROR:", err);
+    res.status(500).json({
+      error: err.message || "Failed to build profile.",
+    });
+  }
+});
+
+
 app.post("/run-agent-cycle", async (req, res) => {
   try {
     const { profile } = req.body || {};
