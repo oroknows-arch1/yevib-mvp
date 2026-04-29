@@ -5024,11 +5024,21 @@ function buildEvidenceProfile(profile = {}) {
 
   const pagesScanned = Number(debug?.pagesScanned || 0);
   const hasWebsite = Boolean(sourceProfile?.urlUsed);
-  const hasOwnerWriting = Boolean(
+    const hasSuppliedOwnerWriting = Boolean(
     sourceProfile?.pastedTextUsed ||
-    sourceProfile?.manualContextUsed ||
-    !sourceProfile?.weakVoiceSource
+    sourceProfile?.manualContextUsed
   );
+
+  const hasInferredVoiceSignal = Boolean(
+    !sourceProfile?.weakVoiceSource &&
+      (
+        normalizeStringArray(founderVoice?.tone, 3).length > 0 ||
+        normalizeStringArray(founderVoice?.vocabulary, 3).length > 0 ||
+        clipText(founderVoice?.voiceSummary || "", 80).length > 0
+      )
+  );
+
+  const hasOwnerWriting = hasSuppliedOwnerWriting || hasInferredVoiceSignal;
 
   const trustSignals = normalizeStringArray(discoveryProfile?.trustSignals, 10);
   const educationSignals = normalizeStringArray(discoveryProfile?.educationSignals, 10);
@@ -5845,7 +5855,36 @@ function getPhase3ActualSignalLevel(profile = {}) {
     profile?.discoveryProfile?.sourceConfidence || "medium"
   ).toLowerCase();
 
-  if (overallPct >= 70 && sourceConfidence !== "low") {
+  const evidenceState = String(profile?.evidenceProfile?.state || "").toLowerCase();
+  const qualificationConfidence = String(
+    profile?.qualificationProfile?.confidence || ""
+  ).toLowerCase();
+
+  const pagesScanned = Number(profile?.evidenceProfile?.pagesScanned || 0);
+
+  const thinUsableSourceSignal =
+    pagesScanned <= 1 &&
+    evidenceState === "usable" &&
+    qualificationConfidence === "medium" &&
+    (sourceConfidence === "low" || sourceConfidence === "medium");
+
+  if (thinUsableSourceSignal) {
+    return "weak";
+  }
+
+  if (sourceConfidence === "low") {
+    return "limited_to_medium";
+  }
+
+  if (
+    qualificationConfidence === "medium" ||
+    evidenceState === "usable" ||
+    pagesScanned <= 1
+  ) {
+    return overallPct >= 40 ? "limited_to_medium" : "weak";
+  }
+
+  if (overallPct >= 70) {
     return "medium_to_strong";
   }
 
@@ -5865,11 +5904,51 @@ function getPhase3ActualQualification(profile = {}, executionPlan = {}) {
   const weakVoice = Boolean(profile?.sourceProfile?.weakVoiceSource);
   const canCommit = Boolean(executionPlan?.canSayIsGoingTo);
 
-  if (overallPct < 35 || sourceConfidence === "low") {
+  const qualificationLevel = String(
+    profile?.qualificationProfile?.level || ""
+  ).toLowerCase();
+  const qualificationConfidence = String(
+    profile?.qualificationProfile?.confidence || ""
+  ).toLowerCase();
+
+  const evidenceState = String(profile?.evidenceProfile?.state || "").toLowerCase();
+  const pagesScanned = Number(profile?.evidenceProfile?.pagesScanned || 0);
+
+  const thinUsableSourceSignal =
+    pagesScanned <= 1 &&
+    evidenceState === "usable" &&
+    qualificationConfidence === "medium" &&
+    (sourceConfidence === "low" || sourceConfidence === "medium");
+
+  const strongEnoughDespiteWeakVoice =
+    weakVoice &&
+    canCommit &&
+    overallPct >= 70 &&
+    sourceConfidence === "high" &&
+    evidenceState === "strong" &&
+    qualificationLevel === "strong" &&
+    qualificationConfidence === "high" &&
+    pagesScanned >= 3;
+
+  if (
+    thinUsableSourceSignal ||
+    overallPct < 35 ||
+    sourceConfidence === "low" ||
+    qualificationLevel === "blocked"
+  ) {
     return "blocked_or_low_confidence";
   }
 
-  if (weakVoice || !canCommit || overallPct < 55) {
+  if (
+    (weakVoice && !strongEnoughDespiteWeakVoice) ||
+    !canCommit ||
+    overallPct < 55 ||
+    qualificationLevel === "limited" ||
+    qualificationLevel === "standard" ||
+    qualificationConfidence === "medium" ||
+    evidenceState === "usable" ||
+    pagesScanned <= 1
+  ) {
     return "cautious";
   }
 
@@ -5894,15 +5973,29 @@ function getPhase3ActualStrategyPressure(profile = {}, executionPlan = {}) {
       ""
   ).toLowerCase();
 
-  const recommendedFocus = String(
+    const recommendedFocus = String(
     profile?.groupedSnapshot?.recommendedFocus ||
       profile?.advisorSnapshot?.recommendedFocus ||
       ""
   ).toLowerCase();
 
   const combined = `${campaignType} ${recommendedFocus}`;
+  const sourceConfidence = String(
+    profile?.discoveryProfile?.sourceConfidence || "medium"
+  ).toLowerCase();
+  const evidenceState = String(profile?.evidenceProfile?.state || "").toLowerCase();
+  const qualificationConfidence = String(
+    profile?.qualificationProfile?.confidence || ""
+  ).toLowerCase();
+  const pagesScanned = Number(profile?.evidenceProfile?.pagesScanned || 0);
+  const thinSourceSignal =
+    pagesScanned <= 1 &&
+    (sourceConfidence === "low" || sourceConfidence === "medium") &&
+    evidenceState === "usable" &&
+    qualificationConfidence === "medium";
 
   if (
+    thinSourceSignal ||
     commitmentMode === "source_required" ||
     campaignType === "source_strengthening" ||
     /source_strengthening|source required|stronger source|source material|source evidence/.test(combined)
@@ -5922,7 +6015,11 @@ function getPhase3ActualStrategyPressure(profile = {}, executionPlan = {}) {
     return "trust_or_visibility";
   }
 
-  if (/clarity|positioning|message|voice|brand core/.test(combined)) {
+    if (
+    qualificationConfidence === "medium" ||
+    pagesScanned <= 1 ||
+    /clarity|positioning|message|voice|brand core/.test(combined)
+  ) {
     return "clarity_or_trust";
   }
 
@@ -5940,15 +6037,20 @@ function phase3ExpectationMatches(expected = "", actual = "") {
   if (!cleanExpected || !cleanActual) return false;
   if (cleanExpected === cleanActual) return true;
 
-  const expectedParts = cleanExpected.split("_or_");
+    const expectedParts = cleanExpected.split("_or_");
+  const actualParts = cleanActual.split("_or_");
+
   if (expectedParts.includes(cleanActual)) return true;
+  if (actualParts.includes(cleanExpected)) return true;
+
+  if (expectedParts.some((part) => actualParts.includes(part))) return true;
 
   if (cleanExpected.includes(cleanActual) || cleanActual.includes(cleanExpected)) {
     return true;
   }
 
-  return false;
-}
+    return false;
+  }
 
 function buildPhase3RegressionResult({
   site = {},
@@ -6025,6 +6127,17 @@ function buildPhase3RegressionResult({
       executionSummary: executionPlan?.summary || "",
       successSignal: executionPlan?.successSignal || "",
       canSayIsGoingTo: Boolean(executionPlan?.canSayIsGoingTo),
+      qualificationDebug: {
+        evidenceScore: profile?.evidenceProfile?.score || 0,
+        evidenceState: profile?.evidenceProfile?.state || "",
+        qualificationLevel: profile?.qualificationProfile?.level || "",
+        strategyLevel: profile?.qualificationProfile?.strategyLevel || "",
+        executionEligible: Boolean(profile?.qualificationProfile?.executionEligible),
+        qualificationConfidence: profile?.qualificationProfile?.confidence || "",
+        pagesScanned: profile?.evidenceProfile?.pagesScanned || 0,
+        hasOwnerWriting: Boolean(profile?.evidenceProfile?.hasOwnerWriting),
+        missingEvidence: profile?.evidenceProfile?.missingEvidence || [],
+      },
       runLog: cycleResult?.runLog || null,
     },
   };

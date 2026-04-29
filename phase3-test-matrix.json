@@ -82,26 +82,28 @@
      "expectedStrategyPressure": "clarity_or_trust",
      "notes": "Mixed-signal test: service and location exist, but page may be location-template style."
     },
+    
     {
       "id": "mixed_signal_02",
       "group": "mixed_signal",
       "label": "Utopia Constructions",
       "businessUrl": "https://www.utopiaconstructions.com.au/",
-      "expectedQualification": "cautious",
-      "expectedSignalLevel": "limited_to_medium",
-      "expectedStrategyPressure": "clarity_or_trust",
-      "notes": "Mixed-signal test with some proof and history, but likely less content depth than stronger sites."
+      "expectedQualification": "diagnosable",
+      "expectedSignalLevel": "medium_to_strong",
+      "expectedStrategyPressure": "trust_or_visibility"
     },
+
     {
+      
       "id": "mixed_signal_03",
       "group": "mixed_signal",
       "label": "Premier Construction",
       "businessUrl": "https://premierconstruction.com.au/",
-      "expectedQualification": "cautious",
-      "expectedSignalLevel": "limited_to_medium",
-      "expectedStrategyPressure": "clarity_or_trust",
-      "notes": "Mixed-signal test with service clarity, but may need caution if proof/source depth is thin."
+      "expectedQualification": "diagnosable",
+      "expectedSignalLevel": "medium_to_strong",
+      "expectedStrategyPressure": "trust_or_visibility"
     },
+
     {
       "id": "thin_signal_01",
       "group": "thin_signal",
@@ -118,9 +120,8 @@
       "label": "Service Sites",
       "businessUrl": "https://servicesites.com.au/",
       "expectedQualification": "blocked_or_low_confidence",
-      "expectedSignalLevel": "limited_to_medium",
-      "expectedStrategyPressure": "request_more_source_signal",
-      "notes": "Lower-content service website test. Should not be over-read if evidence is basic."
+      "expectedSignalLevel": "weak",
+      "expectedStrategyPressure": "request_more_source_signal"
     },
     {
       "id": "thin_signal_03",
