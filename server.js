@@ -7668,6 +7668,24 @@ async function buildBusinessProfile(input = {}) {
   });
 
   profile.evidenceProfile = buildEvidenceProfile(profile);
+  profile.ubdgEvidencePacket = buildUbdgEvidencePacket([
+    {
+      sourceType: "owner_input",
+      sourceUrl: "",
+      evidenceText: profile?.sourceProfile?.voiceSourceText || "",
+      confidence: profile?.sourceProfile?.weakVoiceSource ? "low" : "medium",
+      freshness: "known",
+      claimType: "signal",
+    },
+    {
+      sourceType: "owned_website",
+      sourceUrl: profile?.sourceProfile?.urlUsed ? normalizedUrl : "",
+      evidenceText: profile?.businessProfile?.summary || "",
+      confidence: profile?.sourceProfile?.urlUsed ? "medium" : "low",
+      freshness: "unknown",
+      claimType: "signal",
+    },
+  ]);
   profile.qualificationProfile = buildQualificationProfile(
     profile.evidenceProfile,
     profile
@@ -7682,6 +7700,7 @@ async function buildBusinessProfile(input = {}) {
 
   return profile;
 }
+
 
 function runAgentCycleForProfile(profile = {}) {
   if (!profile || typeof profile !== "object") {
