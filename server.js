@@ -6225,6 +6225,10 @@ function getPhase3ActualSignalLevel(profile = {}) {
     profile?.qualificationProfile?.confidence || ""
   ).toLowerCase();
 
+  const qualificationLevel = String(
+    profile?.qualificationProfile?.level || ""
+  ).toLowerCase();
+
   const pagesScanned = Number(profile?.evidenceProfile?.pagesScanned || 0);
 
   const thinUsableSourceSignal =
@@ -6232,6 +6236,13 @@ function getPhase3ActualSignalLevel(profile = {}) {
     evidenceState === "usable" &&
     qualificationConfidence === "medium" &&
     (sourceConfidence === "low" || sourceConfidence === "medium");
+
+  const strongPhase3Evidence =
+    overallPct >= 70 &&
+    sourceConfidence !== "low" &&
+    evidenceState === "strong" &&
+    qualificationLevel === "strong" &&
+    pagesScanned >= 3;
 
   if (thinUsableSourceSignal) {
     return "weak";
@@ -6241,11 +6252,11 @@ function getPhase3ActualSignalLevel(profile = {}) {
     return "limited_to_medium";
   }
 
-  if (
-    qualificationConfidence === "medium" ||
-    evidenceState === "usable" ||
-    pagesScanned <= 1
-  ) {
+  if (strongPhase3Evidence) {
+    return "medium_to_strong";
+  }
+
+  if (evidenceState === "usable" || pagesScanned <= 1) {
     return overallPct >= 40 ? "limited_to_medium" : "weak";
   }
 
@@ -6285,15 +6296,17 @@ function getPhase3ActualQualification(profile = {}, executionPlan = {}) {
     qualificationConfidence === "medium" &&
     (sourceConfidence === "low" || sourceConfidence === "medium");
 
-  const strongEnoughDespiteWeakVoice =
-    weakVoice &&
+  const strongPhase3Evidence =
     canCommit &&
     overallPct >= 70 &&
-    sourceConfidence === "high" &&
+    sourceConfidence !== "low" &&
     evidenceState === "strong" &&
     qualificationLevel === "strong" &&
-    qualificationConfidence === "high" &&
     pagesScanned >= 3;
+
+  const strongEnoughDespiteWeakVoice =
+    weakVoice &&
+    strongPhase3Evidence;
 
   if (
     thinUsableSourceSignal ||
@@ -6304,13 +6317,16 @@ function getPhase3ActualQualification(profile = {}, executionPlan = {}) {
     return "blocked_or_low_confidence";
   }
 
+  if (strongPhase3Evidence) {
+    return "diagnosable";
+  }
+
   if (
     (weakVoice && !strongEnoughDespiteWeakVoice) ||
     !canCommit ||
     overallPct < 55 ||
     qualificationLevel === "limited" ||
     qualificationLevel === "standard" ||
-    qualificationConfidence === "medium" ||
     evidenceState === "usable" ||
     pagesScanned <= 1
   ) {
@@ -6489,20 +6505,21 @@ function buildPhase3RegressionResult({
             return `${item?.name || item?.key || "Unknown"}:${item?.score || 0}`;
           })
         : [],
-      executionSummary: executionPlan?.summary || "",
-      successSignal: executionPlan?.successSignal || "",
-      canSayIsGoingTo: Boolean(executionPlan?.canSayIsGoingTo),
-      qualificationDebug: {
-        evidenceScore: profile?.evidenceProfile?.score || 0,
-        evidenceState: profile?.evidenceProfile?.state || "",
-        qualificationLevel: profile?.qualificationProfile?.level || "",
-        strategyLevel: profile?.qualificationProfile?.strategyLevel || "",
-        executionEligible: Boolean(profile?.qualificationProfile?.executionEligible),
-        qualificationConfidence: profile?.qualificationProfile?.confidence || "",
-        pagesScanned: profile?.evidenceProfile?.pagesScanned || 0,
-        hasOwnerWriting: Boolean(profile?.evidenceProfile?.hasOwnerWriting),
-        missingEvidence: profile?.evidenceProfile?.missingEvidence || [],
-      },
+        executionSummary: executionPlan?.summary || "",
+        successSignal: executionPlan?.successSignal || "",
+        canSayIsGoingTo: Boolean(executionPlan?.canSayIsGoingTo),
+        evidenceCaution: executionPlan?.evidenceCaution || null,
+        qualificationDebug: {
+          evidenceScore: profile?.evidenceProfile?.score || 0,
+          evidenceState: profile?.evidenceProfile?.state || "",
+          qualificationLevel: profile?.qualificationProfile?.level || "",
+          strategyLevel: profile?.qualificationProfile?.strategyLevel || "",
+          executionEligible: Boolean(profile?.qualificationProfile?.executionEligible),
+          qualificationConfidence: profile?.qualificationProfile?.confidence || "",
+          pagesScanned: profile?.evidenceProfile?.pagesScanned || 0,
+          hasOwnerWriting: Boolean(profile?.evidenceProfile?.hasOwnerWriting),
+          missingEvidence: profile?.evidenceProfile?.missingEvidence || [],
+        },
       runLog: cycleResult?.runLog || null,
     },
   };
@@ -6952,21 +6969,69 @@ function buildExecutionPlan(profile = {}) {
     profile?.discoveryProfile?.sourceConfidence || "medium"
   ).toLowerCase();
 
+  const ubdgStrength = profile?.ubdgEvidencePacket?.strengthSummary || {};
+  const ubdgClaimWording = profile?.ubdgEvidencePacket?.claimWording || {};
+
+  const ubdgEvidenceCount = Number(ubdgStrength?.evidenceCount || 0);
+  const ubdgEvidenceState = String(ubdgStrength?.evidenceState || "no_evidence").trim();
+  const ubdgSafeClaimLevel = String(ubdgStrength?.safeClaimLevel || "blocked").trim();
+  const ubdgClaimLead = String(ubdgClaimWording?.claimLead || "More source signal is needed").trim();
+
   const sourceConfidenceBlocksExecution = sourceConfidence === "low";
+  const ubdgBlocksExecution =
+    ubdgSafeClaimLevel === "blocked" ||
+    ubdgSafeClaimLevel === "inference_only";
+
+  const ubdgRequiresCaution =
+    ubdgSafeClaimLevel === "cautious" ||
+    ubdgEvidenceState === "limited" ||
+    ubdgEvidenceState === "usable";
+
   const canCommit =
     !sourceConfidenceBlocksExecution &&
+    !ubdgBlocksExecution &&
     canYevibSayIsGoingTo(profile, chosenMove);
 
-  if (sourceConfidenceBlocksExecution) {
+  const ubdgEvidenceLimits = [];
+
+  if (ubdgEvidenceCount === 0) {
+    ubdgEvidenceLimits.push(
+      "No usable UBDG evidence packet was available for this execution plan."
+    );
+  }
+
+  if (ubdgSafeClaimLevel === "blocked") {
+    ubdgEvidenceLimits.push(
+      "UBDG marked claim strength as blocked, so YEVIB should ask for stronger owner, website, registry, review, or public profile evidence before execution."
+    );
+  }
+
+  if (ubdgSafeClaimLevel === "inference_only") {
+    ubdgEvidenceLimits.push(
+      "UBDG found inference-only evidence, so YEVIB must not present the read as confirmed business truth."
+    );
+  }
+
+  if (ubdgRequiresCaution) {
+    ubdgEvidenceLimits.push(
+      "UBDG allows a useful recommendation, but wording should stay cautious and evidence limits should remain visible."
+    );
+  }
+
+  if (sourceConfidenceBlocksExecution || ubdgBlocksExecution) {
     return {
       title: "Source Strengthening Required",
       summary:
-        "YEVIB needs stronger source material before it can run an active campaign for this business.",
+        sourceConfidenceBlocksExecution
+          ? "YEVIB needs stronger source material before it can run an active campaign for this business."
+          : `${ubdgClaimLead}. YEVIB needs stronger evidence before it can safely run an active campaign for this business.`,
       commitmentMode: "source_required",
       canSayIsGoingTo: false,
 
       reason:
-        "The scan found low source confidence, so YEVIB should strengthen the evidence base before committing to execution.",
+        sourceConfidenceBlocksExecution
+          ? "The scan found low source confidence, so YEVIB should strengthen the evidence base before committing to execution."
+          : "The UBDG evidence packet does not yet support active execution language, so YEVIB should surface the evidence gap instead of overclaiming.",
 
       operatorRole:
         "YEVIB acts as a source-strengthening assistant until the business has enough visible evidence for a confident campaign.",
@@ -6990,7 +7055,7 @@ function buildExecutionPlan(profile = {}) {
       ],
 
       constraint:
-        "Do not frame YEVIB as actively running a campaign until source confidence improves.",
+        "Do not frame YEVIB as actively running a campaign until source confidence and UBDG evidence strength improve.",
 
       schedule:
         "Source strengthening first, then re-run the strategy cycle.",
@@ -7000,11 +7065,20 @@ function buildExecutionPlan(profile = {}) {
       successSignal:
         "The next scan has enough source evidence for a more confident diagnosis and execution plan.",
 
+      evidenceCaution: {
+        sourceConfidence,
+        ubdgEvidenceCount,
+        ubdgEvidenceState,
+        ubdgSafeClaimLevel,
+        claimLead: ubdgClaimLead,
+        limits: ubdgEvidenceLimits,
+      },
+
       eta: {
         setup: "Same day",
         firstSignal: "After stronger source material is added",
         compounding: "After re-scan",
-        confidence: "Execution blocked until source confidence improves",
+        confidence: "Execution blocked until source confidence and evidence strength improve",
         readinessScore: 0,
         readinessBand: "blocked"
       },
@@ -7019,17 +7093,24 @@ function buildExecutionPlan(profile = {}) {
       },
 
       riskNotes: [
-        "Low source confidence means the business may be underrepresented or unclear from available public material.",
-        "Running active campaign language too early may reduce trust in YEVIB's judgement."
+        "Low source confidence or weak UBDG evidence means the business may be underrepresented or unclear from available public material.",
+        "Running active campaign language too early may reduce trust in YEVIB's judgement.",
+        ...ubdgEvidenceLimits,
       ],
 
       secondaryStrategies: [],
     };
   }
 
+  const baseSummary = buildExecutionSummary(profile, chosenMove, canCommit);
+  const safeSummary =
+    ubdgRequiresCaution && baseSummary
+      ? `${baseSummary} Evidence strength is marked cautious, so YEVIB should keep claim limits visible while executing.`
+      : baseSummary;
+
   return {
     title: chosenMove?.title || "Execution Plan",
-    summary: buildExecutionSummary(profile, chosenMove, canCommit),
+    summary: safeSummary,
     commitmentMode: canCommit ? "active_execution" : "advisory_only",
     canSayIsGoingTo: canCommit,
 
@@ -7038,8 +7119,10 @@ function buildExecutionPlan(profile = {}) {
       "This strategy was chosen because it gives the business the strongest practical next move.",
 
     operatorRole:
-      chosenMove?.operatorRole ||
-      "YEVIB acts as a digital operator across the selected strategy.",
+      ubdgRequiresCaution
+        ? "YEVIB acts as a controlled execution assistant, keeping evidence strength and claim limits visible while moving the business forward."
+        : chosenMove?.operatorRole ||
+          "YEVIB acts as a digital operator across the selected strategy.",
 
     actions:
       Array.isArray(chosenMove?.actions) && chosenMove.actions.length
@@ -7065,8 +7148,10 @@ function buildExecutionPlan(profile = {}) {
         : ["social posts", "images"],
 
     constraint:
-      chosenMove?.constraint ||
-      "Keep the move practical, specific, and directly tied to the real business.",
+      ubdgRequiresCaution
+        ? "Keep the move practical, specific, directly tied to the real business, and worded according to the available evidence strength."
+        : chosenMove?.constraint ||
+          "Keep the move practical, specific, and directly tied to the real business.",
 
     schedule:
       chosenMove?.schedule ||
@@ -7079,9 +7164,21 @@ function buildExecutionPlan(profile = {}) {
       chosenMove?.successSignal ||
       "The business should become clearer, stronger, and more effective in public.",
 
+    evidenceCaution: {
+      sourceConfidence,
+      ubdgEvidenceCount,
+      ubdgEvidenceState,
+      ubdgSafeClaimLevel,
+      claimLead: ubdgClaimLead,
+      limits: ubdgEvidenceLimits,
+    },
+
     eta: buildUniversalEta(profile, chosenMove),
     expectedOutcome: buildUniversalExpectedOutcome(profile, chosenMove),
-    riskNotes: buildUniversalRiskNotes(profile, chosenMove),
+    riskNotes: [
+      ...buildUniversalRiskNotes(profile, chosenMove),
+      ...ubdgEvidenceLimits,
+    ],
 
     secondaryStrategies:
       chosenMove?.secondaryStrategies || [],
@@ -8267,6 +8364,29 @@ STRICT CORRECTION:
   posts = await generatePostsWithRetry(`${promptBase}\n\n${historyRetryBlock}`, category);
   return posts;
 }
+
+app.get("/ubdg/self-test", (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.status(404).json({ error: "Not found." });
+  }
+
+  try {
+    const packet = runUbdgEvidenceHelperSelfTest();
+
+    res.json({
+      ok: true,
+      test: "ubdg_evidence_helper_self_test",
+      packet,
+    });
+  } catch (err) {
+    console.error("UBDG SELF TEST ROUTE ERROR:", err);
+
+    res.status(500).json({
+      ok: false,
+      error: err?.message || "Unknown UBDG self-test error.",
+    });
+  }
+});
 
 app.post("/phase3/run-regression", async (req, res) => {
   const startedAt = new Date().toISOString();
