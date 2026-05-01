@@ -1042,6 +1042,41 @@ function normalizeRegistryLookupResult(rawLookup = {}) {
   };
 }
 
+async function lookupOfficialRegistryForBusiness(input = {}) {
+  const registryAdapterEnabled = false;
+
+  try {
+    if (!registryAdapterEnabled) {
+      return normalizeRegistryLookupResult({
+        lookupStatus: "skipped",
+        warning: "Registry lookup skipped because registry adapter is disabled.",
+      });
+    }
+
+    const businessName = String(input?.businessName || "").trim();
+    const businessUrl = String(input?.businessUrl || "").trim();
+
+    if (!businessName && !businessUrl) {
+      return normalizeRegistryLookupResult({
+        lookupStatus: "skipped",
+        warning:
+          "Registry lookup skipped because no business name or URL was provided.",
+      });
+    }
+
+    return normalizeRegistryLookupResult({
+      lookupStatus: "skipped",
+      warning: "Live registry lookup has not been implemented yet.",
+    });
+  } catch (err) {
+    return normalizeRegistryLookupResult({
+      lookupStatus: "error",
+      warning:
+        err?.message || "Registry lookup failed inside the disabled adapter.",
+    });
+  }
+}
+
 function buildRegistryEvidenceForProfile(profile = {}) {
   const registryProfile =
     profile?.registryProfile ||
@@ -1294,11 +1329,21 @@ function runUbdgEvidenceHelperSelfTest() {
     error: "Mock registry service failed.",
   });
 
-  const normalizedSkippedLookup = normalizeRegistryLookupResult({
+    const normalizedSkippedLookup = normalizeRegistryLookupResult({
     sourceType: "registry",
     sourceName: "Mock Official Registry",
     lookupStatus: "skipped",
     warning: "Registry lookup skipped for this test.",
+  });
+
+  const disabledRegistryAdapterLookup = {
+    lookupStatus: "skipped",
+    registryProfile: {},
+    warning: "Registry lookup skipped because registry adapter is disabled.",
+  };
+
+  const disabledRegistryAdapterEvidence = buildRegistryEvidenceForProfile({
+    registryProfile: disabledRegistryAdapterLookup.registryProfile,
   });
 
   const ambiguousMockLookupProfile = {
@@ -1380,8 +1425,18 @@ function runUbdgEvidenceHelperSelfTest() {
       normalizedSkippedLookup.lookupStatus === "skipped",
     normalizerSkippedProfileIsEmpty:
       Object.keys(normalizedSkippedLookup.registryProfile || {}).length === 0,
-    normalizerSkippedWarningExists:
+        normalizerSkippedWarningExists:
       Boolean(normalizedSkippedLookup.warning),
+
+    disabledRegistryAdapterStatusIsSkipped:
+      disabledRegistryAdapterLookup.lookupStatus === "skipped",
+    disabledRegistryAdapterProfileIsEmpty:
+      Object.keys(disabledRegistryAdapterLookup.registryProfile || {}).length === 0,
+    disabledRegistryAdapterWarningExists:
+      Boolean(disabledRegistryAdapterLookup.warning),
+    disabledRegistryAdapterCreatesNoEvidence:
+      Array.isArray(disabledRegistryAdapterEvidence) &&
+      disabledRegistryAdapterEvidence.length === 0,
 
     mockLookupContractIsMatched:
       mockLiveRegistryLookupContract.lookupStatus === "matched",
