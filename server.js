@@ -800,6 +800,49 @@ function buildUbdgEvidencePacket(rawEvidence = [], maxItems = 24) {
   };
 }
 
+function buildUbdgEvidencePacketForProfile(profile = {}) {
+  const sourceProfile = profile?.sourceProfile || {};
+  const businessProfile = profile?.businessProfile || {};
+  const discoveryProfile = profile?.discoveryProfile || {};
+
+  const ownedWebsiteDiscoveryEvidence = uniqueStrings(
+    [
+      ...normalizeStringArray(discoveryProfile?.trustSignals || [], 4),
+      ...normalizeStringArray(discoveryProfile?.educationSignals || [], 4),
+      ...normalizeStringArray(discoveryProfile?.activitySignals || [], 4),
+      ...normalizeStringArray(discoveryProfile?.founderVisibilitySignals || [], 4),
+    ],
+    8
+  ).join(" ");
+
+  return buildUbdgEvidencePacket([
+    {
+      sourceType: "owner_input",
+      sourceUrl: "",
+      evidenceText: sourceProfile?.voiceSourceText || "",
+      confidence: sourceProfile?.weakVoiceSource ? "low" : "medium",
+      freshness: "known",
+      claimType: "signal",
+    },
+    {
+      sourceType: "owned_website",
+      sourceUrl: sourceProfile?.urlUsed || "",
+      evidenceText: businessProfile?.summary || "",
+      confidence: sourceProfile?.urlUsed ? "medium" : "low",
+      freshness: "unknown",
+      claimType: "signal",
+    },
+    {
+      sourceType: "owned_website",
+      sourceUrl: sourceProfile?.urlUsed || "",
+      evidenceText: ownedWebsiteDiscoveryEvidence,
+      confidence: sourceProfile?.urlUsed ? "medium" : "low",
+      freshness: "unknown",
+      claimType: "signal",
+    },
+  ]);
+}
+
 
 function runUbdgEvidenceHelperSelfTest() {
   const messyEvidence = [
@@ -7787,25 +7830,8 @@ async function buildBusinessProfile(input = {}) {
     ),
   });
 
-  profile.evidenceProfile = buildEvidenceProfile(profile);
-  profile.ubdgEvidencePacket = buildUbdgEvidencePacket([
-    {
-      sourceType: "owner_input",
-      sourceUrl: "",
-      evidenceText: profile?.sourceProfile?.voiceSourceText || "",
-      confidence: profile?.sourceProfile?.weakVoiceSource ? "low" : "medium",
-      freshness: "known",
-      claimType: "signal",
-    },
-    {
-      sourceType: "owned_website",
-      sourceUrl: profile?.sourceProfile?.urlUsed ? normalizedUrl : "",
-      evidenceText: profile?.businessProfile?.summary || "",
-      confidence: profile?.sourceProfile?.urlUsed ? "medium" : "low",
-      freshness: "unknown",
-      claimType: "signal",
-    },
-  ]);
+    profile.evidenceProfile = buildEvidenceProfile(profile);
+  profile.ubdgEvidencePacket = buildUbdgEvidencePacketForProfile(profile);
   profile.qualificationProfile = buildQualificationProfile(
     profile.evidenceProfile,
     profile
@@ -7831,7 +7857,8 @@ function runAgentCycleForProfile(profile = {}) {
     ...profile,
   };
 
-  refreshedProfile.evidenceProfile = buildEvidenceProfile(refreshedProfile);
+    refreshedProfile.evidenceProfile = buildEvidenceProfile(refreshedProfile);
+  refreshedProfile.ubdgEvidencePacket = buildUbdgEvidencePacketForProfile(refreshedProfile);
   refreshedProfile.qualificationProfile = buildQualificationProfile(
     refreshedProfile.evidenceProfile,
     refreshedProfile
