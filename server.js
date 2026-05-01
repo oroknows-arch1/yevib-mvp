@@ -979,28 +979,90 @@ function runUbdgEvidenceHelperSelfTest() {
 
   const packet = buildUbdgEvidencePacket(messyEvidence, 10);
 
-  console.log("UBDG evidence helper self-test:");
-  console.log("EVIDENCE PACKET:");
-  console.log(
-    JSON.stringify(
-      {
-        normalizedEvidenceCount: packet.normalizedEvidence.length,
-        sortedEvidenceCount: packet.sortedEvidence.length,
-        evidenceState: packet.strengthSummary.evidenceState,
-        safeClaimLevel: packet.strengthSummary.safeClaimLevel,
-        strongestSourceType: packet.strengthSummary.strongestSourceType,
-        claimLead: packet.claimWording.claimLead,
-        hasNormalizedEvidence: Array.isArray(packet.normalizedEvidence),
-        hasSortedEvidence: Array.isArray(packet.sortedEvidence),
-        hasStrengthSummary: Boolean(packet.strengthSummary),
-        hasClaimWording: Boolean(packet.claimWording),
-      },
-      null,
-      2
-    )
-  );
+  const registryProfile = {
+    registryProfile: {
+      businessName: "Example Plumbing Pty Ltd",
+      abn: "12345678901",
+      status: "Active",
+      sourceUrl: "https://example.gov/register",
+    },
+  };
 
-  return packet;
+  const registryEvidence = buildRegistryEvidenceForProfile(registryProfile);
+  const missingRegistryEvidence = buildRegistryEvidenceForProfile({});
+  const profilePacket = buildUbdgEvidencePacketForProfile(registryProfile);
+
+  const registryEvidenceItem = registryEvidence[0] || null;
+
+  const checks = {
+    basePacketHasNormalizedEvidence: Array.isArray(packet.normalizedEvidence),
+    basePacketHasSortedEvidence: Array.isArray(packet.sortedEvidence),
+    basePacketHasStrengthSummary: Boolean(packet.strengthSummary),
+    basePacketHasClaimWording: Boolean(packet.claimWording),
+
+    registryHelperReturnsOneItem: registryEvidence.length === 1,
+    registryHelperSourceTypeIsRegistry:
+      registryEvidenceItem?.sourceType === "registry",
+    registryHelperClaimTypeIsFact:
+      registryEvidenceItem?.claimType === "fact",
+    registryHelperUsesOfficialRecordUrl:
+      registryEvidenceItem?.sourceUrl === "https://example.gov/register",
+    registryHelperTextIncludesBusinessName:
+      String(registryEvidenceItem?.evidenceText || "").includes(
+        "Example Plumbing Pty Ltd"
+      ),
+    registryHelperTextIncludesIdentifier:
+      String(registryEvidenceItem?.evidenceText || "").includes("12345678901"),
+    missingRegistryFieldsReturnEmptyArray:
+      Array.isArray(missingRegistryEvidence) &&
+      missingRegistryEvidence.length === 0,
+    profilePacketReceivesRegistryEvidence:
+      Array.isArray(profilePacket.normalizedEvidence) &&
+      profilePacket.normalizedEvidence.some(
+        (item) => item.sourceType === "registry"
+      ),
+  };
+
+  const failedChecks = Object.entries(checks)
+    .filter(([, passed]) => !passed)
+    .map(([name]) => name);
+
+  const result = {
+    ok: failedChecks.length === 0,
+    test: "ubdg_registry_evidence_helper_self_test",
+    checks,
+    failedChecks,
+    registryEvidence,
+    missingRegistryEvidence,
+    profilePacketSummary: {
+      normalizedEvidenceCount: profilePacket.normalizedEvidence.length,
+      hasRegistryEvidence: profilePacket.normalizedEvidence.some(
+        (item) => item.sourceType === "registry"
+      ),
+      sourceMix: profilePacket.strengthSummary.sourceMix,
+      strongestSourceType: profilePacket.strengthSummary.strongestSourceType,
+      safeClaimLevel: profilePacket.strengthSummary.safeClaimLevel,
+    },
+    basePacketSummary: {
+      normalizedEvidenceCount: packet.normalizedEvidence.length,
+      sortedEvidenceCount: packet.sortedEvidence.length,
+      evidenceState: packet.strengthSummary.evidenceState,
+      safeClaimLevel: packet.strengthSummary.safeClaimLevel,
+      strongestSourceType: packet.strengthSummary.strongestSourceType,
+      claimLead: packet.claimWording.claimLead,
+    },
+  };
+
+  console.log("UBDG registry evidence helper self-test:");
+  console.log(JSON.stringify(result, null, 2));
+
+  if (!result.ok) {
+    throw new Error(
+      `UBDG registry evidence helper self-test failed: ${failedChecks.join(", ")}`
+    );
+  }
+
+  return result;
 }
 
 function sentenceCase(text = "") {
