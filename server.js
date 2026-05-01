@@ -865,6 +865,183 @@ function buildUbdgEvidencePacket(rawEvidence = [], maxItems = 24) {
   };
 }
 
+function normalizeRegistryLookupResult(rawLookup = {}) {
+  const allowedLookupStatuses = new Set([
+    "matched",
+    "not_found",
+    "ambiguous",
+    "error",
+    "skipped",
+  ]);
+
+  if (!rawLookup || typeof rawLookup !== "object") {
+    return {
+      lookupStatus: "skipped",
+      registryProfile: {},
+      warning: "Registry lookup was skipped because no lookup payload was provided.",
+    };
+  }
+
+  const lookupStatusRaw = String(rawLookup.lookupStatus || rawLookup.status || "")
+    .trim()
+    .toLowerCase();
+
+  const lookupStatus = allowedLookupStatuses.has(lookupStatusRaw)
+    ? lookupStatusRaw
+    : "";
+
+  const rawResults = Array.isArray(rawLookup.results)
+    ? rawLookup.results
+    : Array.isArray(rawLookup.matches)
+    ? rawLookup.matches
+    : [];
+
+  if (lookupStatus === "error") {
+    return {
+      lookupStatus: "error",
+      registryProfile: {},
+      warning:
+        String(rawLookup.warning || rawLookup.error || "").trim() ||
+        "Registry lookup failed.",
+    };
+  }
+
+  if (lookupStatus === "skipped") {
+    return {
+      lookupStatus: "skipped",
+      registryProfile: {},
+      warning:
+        String(rawLookup.warning || "").trim() ||
+        "Registry lookup was skipped.",
+    };
+  }
+
+  if (lookupStatus === "not_found") {
+    return {
+      lookupStatus: "not_found",
+      registryProfile: {},
+      warning:
+        String(rawLookup.warning || "").trim() ||
+        "No official registry match was found.",
+    };
+  }
+
+  if (lookupStatus === "ambiguous" || rawResults.length > 1) {
+    return {
+      lookupStatus: "ambiguous",
+      registryProfile: {},
+      warning:
+        String(rawLookup.warning || "").trim() ||
+        "Multiple possible registry matches were found.",
+    };
+  }
+
+  const record =
+    rawResults[0] ||
+    rawLookup.record ||
+    rawLookup.result ||
+    rawLookup.registryProfile ||
+    rawLookup;
+
+  const businessName = String(
+    record.businessName ||
+      record.name ||
+      record.mainName ||
+      record.entityName ||
+      record.organisationName ||
+      ""
+  ).trim();
+
+  const matchedName = String(
+    record.matchedName ||
+      record.businessName ||
+      record.name ||
+      record.mainName ||
+      record.entityName ||
+      record.organisationName ||
+      ""
+  ).trim();
+
+  const abn = String(record.abn || record.ABN || "").replace(/\s+/g, "").trim();
+  const acn = String(record.acn || record.ACN || "").replace(/\s+/g, "").trim();
+
+  const registrationStatus = String(
+    record.registrationStatus ||
+      record.status ||
+      record.entityStatus ||
+      record.abnStatus ||
+      ""
+  ).trim();
+
+  const entityType = String(
+    record.entityType ||
+      record.entityTypeName ||
+      record.organisationType ||
+      ""
+  ).trim();
+
+  const gstStatus = String(
+    record.gstStatus ||
+      record.gst ||
+      record.goodsAndServicesTax ||
+      ""
+  ).trim();
+
+  const postcode = String(record.postcode || record.postCode || "").trim();
+  const state = String(record.state || record.stateCode || "").trim();
+
+  const sourceUrl = String(
+    rawLookup.sourceUrl ||
+      record.sourceUrl ||
+      record.registryUrl ||
+      "https://abr.business.gov.au/"
+  ).trim();
+
+  const confidence = String(rawLookup.confidence || record.confidence || "")
+    .trim()
+    .toLowerCase();
+
+  const freshness = String(rawLookup.freshness || record.freshness || "")
+    .trim()
+    .toLowerCase();
+
+  const hasCleanMatch = Boolean((businessName || matchedName) && abn);
+
+  if (!hasCleanMatch) {
+    return {
+      lookupStatus: lookupStatus || "not_found",
+      registryProfile: {},
+      warning:
+        String(rawLookup.warning || "").trim() ||
+        "Registry lookup did not return a clean name and ABN match.",
+    };
+  }
+
+  return {
+    lookupStatus: "matched",
+    registryProfile: {
+      businessName,
+      matchedName,
+      abn,
+      acn,
+      entityType,
+      status: registrationStatus,
+      registrationStatus,
+      gstStatus,
+      postcode,
+      state,
+      sourceUrl,
+      confidence: ["high", "medium", "low"].includes(confidence)
+        ? confidence
+        : "high",
+      freshness: ["known", "unknown", "stale"].includes(freshness)
+        ? freshness
+        : "known",
+    },
+    warning: "",
+  };
+}
+
 function buildRegistryEvidenceForProfile(profile = {}) {
   const registryProfile =
     profile?.registryProfile ||
@@ -1072,21 +1249,10 @@ function runUbdgEvidenceHelperSelfTest() {
     warning: "",
   };
 
+  const normalizedMatchedLookup =
+    normalizeRegistryLookupResult(mockLiveRegistryLookupContract);
   const mockLookupProfile = {
-    registryProfile: {
-      businessName: mockLiveRegistryLookupContract.businessName,
-      matchedName: mockLiveRegistryLookupContract.matchedName,
-      abn: mockLiveRegistryLookupContract.abn,
-      acn: mockLiveRegistryLookupContract.acn,
-      entityType: mockLiveRegistryLookupContract.entityType,
-      status: mockLiveRegistryLookupContract.registrationStatus,
-      gstStatus: mockLiveRegistryLookupContract.gstStatus,
-      postcode: mockLiveRegistryLookupContract.postcode,
-      state: mockLiveRegistryLookupContract.state,
-      sourceUrl: mockLiveRegistryLookupContract.sourceUrl,
-      confidence: mockLiveRegistryLookupContract.confidence,
-      freshness: mockLiveRegistryLookupContract.freshness,
-    },
+    registryProfile: normalizedMatchedLookup.registryProfile,
   };
 
   const ambiguousMockLookupContract = {
@@ -1108,8 +1274,35 @@ function runUbdgEvidenceHelperSelfTest() {
     warning: "Multiple possible registry matches found.",
   };
 
+  const normalizedAmbiguousLookup =
+    normalizeRegistryLookupResult(ambiguousMockLookupContract);
+
+  const normalizedNotFoundLookup = normalizeRegistryLookupResult({
+    sourceType: "registry",
+    sourceName: "Mock Official Registry",
+    sourceUrl: "https://example.gov/register",
+    lookupStatus: "not_found",
+    results: [],
+    warning: "No official registry match was found.",
+  });
+
+  const normalizedErrorLookup = normalizeRegistryLookupResult({
+    sourceType: "registry",
+    sourceName: "Mock Official Registry",
+    sourceUrl: "https://example.gov/register",
+    lookupStatus: "error",
+    error: "Mock registry service failed.",
+  });
+
+  const normalizedSkippedLookup = normalizeRegistryLookupResult({
+    sourceType: "registry",
+    sourceName: "Mock Official Registry",
+    lookupStatus: "skipped",
+    warning: "Registry lookup skipped for this test.",
+  });
+
   const ambiguousMockLookupProfile = {
-    registryProfile: {},
+    registryProfile: normalizedAmbiguousLookup.registryProfile,
   };
 
   const registryEvidence = buildRegistryEvidenceForProfile(registryProfile);
@@ -1129,7 +1322,7 @@ function runUbdgEvidenceHelperSelfTest() {
   const mockLookupRegistryOnlyBoundary =
     mockLookupRegistryOnlyPacket?.strengthSummary?.claimBoundary || {};
 
-  const checks = {
+    const checks = {
     basePacketHasNormalizedEvidence: Array.isArray(packet.normalizedEvidence),
     basePacketHasSortedEvidence: Array.isArray(packet.sortedEvidence),
     basePacketHasStrengthSummary: Boolean(packet.strengthSummary),
@@ -1148,6 +1341,47 @@ function runUbdgEvidenceHelperSelfTest() {
       ),
     registryHelperTextIncludesIdentifier:
       String(registryEvidenceItem?.evidenceText || "").includes("12345678901"),
+
+    normalizerMatchedStatusIsMatched:
+      normalizedMatchedLookup.lookupStatus === "matched",
+    normalizerMatchedProfileHasBusinessName:
+      normalizedMatchedLookup.registryProfile?.businessName ===
+      "Example Plumbing Pty Ltd",
+    normalizerMatchedProfileHasIdentifier:
+      normalizedMatchedLookup.registryProfile?.abn === "12345678901",
+    normalizerMatchedProfileUsesSourceUrl:
+      normalizedMatchedLookup.registryProfile?.sourceUrl ===
+      "https://example.gov/register",
+    normalizerMatchedWarningIsEmpty:
+      normalizedMatchedLookup.warning === "",
+
+    normalizerAmbiguousStatusIsAmbiguous:
+      normalizedAmbiguousLookup.lookupStatus === "ambiguous",
+    normalizerAmbiguousProfileIsEmpty:
+      Object.keys(normalizedAmbiguousLookup.registryProfile || {}).length === 0,
+    normalizerAmbiguousWarningExists:
+      Boolean(normalizedAmbiguousLookup.warning),
+
+    normalizerNotFoundStatusIsNotFound:
+      normalizedNotFoundLookup.lookupStatus === "not_found",
+    normalizerNotFoundProfileIsEmpty:
+      Object.keys(normalizedNotFoundLookup.registryProfile || {}).length === 0,
+    normalizerNotFoundWarningExists:
+      Boolean(normalizedNotFoundLookup.warning),
+
+    normalizerErrorStatusIsError:
+      normalizedErrorLookup.lookupStatus === "error",
+    normalizerErrorProfileIsEmpty:
+      Object.keys(normalizedErrorLookup.registryProfile || {}).length === 0,
+    normalizerErrorWarningExists:
+      Boolean(normalizedErrorLookup.warning),
+
+    normalizerSkippedStatusIsSkipped:
+      normalizedSkippedLookup.lookupStatus === "skipped",
+    normalizerSkippedProfileIsEmpty:
+      Object.keys(normalizedSkippedLookup.registryProfile || {}).length === 0,
+    normalizerSkippedWarningExists:
+      Boolean(normalizedSkippedLookup.warning),
 
     mockLookupContractIsMatched:
       mockLiveRegistryLookupContract.lookupStatus === "matched",
