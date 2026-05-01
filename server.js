@@ -677,6 +677,47 @@ function sortUbdgEvidenceByPriority(evidence = []) {
   });
 }
 
+function getUbdgRegistryClaimBoundary(sourceMix = {}, evidenceCount = 0) {
+  const sourceTypes = Object.keys(sourceMix).filter((key) => sourceMix[key] > 0);
+  const hasRegistry = Boolean(sourceMix.registry);
+  const registryOnly =
+    evidenceCount > 0 &&
+    hasRegistry &&
+    sourceTypes.length === 1 &&
+    sourceTypes[0] === "registry";
+
+  if (registryOnly) {
+    return {
+      boundaryType: "registry_identity_only",
+      identitySupported: true,
+      businessTrustSupported: false,
+      allowedClaimScope: "official identity or registration wording only",
+      forbiddenClaimExamples: [
+        "trustworthy",
+        "high quality",
+        "safe to buy from",
+        "active",
+        "successful",
+      ],
+      instruction:
+        "Registry-only evidence may confirm official identity or registration presence, but it must not be used as proof of business trust, quality, safety, activity, success, customer satisfaction, or operational strength.",
+    };
+  }
+
+  return {
+    boundaryType: hasRegistry ? "registry_with_supporting_sources" : "standard",
+    identitySupported: hasRegistry,
+    businessTrustSupported: !registryOnly,
+    allowedClaimScope:
+      hasRegistry
+        ? "registry identity plus other supported business signals when present"
+        : "standard evidence-supported business wording",
+    forbiddenClaimExamples: [],
+    instruction:
+      "Use normal UBDG evidence limits. Do not exceed what the available source mix can actually support.",
+  };
+}
+
 function summarizeUbdgEvidenceStrength(evidence = []) {
   const sortedEvidence = sortUbdgEvidenceByPriority(evidence);
   const evidenceCount = sortedEvidence.length;
@@ -699,6 +740,8 @@ function summarizeUbdgEvidenceStrength(evidence = []) {
     ? getUbdgSourcePriority(strongestEvidence.sourceType)
     : null;
 
+  const claimBoundary = getUbdgRegistryClaimBoundary(sourceMix, evidenceCount);
+
   const hasOwnerTruth = Boolean(sourceMix.owner_input);
   const hasOwnedWebsite = Boolean(sourceMix.owned_website);
   const hasOfficialRecord = Boolean(sourceMix.registry);
@@ -711,7 +754,12 @@ function summarizeUbdgEvidenceStrength(evidence = []) {
   let summary = "No usable evidence was found.";
 
   if (evidenceCount > 0) {
-    if (hasOwnerTruth || hasOwnedWebsite || hasOfficialRecord) {
+    if (claimBoundary.boundaryType === "registry_identity_only") {
+      evidenceState = "identity_supported";
+      safeClaimLevel = "identity_only";
+      summary =
+        "The evidence set supports official identity or registration wording only. It does not support broader business trust, quality, safety, activity, success, or customer claims.";
+    } else if (hasOwnerTruth || hasOwnedWebsite || hasOfficialRecord) {
       evidenceState = hasHighConfidence ? "strong" : "usable";
       safeClaimLevel = hasHighConfidence ? "safe" : "cautious";
       summary = "The evidence set includes strong source types that can support a grounded business read.";
@@ -734,6 +782,7 @@ function summarizeUbdgEvidenceStrength(evidence = []) {
     strongestSourcePriority,
     sourceMix,
     confidenceMix,
+    claimBoundary,
     summary,
     sortedEvidence,
   };
@@ -741,13 +790,15 @@ function summarizeUbdgEvidenceStrength(evidence = []) {
 
 function getUbdgClaimWording(summary = {}) {
   const safeClaimLevel = String(summary?.safeClaimLevel || "blocked").trim();
+  const claimBoundary = summary?.claimBoundary || {};
 
   if (safeClaimLevel === "safe") {
     return {
       safeClaimLevel: "safe",
       claimLead: "YEVIB can see",
       instruction:
-        "Use direct but grounded language. Claims may be stated confidently when supported by owner input, owned website evidence, official records, or other high-confidence source evidence.",
+        "Use direct but grounded language. Claims may be stated confidently when supported by owner input, owned website evidence, official records with supporting business evidence, or other high-confidence source evidence.",
+      claimBoundary,
     };
   }
 
@@ -757,6 +808,17 @@ function getUbdgClaimWording(summary = {}) {
       claimLead: "YEVIB can reasonably infer",
       instruction:
         "Use careful language. Claims should be framed as reasoned interpretation, not confirmed fact.",
+      claimBoundary,
+    };
+  }
+
+  if (safeClaimLevel === "identity_only") {
+    return {
+      safeClaimLevel: "identity_only",
+      claimLead: "YEVIB can verify an official identity signal",
+      instruction:
+        "Use identity-only wording. Do not describe the business as trustworthy, high quality, safe to buy from, active, successful, customer-approved, or operationally strong from registry evidence alone.",
+      claimBoundary,
     };
   }
 
@@ -766,6 +828,7 @@ function getUbdgClaimWording(summary = {}) {
       claimLead: "The current scan suggests",
       instruction:
         "Use low-confidence language. Do not present inferred signals as confirmed business truth.",
+      claimBoundary,
     };
   }
 
@@ -774,6 +837,7 @@ function getUbdgClaimWording(summary = {}) {
     claimLead: "More source signal is needed",
     instruction:
       "Do not make a business claim. Ask for stronger owner input, owned website evidence, official records, or clearer public source material.",
+    claimBoundary,
   };
 }
 
@@ -794,6 +858,7 @@ function buildUbdgEvidencePacket(rawEvidence = [], maxItems = 24) {
       strongestSourcePriority: strengthSummary.strongestSourcePriority,
       sourceMix: strengthSummary.sourceMix,
       confidenceMix: strengthSummary.confidenceMix,
+      claimBoundary: strengthSummary.claimBoundary,
       summary: strengthSummary.summary,
     },
     claimWording,
@@ -988,11 +1053,81 @@ function runUbdgEvidenceHelperSelfTest() {
     },
   };
 
+  const mockLiveRegistryLookupContract = {
+    sourceType: "registry",
+    sourceName: "Mock Official Registry",
+    sourceUrl: "https://example.gov/register",
+    lookupStatus: "matched",
+    businessName: "Example Plumbing Pty Ltd",
+    matchedName: "Example Plumbing Pty Ltd",
+    abn: "12345678901",
+    acn: "",
+    entityType: "Australian Private Company",
+    registrationStatus: "Active",
+    gstStatus: "Registered",
+    postcode: "2000",
+    state: "NSW",
+    confidence: "high",
+    freshness: "known",
+    warning: "",
+  };
+
+  const mockLookupProfile = {
+    registryProfile: {
+      businessName: mockLiveRegistryLookupContract.businessName,
+      matchedName: mockLiveRegistryLookupContract.matchedName,
+      abn: mockLiveRegistryLookupContract.abn,
+      acn: mockLiveRegistryLookupContract.acn,
+      entityType: mockLiveRegistryLookupContract.entityType,
+      status: mockLiveRegistryLookupContract.registrationStatus,
+      gstStatus: mockLiveRegistryLookupContract.gstStatus,
+      postcode: mockLiveRegistryLookupContract.postcode,
+      state: mockLiveRegistryLookupContract.state,
+      sourceUrl: mockLiveRegistryLookupContract.sourceUrl,
+      confidence: mockLiveRegistryLookupContract.confidence,
+      freshness: mockLiveRegistryLookupContract.freshness,
+    },
+  };
+
+  const ambiguousMockLookupContract = {
+    sourceType: "registry",
+    sourceName: "Mock Official Registry",
+    sourceUrl: "https://example.gov/register",
+    lookupStatus: "ambiguous",
+    businessName: "",
+    matchedName: "",
+    abn: "",
+    acn: "",
+    entityType: "",
+    registrationStatus: "",
+    gstStatus: "",
+    postcode: "",
+    state: "",
+    confidence: "low",
+    freshness: "unknown",
+    warning: "Multiple possible registry matches found.",
+  };
+
+  const ambiguousMockLookupProfile = {
+    registryProfile: {},
+  };
+
   const registryEvidence = buildRegistryEvidenceForProfile(registryProfile);
+  const mockLookupRegistryEvidence = buildRegistryEvidenceForProfile(mockLookupProfile);
+  const ambiguousMockRegistryEvidence =
+    buildRegistryEvidenceForProfile(ambiguousMockLookupProfile);
   const missingRegistryEvidence = buildRegistryEvidenceForProfile({});
   const profilePacket = buildUbdgEvidencePacketForProfile(registryProfile);
+  const registryOnlyPacket = buildUbdgEvidencePacket(registryEvidence);
+  const mockLookupRegistryOnlyPacket =
+    buildUbdgEvidencePacket(mockLookupRegistryEvidence);
 
   const registryEvidenceItem = registryEvidence[0] || null;
+  const mockLookupRegistryEvidenceItem = mockLookupRegistryEvidence[0] || null;
+  const registryOnlyBoundary =
+    registryOnlyPacket?.strengthSummary?.claimBoundary || {};
+  const mockLookupRegistryOnlyBoundary =
+    mockLookupRegistryOnlyPacket?.strengthSummary?.claimBoundary || {};
 
   const checks = {
     basePacketHasNormalizedEvidence: Array.isArray(packet.normalizedEvidence),
@@ -1013,6 +1148,36 @@ function runUbdgEvidenceHelperSelfTest() {
       ),
     registryHelperTextIncludesIdentifier:
       String(registryEvidenceItem?.evidenceText || "").includes("12345678901"),
+
+    mockLookupContractIsMatched:
+      mockLiveRegistryLookupContract.lookupStatus === "matched",
+    mockLookupRegistryHelperReturnsOneItem:
+      mockLookupRegistryEvidence.length === 1,
+    mockLookupRegistrySourceTypeIsRegistry:
+      mockLookupRegistryEvidenceItem?.sourceType === "registry",
+    mockLookupRegistryClaimTypeIsFact:
+      mockLookupRegistryEvidenceItem?.claimType === "fact",
+    mockLookupRegistryTextIncludesBusinessName:
+      String(mockLookupRegistryEvidenceItem?.evidenceText || "").includes(
+        "Example Plumbing Pty Ltd"
+      ),
+    mockLookupRegistryTextIncludesIdentifier:
+      String(mockLookupRegistryEvidenceItem?.evidenceText || "").includes(
+        "12345678901"
+      ),
+    mockLookupRegistryOnlyPacketIsIdentityOnly:
+      mockLookupRegistryOnlyPacket?.strengthSummary?.safeClaimLevel ===
+      "identity_only",
+    mockLookupRegistryOnlyBoundaryIsIdentitySupported:
+      mockLookupRegistryOnlyBoundary.identitySupported === true,
+    mockLookupRegistryOnlyBoundaryDoesNotSupportBusinessTrust:
+      mockLookupRegistryOnlyBoundary.businessTrustSupported === false,
+
+    ambiguousMockLookupDoesNotCreateEvidence:
+      ambiguousMockLookupContract.lookupStatus === "ambiguous" &&
+      Array.isArray(ambiguousMockRegistryEvidence) &&
+      ambiguousMockRegistryEvidence.length === 0,
+
     missingRegistryFieldsReturnEmptyArray:
       Array.isArray(missingRegistryEvidence) &&
       missingRegistryEvidence.length === 0,
@@ -1021,6 +1186,19 @@ function runUbdgEvidenceHelperSelfTest() {
       profilePacket.normalizedEvidence.some(
         (item) => item.sourceType === "registry"
       ),
+    registryOnlyPacketIsIdentityOnly:
+      registryOnlyPacket?.strengthSummary?.safeClaimLevel === "identity_only",
+    registryOnlyBoundaryIsIdentitySupported:
+      registryOnlyBoundary.identitySupported === true,
+    registryOnlyBoundaryDoesNotSupportBusinessTrust:
+      registryOnlyBoundary.businessTrustSupported === false,
+    registryOnlyBoundaryBlocksTrustClaimWords:
+      Array.isArray(registryOnlyBoundary.forbiddenClaimExamples) &&
+      registryOnlyBoundary.forbiddenClaimExamples.includes("trustworthy") &&
+      registryOnlyBoundary.forbiddenClaimExamples.includes("high quality") &&
+      registryOnlyBoundary.forbiddenClaimExamples.includes("safe to buy from") &&
+      registryOnlyBoundary.forbiddenClaimExamples.includes("active") &&
+      registryOnlyBoundary.forbiddenClaimExamples.includes("successful"),
   };
 
   const failedChecks = Object.entries(checks)
@@ -1033,6 +1211,10 @@ function runUbdgEvidenceHelperSelfTest() {
     checks,
     failedChecks,
     registryEvidence,
+    mockLiveRegistryLookupContract,
+    mockLookupRegistryEvidence,
+    ambiguousMockLookupContract,
+    ambiguousMockRegistryEvidence,
     missingRegistryEvidence,
     profilePacketSummary: {
       normalizedEvidenceCount: profilePacket.normalizedEvidence.length,
@@ -1042,6 +1224,23 @@ function runUbdgEvidenceHelperSelfTest() {
       sourceMix: profilePacket.strengthSummary.sourceMix,
       strongestSourceType: profilePacket.strengthSummary.strongestSourceType,
       safeClaimLevel: profilePacket.strengthSummary.safeClaimLevel,
+    },
+    registryOnlyPacketSummary: {
+      normalizedEvidenceCount: registryOnlyPacket.normalizedEvidence.length,
+      evidenceState: registryOnlyPacket.strengthSummary.evidenceState,
+      safeClaimLevel: registryOnlyPacket.strengthSummary.safeClaimLevel,
+      claimLead: registryOnlyPacket.claimWording.claimLead,
+      claimBoundary: registryOnlyPacket.strengthSummary.claimBoundary,
+    },
+    mockLookupRegistryOnlyPacketSummary: {
+      normalizedEvidenceCount:
+        mockLookupRegistryOnlyPacket.normalizedEvidence.length,
+      evidenceState: mockLookupRegistryOnlyPacket.strengthSummary.evidenceState,
+      safeClaimLevel:
+        mockLookupRegistryOnlyPacket.strengthSummary.safeClaimLevel,
+      claimLead: mockLookupRegistryOnlyPacket.claimWording.claimLead,
+      claimBoundary:
+        mockLookupRegistryOnlyPacket.strengthSummary.claimBoundary,
     },
     basePacketSummary: {
       normalizedEvidenceCount: packet.normalizedEvidence.length,
@@ -7157,6 +7356,7 @@ function buildExecutionPlan(profile = {}) {
   const sourceConfidenceBlocksExecution = sourceConfidence === "low";
   const ubdgBlocksExecution =
     ubdgSafeClaimLevel === "blocked" ||
+    ubdgSafeClaimLevel === "identity_only" ||
     ubdgSafeClaimLevel === "inference_only";
 
   const ubdgRequiresCaution =
@@ -7180,6 +7380,12 @@ function buildExecutionPlan(profile = {}) {
   if (ubdgSafeClaimLevel === "blocked") {
     ubdgEvidenceLimits.push(
       "UBDG marked claim strength as blocked, so YEVIB should ask for stronger owner, website, registry, review, or public profile evidence before execution."
+    );
+  }
+
+    if (ubdgSafeClaimLevel === "identity_only") {
+    ubdgEvidenceLimits.push(
+      "UBDG found registry-only evidence, so YEVIB may confirm official identity or registration wording only. It must not claim the business is trustworthy, high quality, safe to buy from, active, successful, customer-approved, or operationally strong from registry evidence alone."
     );
   }
 
