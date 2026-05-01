@@ -800,10 +800,82 @@ function buildUbdgEvidencePacket(rawEvidence = [], maxItems = 24) {
   };
 }
 
+function buildRegistryEvidenceForProfile(profile = {}) {
+  const registryProfile =
+    profile?.registryProfile ||
+    profile?.sourceProfile?.registryProfile ||
+    profile?.discoveryProfile?.registryProfile ||
+    {};
+
+  const registryName = String(
+    registryProfile?.businessName ||
+      registryProfile?.name ||
+      registryProfile?.matchedName ||
+      ""
+  ).trim();
+
+  const registryIdentifier = String(
+    registryProfile?.abn ||
+      registryProfile?.acn ||
+      registryProfile?.registrationNumber ||
+      registryProfile?.identifier ||
+      ""
+  ).trim();
+
+  const registryStatus = String(
+    registryProfile?.status ||
+      registryProfile?.registrationStatus ||
+      registryProfile?.recordStatus ||
+      ""
+  ).trim();
+
+  const registrySourceUrl = String(
+    registryProfile?.sourceUrl ||
+      registryProfile?.registryUrl ||
+      registryProfile?.url ||
+      ""
+  ).trim();
+
+  const registryConfidence = String(registryProfile?.confidence || "").trim();
+  const registryFreshness = String(registryProfile?.freshness || "").trim();
+
+  const hasCleanRegistrySignal = Boolean(
+    registryName || registryIdentifier || registryStatus
+  );
+
+  if (!hasCleanRegistrySignal) return [];
+
+  const evidenceParts = [
+    registryName ? `Official registry name: ${registryName}` : "",
+    registryIdentifier ? `Registry identifier: ${registryIdentifier}` : "",
+    registryStatus ? `Registry status: ${registryStatus}` : "",
+  ].filter(Boolean);
+
+  return [
+    {
+      sourceType: "registry",
+      sourceUrl: registrySourceUrl,
+      evidenceText: evidenceParts.join(". "),
+      confidence: ["high", "medium", "low"].includes(registryConfidence)
+        ? registryConfidence
+        : registryName && registryIdentifier
+        ? "high"
+        : "medium",
+      freshness: ["known", "unknown", "stale"].includes(registryFreshness)
+        ? registryFreshness
+        : registryStatus
+        ? "known"
+        : "unknown",
+      claimType: "fact",
+    },
+  ];
+}
+
 function buildUbdgEvidencePacketForProfile(profile = {}) {
   const sourceProfile = profile?.sourceProfile || {};
   const businessProfile = profile?.businessProfile || {};
   const discoveryProfile = profile?.discoveryProfile || {};
+  const registryEvidence = buildRegistryEvidenceForProfile(profile);
 
   const ownedWebsiteDiscoveryEvidence = uniqueStrings(
     [
@@ -840,9 +912,9 @@ function buildUbdgEvidencePacketForProfile(profile = {}) {
       freshness: "unknown",
       claimType: "signal",
     },
+    ...registryEvidence,
   ]);
 }
-
 
 function runUbdgEvidenceHelperSelfTest() {
   const messyEvidence = [
