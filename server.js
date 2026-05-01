@@ -1193,7 +1193,7 @@ function buildUbdgEvidencePacketForProfile(profile = {}) {
   ]);
 }
 
-function runUbdgEvidenceHelperSelfTest() {
+async function runUbdgEvidenceHelperSelfTest() {
   const messyEvidence = [
     {
       sourceType: "social",
@@ -1336,14 +1336,20 @@ function runUbdgEvidenceHelperSelfTest() {
     warning: "Registry lookup skipped for this test.",
   });
 
-  const disabledRegistryAdapterLookup = {
-    lookupStatus: "skipped",
-    registryProfile: {},
-    warning: "Registry lookup skipped because registry adapter is disabled.",
-  };
+    const disabledRegistryAdapterLookup = await lookupOfficialRegistryForBusiness({
+    businessName: "Example Plumbing Pty Ltd",
+    businessUrl: "https://example.com",
+    jurisdiction: "AU",
+  });
+
+  const emptyRegistryAdapterLookup = await lookupOfficialRegistryForBusiness({});
 
   const disabledRegistryAdapterEvidence = buildRegistryEvidenceForProfile({
     registryProfile: disabledRegistryAdapterLookup.registryProfile,
+  });
+
+  const emptyRegistryAdapterEvidence = buildRegistryEvidenceForProfile({
+    registryProfile: emptyRegistryAdapterLookup.registryProfile,
   });
 
   const ambiguousMockLookupProfile = {
@@ -1428,7 +1434,7 @@ function runUbdgEvidenceHelperSelfTest() {
         normalizerSkippedWarningExists:
       Boolean(normalizedSkippedLookup.warning),
 
-    disabledRegistryAdapterStatusIsSkipped:
+        disabledRegistryAdapterStatusIsSkipped:
       disabledRegistryAdapterLookup.lookupStatus === "skipped",
     disabledRegistryAdapterProfileIsEmpty:
       Object.keys(disabledRegistryAdapterLookup.registryProfile || {}).length === 0,
@@ -1437,6 +1443,16 @@ function runUbdgEvidenceHelperSelfTest() {
     disabledRegistryAdapterCreatesNoEvidence:
       Array.isArray(disabledRegistryAdapterEvidence) &&
       disabledRegistryAdapterEvidence.length === 0,
+
+    emptyRegistryAdapterStatusIsSkipped:
+      emptyRegistryAdapterLookup.lookupStatus === "skipped",
+    emptyRegistryAdapterProfileIsEmpty:
+      Object.keys(emptyRegistryAdapterLookup.registryProfile || {}).length === 0,
+    emptyRegistryAdapterWarningExists:
+      Boolean(emptyRegistryAdapterLookup.warning),
+    emptyRegistryAdapterCreatesNoEvidence:
+      Array.isArray(emptyRegistryAdapterEvidence) &&
+      emptyRegistryAdapterEvidence.length === 0,
 
     mockLookupContractIsMatched:
       mockLiveRegistryLookupContract.lookupStatus === "matched",
@@ -1505,6 +1521,10 @@ function runUbdgEvidenceHelperSelfTest() {
     ambiguousMockLookupContract,
     ambiguousMockRegistryEvidence,
     missingRegistryEvidence,
+    disabledRegistryAdapterLookup,
+    disabledRegistryAdapterEvidence,
+    emptyRegistryAdapterLookup,
+    emptyRegistryAdapterEvidence,
     profilePacketSummary: {
       normalizedEvidenceCount: profilePacket.normalizedEvidence.length,
       hasRegistryEvidence: profilePacket.normalizedEvidence.some(
@@ -9021,13 +9041,13 @@ STRICT CORRECTION:
   return posts;
 }
 
-app.get("/ubdg/self-test", (req, res) => {
+app.get("/ubdg/self-test", async (req, res) => {
   if (process.env.NODE_ENV === "production") {
     return res.status(404).json({ error: "Not found." });
   }
 
   try {
-    const packet = runUbdgEvidenceHelperSelfTest();
+    const packet = await runUbdgEvidenceHelperSelfTest();
 
     res.json({
       ok: true,
@@ -9775,6 +9795,9 @@ app.listen(PORT, () => {
     process.env.NODE_ENV !== "production" &&
     process.argv.includes("--ubdg-self-test")
   ) {
-    runUbdgEvidenceHelperSelfTest();
+    runUbdgEvidenceHelperSelfTest().catch((err) => {
+      console.error("UBDG SELF TEST ERROR:", err);
+      process.exitCode = 1;
+    });
   }
 });
