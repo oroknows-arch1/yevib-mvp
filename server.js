@@ -6731,13 +6731,13 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
-    if (/activity|active|recent|post|posting|update|movement|latest|fresh|new/i.test(text)) {
+        if (/activity|active|recent|post|posting|update|movement|latest|fresh|new|current|currently|launch|launched|job example|recent job|project example|service change|business movement|customer-facing activity|this week|this month|new offer|new product|new service/i.test(text)) {
       return {
         gap: text,
         ownerAction:
-          "Add one recent public activity signal so YEVIB can understand whether the business is active now, not just present online.",
+          "Add one recent public activity signal so YEVIB can understand whether the business is active now, current, and moving in the market — not just present online.",
         minimumInput:
-          "Paste one recent post, update, job example, launch note, service change, customer-facing activity signal, or short note about recent business movement.",
+          "Paste one recent post, update, job example, recent project, launch note, current service change, new offer, customer-facing activity signal, or short note about recent business movement.",
       };
     }
 
