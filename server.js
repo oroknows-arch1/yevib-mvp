@@ -6624,13 +6624,13 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
-    if (/owner-written|owner voice/i.test(text)) {
+        if (/owner-written|owner voice/i.test(text)) {
       return {
         gap: text,
         ownerAction:
-          "Add a short piece of real owner writing so YEVIB can better understand the voice, standards, and point of view behind the business.",
+          "Add one real owner-written sample so YEVIB can understand how the owner actually explains, reassures, teaches, or speaks about the business.",
         minimumInput:
-          "Paste 3–5 sentences written by the owner about what the business does and why it matters.",
+          "Paste one short post, caption, customer message, founder note, or 3–5 sentence explanation written in the owner’s real words.",
       };
     }
 
