@@ -6721,13 +6721,13 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
-    if (/education|educate|explain|explanation|faq|process|teach|teaching|question|how we do|advice/i.test(text)) {
+        if (/education|educate|explain|explanation|faq|process|teach|teaching|question|customer question|common question|how we do|how it works|how this works|advice|guide|tips|step|steps|method|what to expect|before you buy|before you book|customer understanding/i.test(text)) {
       return {
         gap: text,
         ownerAction:
-          "Add one practical education signal so YEVIB understands what customers need explained before they trust, buy, book, or enquire.",
+          "Add one practical education signal so YEVIB understands what customers need explained before they trust, enquire, buy, book, or act.",
         minimumInput:
-          "Paste one common customer question, FAQ answer, process explanation, advice note, teaching point, or short 'how we do it' explanation.",
+          "Paste one common customer question, FAQ answer, process explanation, advice note, teaching point, guide, tip, method note, 'how it works' explanation, or short 'what to expect' note.",
       };
     }
 
