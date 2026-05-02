@@ -6674,6 +6674,16 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
+        if (/founder|owner|story|leadership|human|face|behind the business|why we started|values/i.test(text)) {
+      return {
+        gap: text,
+        ownerAction:
+          "Add one practical founder visibility signal so YEVIB can understand the human reason, standard, or story behind the business.",
+        minimumInput:
+          "Paste one founder note, owner intro, short story, why-we-started explanation, values note, face-of-business detail, or human trust signal.",
+      };
+    }
+
         if (/education|educate|explain|explanation|faq|process|teach|teaching|question|how we do|advice/i.test(text)) {
       return {
         gap: text,
