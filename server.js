@@ -6632,11 +6632,44 @@ function buildSourceImprovementGuidance(profile = {}) {
 
   const nextActions = uniqueStrings(missingEvidence, 8).map(actionForGap);
 
-  const shouldImproveSources =
-    nextActions.length > 0 ||
-    qualificationProfile?.executionEligible === false ||
-    ["blocked", "identity_only", "inference_only", "cautious"].includes(safeClaimLevel) ||
-    cautionType !== "none";
+  const sourceLimitAction = (() => {
+    if (nextActions.length > 0) return null;
+
+    if (
+      qualificationProfile?.executionEligible === false ||
+      ["blocked", "identity_only", "inference_only"].includes(safeClaimLevel)
+    ) {
+      return {
+        gap: "Limited source support",
+        ownerAction:
+          "Add one clearer owner-provided or business-owned source so YEVIB can move from restricted guidance to safer recommendations.",
+        minimumInput:
+          "Paste 3–5 owner-written sentences, one clear About/service paragraph, or one proof point that confirms what the business does and who it helps.",
+      };
+    }
+
+    if (
+      safeClaimLevel === "cautious" ||
+      qualificationProfile?.level === "limited" ||
+      cautionType !== "none"
+    ) {
+      return {
+        gap: "Source confidence could be improved",
+        ownerAction:
+          "Add one small supporting source so YEVIB can make the recommendation with less caution.",
+        minimumInput:
+          "Paste one review, testimonial, proof point, service detail, founder note, or customer outcome that supports the strongest business claim.",
+      };
+    }
+
+    return null;
+  })();
+
+  const finalNextActions = sourceLimitAction
+    ? [sourceLimitAction]
+    : nextActions;
+
+  const shouldImproveSources = finalNextActions.length > 0;
 
   let priority = "none";
   if (
@@ -6647,21 +6680,21 @@ function buildSourceImprovementGuidance(profile = {}) {
   } else if (
     safeClaimLevel === "cautious" ||
     qualificationProfile?.level === "limited" ||
-    nextActions.length > 0
+    finalNextActions.length > 0
   ) {
     priority = "medium";
   }
 
-  return {
+    return {
     shouldImproveSources,
-    priority,
+    priority: shouldImproveSources ? priority : "none",
     summary: shouldImproveSources
       ? "YEVIB can improve the quality of its recommendations if the owner adds a small amount of clearer source material."
       : "No immediate source improvement is required from the current evidence profile.",
     minimumUsefulAction:
-      nextActions[0]?.minimumInput ||
+      finalNextActions[0]?.minimumInput ||
       "No extra source material is needed right now.",
-    nextActions,
+    nextActions: finalNextActions,
   };
 }
 
