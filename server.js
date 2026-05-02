@@ -6674,6 +6674,16 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
+        if (/activity|active|recent|post|posting|update|movement|latest|fresh|new/i.test(text)) {
+      return {
+        gap: text,
+        ownerAction:
+          "Add one recent public activity signal so YEVIB can understand whether the business is active now, not just present online.",
+        minimumInput:
+          "Paste one recent post, update, job example, launch note, service change, customer-facing activity signal, or short note about recent business movement.",
+      };
+    }
+
         if (/location|local|area|region|market|suburb|service area|delivery area/i.test(text)) {
       return {
         gap: text,
@@ -6692,7 +6702,7 @@ function buildSourceImprovementGuidance(profile = {}) {
         "Paste one short piece of source material that explains the business more clearly.",
     };
   }
-  
+
   const nextActions = uniqueStrings(missingEvidence, 8).map(actionForGap);
 
   const sourceLimitAction = (() => {
