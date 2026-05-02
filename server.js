@@ -6674,6 +6674,16 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
+        if (/education|educate|explain|explanation|faq|process|teach|teaching|question|how we do|advice/i.test(text)) {
+      return {
+        gap: text,
+        ownerAction:
+          "Add one practical education signal so YEVIB understands what customers need explained before they trust, buy, book, or enquire.",
+        minimumInput:
+          "Paste one common customer question, FAQ answer, process explanation, advice note, teaching point, or short 'how we do it' explanation.",
+      };
+    }
+
         if (/activity|active|recent|post|posting|update|movement|latest|fresh|new/i.test(text)) {
       return {
         gap: text,
