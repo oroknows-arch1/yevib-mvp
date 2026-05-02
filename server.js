@@ -6681,23 +6681,23 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
-    if (/offer|service|product/i.test(text)) {
+        if (/offer|service|product|package|price|pricing|inclusion|delivery method|what we sell|what we offer|what we do|main offer|core service|service description|product detail|booking|quote|consultation|customer problem|problem solved/i.test(text)) {
       return {
         gap: text,
         ownerAction:
-          "Clarify the offer signal so YEVIB can ground recommendations in what the business actually sells, delivers, includes, or solves.",
+          "Clarify the offer signal so YEVIB can ground recommendations in what the business actually sells, delivers, includes, charges for, or solves.",
         minimumInput:
-          "Paste one practical offer note: a service description, product detail, package, price point, inclusion, delivery method, or customer problem the offer solves.",
+          "Paste one practical offer note: a service description, product detail, package, price point, inclusion, delivery method, booking process, quote detail, or customer problem the offer solves.",
       };
     }
 
-    if (/audience/i.test(text)) {
+        if (/audience|customer|buyer|client|who buys|who uses|target market|ideal customer|local market|customer type|buyer type|decision maker|end user|family|homeowner|business owner|trade customer|repeat customer/i.test(text)) {
       return {
         gap: text,
         ownerAction:
-          "Clarify the audience signal so YEVIB knows whether to aim strategy at the customer, buyer, or local market the business actually serves.",
+          "Clarify the audience signal so YEVIB knows whether to aim strategy at the customer, buyer, decision-maker, end user, or local market the business actually serves.",
         minimumInput:
-          "Paste one practical audience note: who usually buys, who uses the product or service, or which local market the business mainly serves.",
+          "Paste one practical audience note: who usually buys, who uses the product or service, who makes the decision, the main customer type, or which local market the business mainly serves.",
       };
     }
 
@@ -6741,13 +6741,13 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
-    if (/location|local|area|region|market|suburb|service area|delivery area/i.test(text)) {
+        if (/location|local|area|region|market|suburb|service area|delivery area|pickup area|shipping area|operates|where we work|where we serve|coverage area|near me|city|town|state|postcode|local customers|main local market/i.test(text)) {
       return {
         gap: text,
         ownerAction:
-          "Clarify the location or local-market signal so YEVIB understands where the business actually serves, sells, delivers, or wants attention.",
+          "Clarify the location or local-market signal so YEVIB understands where the business actually serves, sells, delivers, operates, or wants attention.",
         minimumInput:
-          "Paste one practical location note: suburb, service area, delivery area, pickup area, region, shipping area, or main local market.",
+          "Paste one practical location note: suburb, city, state, postcode, service area, delivery area, pickup area, shipping area, coverage area, or main local market.",
       };
     }
 
