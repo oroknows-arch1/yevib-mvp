@@ -847,6 +847,72 @@ function buildUbdgEvidencePacket(rawEvidence = [], maxItems = 24) {
   const strengthSummary = summarizeUbdgEvidenceStrength(sortedEvidence);
   const claimWording = getUbdgClaimWording(strengthSummary);
 
+  const evidenceCaution = (() => {
+    const evidenceCount = Number(strengthSummary?.evidenceCount || 0);
+    const evidenceState = String(strengthSummary?.evidenceState || "").trim();
+    const safeClaimLevel = String(strengthSummary?.safeClaimLevel || "").trim();
+    const claimBoundary = strengthSummary?.claimBoundary || {};
+    const boundaryType = String(claimBoundary?.boundaryType || "").trim();
+
+    if (evidenceCount === 0 || evidenceState === "no_evidence") {
+      return {
+        shouldSurface: false,
+        cautionLevel: "none",
+        cautionType: "none",
+        summary: "No evidence caution is needed because no usable evidence was found.",
+        ownerMeaning: "YEVIB should ask for better source material before making business claims.",
+      };
+    }
+
+    if (
+      safeClaimLevel === "identity_only" ||
+      boundaryType === "registry_identity_only"
+    ) {
+      return {
+        shouldSurface: true,
+        cautionLevel: "high",
+        cautionType: "registry_identity_only",
+        summary:
+          "Official registry evidence can support identity or registration wording only.",
+        ownerMeaning:
+          "YEVIB may confirm the business identity signal, but must not use registry-only evidence to claim trust, quality, safety, activity, success, or customer approval.",
+      };
+    }
+
+    if (safeClaimLevel === "inference_only" || evidenceState === "inference_only") {
+      return {
+        shouldSurface: true,
+        cautionLevel: "high",
+        cautionType: "inference_only",
+        summary:
+          "The current evidence is inference-only and should not be treated as confirmed business truth.",
+        ownerMeaning:
+          "YEVIB should ask for owner input, owned website evidence, or official source evidence before making stronger recommendations.",
+      };
+    }
+
+    if (safeClaimLevel === "cautious" || evidenceState === "limited") {
+      return {
+        shouldSurface: true,
+        cautionLevel: "medium",
+        cautionType: "limited_source_support",
+        summary:
+          "The evidence is usable, but claims should stay cautious and avoid overconfident wording.",
+        ownerMeaning:
+          "YEVIB can help the owner act, but should keep source limits and blind spots visible.",
+      };
+    }
+
+    return {
+      shouldSurface: false,
+      cautionLevel: "none",
+      cautionType: "none",
+      summary: "No extra evidence caution is needed for this packet.",
+      ownerMeaning:
+        "YEVIB has enough source support to proceed within the normal evidence rules.",
+    };
+  })();
+
   return {
     normalizedEvidence,
     sortedEvidence,
@@ -862,6 +928,7 @@ function buildUbdgEvidencePacket(rawEvidence = [], maxItems = 24) {
       summary: strengthSummary.summary,
     },
     claimWording,
+    evidenceCaution,
   };
 }
 
@@ -1405,9 +1472,10 @@ async function runUbdgEvidenceHelperSelfTest() {
     buildRegistryEvidenceForProfile(ambiguousMockLookupProfile);
   const missingRegistryEvidence = buildRegistryEvidenceForProfile({});
   const profilePacket = buildUbdgEvidencePacketForProfile(registryProfile);
-  const registryOnlyPacket = buildUbdgEvidencePacket(registryEvidence);
+    const registryOnlyPacket = buildUbdgEvidencePacket(registryEvidence);
   const mockLookupRegistryOnlyPacket =
     buildUbdgEvidencePacket(mockLookupRegistryEvidence);
+  const missingRegistryPacket = buildUbdgEvidencePacket(missingRegistryEvidence);
 
   const registryEvidenceItem = registryEvidence[0] || null;
   const mockLookupRegistryEvidenceItem = mockLookupRegistryEvidence[0] || null;
@@ -1420,7 +1488,31 @@ async function runUbdgEvidenceHelperSelfTest() {
     basePacketHasNormalizedEvidence: Array.isArray(packet.normalizedEvidence),
     basePacketHasSortedEvidence: Array.isArray(packet.sortedEvidence),
     basePacketHasStrengthSummary: Boolean(packet.strengthSummary),
-    basePacketHasClaimWording: Boolean(packet.claimWording),
+        basePacketHasClaimWording: Boolean(packet.claimWording),
+    basePacketHasEvidenceCaution: Boolean(packet.evidenceCaution),
+    basePacketEvidenceCautionHasSurfaceFlag:
+      typeof packet.evidenceCaution?.shouldSurface === "boolean",
+    basePacketEvidenceCautionHasType:
+      Boolean(packet.evidenceCaution?.cautionType),
+
+    registryOnlyPacketSurfacesEvidenceCaution:
+      registryOnlyPacket.evidenceCaution?.shouldSurface === true,
+    registryOnlyPacketCautionTypeIsRegistryIdentityOnly:
+      registryOnlyPacket.evidenceCaution?.cautionType ===
+      "registry_identity_only",
+    registryOnlyPacketCautionLevelIsHigh:
+      registryOnlyPacket.evidenceCaution?.cautionLevel === "high",
+
+    missingRegistryPacketDoesNotSurfaceEvidenceCaution:
+      missingRegistryPacket.evidenceCaution?.shouldSurface === false,
+    missingRegistryPacketCautionTypeIsNone:
+      missingRegistryPacket.evidenceCaution?.cautionType === "none",
+
+    mockLookupRegistryOnlyPacketSurfacesEvidenceCaution:
+      mockLookupRegistryOnlyPacket.evidenceCaution?.shouldSurface === true,
+    mockLookupRegistryOnlyPacketCautionTypeIsRegistryIdentityOnly:
+      mockLookupRegistryOnlyPacket.evidenceCaution?.cautionType ===
+      "registry_identity_only",
 
     registryHelperReturnsOneItem: registryEvidence.length === 1,
     registryHelperSourceTypeIsRegistry:
@@ -1487,7 +1579,7 @@ async function runUbdgEvidenceHelperSelfTest() {
       Array.isArray(disabledRegistryAdapterEvidence) &&
       disabledRegistryAdapterEvidence.length === 0,
 
-    emptyRegistryAdapterStatusIsSkipped:
+        emptyRegistryAdapterStatusIsSkipped:
       emptyRegistryAdapterLookup.lookupStatus === "skipped",
     emptyRegistryAdapterProfileIsEmpty:
       Object.keys(emptyRegistryAdapterLookup.registryProfile || {}).length === 0,
@@ -1496,6 +1588,16 @@ async function runUbdgEvidenceHelperSelfTest() {
     emptyRegistryAdapterCreatesNoEvidence:
       Array.isArray(emptyRegistryAdapterEvidence) &&
       emptyRegistryAdapterEvidence.length === 0,
+
+    missingGuidRegistryAdapterStatusIsSkipped:
+      missingGuidRegistryAdapterLookup.lookupStatus === "skipped",
+    missingGuidRegistryAdapterProfileIsEmpty:
+      Object.keys(missingGuidRegistryAdapterLookup.registryProfile || {}).length === 0,
+    missingGuidRegistryAdapterWarningExists:
+      Boolean(missingGuidRegistryAdapterLookup.warning),
+    missingGuidRegistryAdapterCreatesNoEvidence:
+      Array.isArray(missingGuidRegistryAdapterEvidence) &&
+      missingGuidRegistryAdapterEvidence.length === 0,
 
     mockLookupContractIsMatched:
       mockLiveRegistryLookupContract.lookupStatus === "matched",
