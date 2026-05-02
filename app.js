@@ -643,17 +643,23 @@ async function buildInitialProfile() {
         founderGoal: getFounderGoal(),
         ownerWritingSample: pastedSourceText
       })
-    });
+        });
 
-    
+    const data = await res.json();
+
+    if (!res.ok) {
+      intakeStatus.innerText = "Scan failed: " + (data.error || "Failed to build profile.");
+      return;
+    }
+
     initialProfile = data.profile;
 
-console.log("UBDG PACKET (RAW SCAN):", data.profile?.ubdgEvidencePacket);
+    console.log("UBDG PACKET (RAW SCAN):", data.profile?.ubdgEvidencePacket);
 
-await runAgentCycle();
+    await runAgentCycle();
 
-intakeStatus.innerText = "Brand scan complete.";
-profilePrompt.innerText = "Snapshot ready. YEVIB has run its agent cycle. Open Brand Intelligence or continue to content action.";
+    intakeStatus.innerText = "Brand scan complete.";
+    profilePrompt.innerText = "Snapshot ready. YEVIB has run its agent cycle. Open Brand Intelligence or continue to content action.";
     
 
     if (initialProfile?.ownerKbMeta?.entryCount) {
