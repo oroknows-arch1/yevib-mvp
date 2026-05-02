@@ -6543,6 +6543,128 @@ function buildReadinessProfile(profile = {}) {
   };
 }
 
+function buildSourceImprovementGuidance(profile = {}) {
+  const evidenceProfile = profile?.evidenceProfile || buildEvidenceProfile(profile);
+  const qualificationProfile =
+    profile?.qualificationProfile || buildQualificationProfile(evidenceProfile, profile);
+  const ubdgEvidencePacket = profile?.ubdgEvidencePacket || {};
+  const evidenceCaution = ubdgEvidencePacket?.evidenceCaution || {};
+  const strengthSummary = ubdgEvidencePacket?.strengthSummary || {};
+
+  const missingEvidence = Array.isArray(evidenceProfile?.missingEvidence)
+    ? evidenceProfile.missingEvidence
+    : [];
+
+  const safeClaimLevel = String(strengthSummary?.safeClaimLevel || "").trim();
+  const cautionType = String(evidenceCaution?.cautionType || "none").trim();
+
+  function actionForGap(gap = "") {
+    const text = String(gap || "").trim();
+
+    if (/website|owned-site pages/i.test(text)) {
+      return {
+        gap: text,
+        ownerAction:
+          "Add or provide a clearer website, landing page, service page, product page, or About page that explains what the business does.",
+        minimumInput:
+          "Paste one clear paragraph that explains the business, offer, location, and who it helps.",
+      };
+    }
+
+    if (/owner-written|owner voice/i.test(text)) {
+      return {
+        gap: text,
+        ownerAction:
+          "Add a short piece of real owner writing so YEVIB can better understand the voice, standards, and point of view behind the business.",
+        minimumInput:
+          "Paste 3–5 sentences written by the owner about what the business does and why it matters.",
+      };
+    }
+
+    if (/trust|proof/i.test(text)) {
+      return {
+        gap: text,
+        ownerAction:
+          "Add proof that helps customers trust the business, such as reviews, testimonials, certifications, guarantees, before/after examples, process standards, or delivery promises.",
+        minimumInput:
+          "Paste one review, one testimonial, or one short proof statement.",
+      };
+    }
+
+    if (/founder presence/i.test(text)) {
+      return {
+        gap: text,
+        ownerAction:
+          "Add a simple founder or team signal so the business feels more human, specific, and recognisable.",
+        minimumInput:
+          "Paste one short founder note, team description, or reason the business exists.",
+      };
+    }
+
+    if (/offer|service/i.test(text)) {
+      return {
+        gap: text,
+        ownerAction:
+          "Clarify the main offer, service, product, or outcome so YEVIB can understand what the business is actually asking customers to choose.",
+        minimumInput:
+          "Paste a simple list of the top 1–3 services or products and who they are for.",
+      };
+    }
+
+    if (/audience/i.test(text)) {
+      return {
+        gap: text,
+        ownerAction:
+          "Clarify who the business serves so YEVIB can make recommendations that fit the right customer.",
+        minimumInput:
+          "Paste one sentence describing the ideal customer, buyer, or local audience.",
+      };
+    }
+
+    return {
+      gap: text,
+      ownerAction:
+        "Add one clearer source of business evidence so YEVIB can make a stronger and safer recommendation.",
+      minimumInput:
+        "Paste one short piece of source material that explains the business more clearly.",
+    };
+  }
+
+  const nextActions = uniqueStrings(missingEvidence, 8).map(actionForGap);
+
+  const shouldImproveSources =
+    nextActions.length > 0 ||
+    qualificationProfile?.executionEligible === false ||
+    ["blocked", "identity_only", "inference_only", "cautious"].includes(safeClaimLevel) ||
+    cautionType !== "none";
+
+  let priority = "none";
+  if (
+    ["blocked", "identity_only", "inference_only"].includes(safeClaimLevel) ||
+    qualificationProfile?.level === "blocked"
+  ) {
+    priority = "high";
+  } else if (
+    safeClaimLevel === "cautious" ||
+    qualificationProfile?.level === "limited" ||
+    nextActions.length > 0
+  ) {
+    priority = "medium";
+  }
+
+  return {
+    shouldImproveSources,
+    priority,
+    summary: shouldImproveSources
+      ? "YEVIB can improve the quality of its recommendations if the owner adds a small amount of clearer source material."
+      : "No immediate source improvement is required from the current evidence profile.",
+    minimumUsefulAction:
+      nextActions[0]?.minimumInput ||
+      "No extra source material is needed right now.",
+    nextActions,
+  };
+}
+
 function buildBrandIntelligence(profile = {}) {
   const advisorSnapshot = profile?.advisorSnapshot || {};
   const strategyEngine = profile?.strategyEngine || {};
@@ -8630,7 +8752,8 @@ async function buildBusinessProfile(input = {}) {
     profile.evidenceProfile,
     profile
   );
-  profile.readinessProfile = buildReadinessProfile(profile);
+    profile.readinessProfile = buildReadinessProfile(profile);
+  profile.sourceImprovementGuidance = buildSourceImprovementGuidance(profile);
 
   profile.strategyEngine = buildStrategyEngine(profile);
   profile.brandIntelligence = buildBrandIntelligence(profile);
@@ -8657,7 +8780,9 @@ function runAgentCycleForProfile(profile = {}) {
     refreshedProfile.evidenceProfile,
     refreshedProfile
   );
-  refreshedProfile.readinessProfile = buildReadinessProfile(refreshedProfile);
+    refreshedProfile.readinessProfile = buildReadinessProfile(refreshedProfile);
+  refreshedProfile.sourceImprovementGuidance =
+    buildSourceImprovementGuidance(refreshedProfile);
   refreshedProfile.strategyEngine = buildStrategyEngine(refreshedProfile);
   refreshedProfile.brandIntelligence = buildBrandIntelligence(refreshedProfile);
   refreshedProfile.chosenMove = buildChosenMove(refreshedProfile);
