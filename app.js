@@ -112,7 +112,7 @@ function showAppScreen(screenName = "intake") {
     activeScreen.style.display = "block";
     activeScreen.style.opacity = "0";
     activeScreen.style.transform = "translateY(12px)";
-    activeScreen.style.transition = "opacity 1700ms ease-out, transform 1700ms ease-out";
+    activeScreen.style.transition = "opacity 3800ms cubic-bezier(0.16, 1, 0.3, 1), transform 3800ms cubic-bezier(0.16, 1, 0.3, 1)";
 
     requestAnimationFrame(() => {
       activeScreen.style.opacity = "1";
@@ -128,7 +128,7 @@ function showAppScreen(screenName = "intake") {
     extra.style.display = "block";
     extra.style.opacity = "0";
     extra.style.transform = "translateY(12px)";
-    extra.style.transition = "opacity 1700ms ease-out, transform 1700ms ease-out";
+    extra.style.transition = "opacity 3800ms cubic-bezier(0.16, 1, 0.3, 1), transform 3800ms cubic-bezier(0.16, 1, 0.3, 1)";
 
     requestAnimationFrame(() => {
       extra.style.opacity = "1";
