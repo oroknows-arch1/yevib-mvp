@@ -230,10 +230,7 @@ function destroySnapshotChart() {
 }
 
 function scrollToGenerateSection() {
-  const section = document.getElementById("section-generate");
-  if (section) {
-    section.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
+  showAppScreen("generate");
 }
 
 function formatChannelList(channels = {}) {
@@ -643,10 +640,7 @@ async function runPlanAndGenerateFirstArtifact() {
   generatePrompt.innerText = "YEVIB is generating the first execution artifact...";
   await generateExecutionPlan();
 
-  const postsSection = document.getElementById("section-posts");
-  if (postsSection) {
-    postsSection.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
+    showAppScreen("posts");
 
   if (runPlanStatus) {
     runPlanStatus.innerText = "First execution artifact generated. Review the post options below.";
@@ -726,11 +720,13 @@ async function buildInitialProfile() {
     profilePrompt.innerText = "Snapshot ready. YEVIB has run its agent cycle. Open Brand Intelligence or continue to content action.";
     
 
-    if (initialProfile?.ownerKbMeta?.entryCount) {
+        if (initialProfile?.ownerKbMeta?.entryCount) {
       ownerKbStatus.innerText = `Owner KB entries found for this business: ${initialProfile.ownerKbMeta.entryCount}`;
     } else {
       ownerKbStatus.innerText = "No owner KB history detected for this business yet.";
     }
+
+    showAppScreen("profile");
   } catch (err) {
     intakeStatus.innerText = "Error: " + err.message;
   }
@@ -778,10 +774,7 @@ if (approvePostBtn) {
     approvePostBtn.innerText = "Approved";
     approvePostBtn.disabled = false;
 
-    const outputSection = document.getElementById("section-output");
-    if (outputSection) {
-      outputSection.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+        showAppScreen("output");
   });
 }
 
@@ -843,6 +836,7 @@ async function generateExecutionPlan() {
     const posts = data.text.split("\n\n\n").filter(Boolean);
     renderPostChoices(posts);
     generatePrompt.innerText = "Posts ready. Choose the one that feels most right.";
+    showAppScreen("posts");
   } catch (err) {
     postsDiv.innerHTML = "Error: " + err.message;
     generatePrompt.innerText = "Post generation failed.";
