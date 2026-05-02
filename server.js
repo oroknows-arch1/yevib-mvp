@@ -6603,16 +6603,43 @@ function buildSourceImprovementGuidance(profile = {}) {
   const ubdgEvidencePacket = profile?.ubdgEvidencePacket || {};
   const evidenceCaution = ubdgEvidencePacket?.evidenceCaution || {};
   const strengthSummary = ubdgEvidencePacket?.strengthSummary || {};
+  const discoveryProfile = profile?.discoveryProfile || {};
+  const sourceProfile = profile?.sourceProfile || {};
 
   const missingEvidence = Array.isArray(evidenceProfile?.missingEvidence)
     ? evidenceProfile.missingEvidence
     : [];
+
+  const channelsFound =
+    discoveryProfile?.channelsFound && typeof discoveryProfile.channelsFound === "object"
+      ? discoveryProfile.channelsFound
+      : {};
+
+  const hasDetectedChannels = Object.values(channelsFound).some(Boolean);
+  const hasWebsiteSignal = Boolean(
+    sourceProfile?.urlUsed ||
+      evidenceProfile?.hasWebsite ||
+      discoveryProfile?.websitePresence ||
+      discoveryProfile?.businessWebsite
+  );
+
+  const hasChannelOrPlatformSignal = Boolean(hasDetectedChannels || hasWebsiteSignal);
 
   const safeClaimLevel = String(strengthSummary?.safeClaimLevel || "").trim();
   const cautionType = String(evidenceCaution?.cautionType || "none").trim();
 
   function actionForGap(gap = "") {
     const text = String(gap || "").trim();
+
+    if (/channel|platform|social|website|profile|google business|referral|enquiry|inquiry/i.test(text)) {
+      return {
+        gap: text,
+        ownerAction:
+          "Clarify where customers actually find or contact the business so YEVIB can understand the real visibility pathway, not just the brand message.",
+        minimumInput:
+          "Paste one practical channel signal: main platform, best-performing channel, website link, social profile, Google Business/Profile link, referral source, or main enquiry channel.",
+      };
+    }
 
     if (/website|owned-site pages/i.test(text)) {
       return {
@@ -6624,7 +6651,7 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
-        if (/owner-written|owner voice/i.test(text)) {
+    if (/owner-written|owner voice/i.test(text)) {
       return {
         gap: text,
         ownerAction:
@@ -6634,7 +6661,7 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
-      if (/trust|proof/i.test(text)) {
+    if (/trust|proof/i.test(text)) {
       return {
         gap: text,
         ownerAction:
@@ -6642,7 +6669,7 @@ function buildSourceImprovementGuidance(profile = {}) {
         minimumInput:
           "Paste one review, testimonial, before/after result, guarantee, certification, service standard, customer outcome, or short proof note.",
       };
-    }   
+    }
 
     if (/founder presence/i.test(text)) {
       return {
@@ -6654,7 +6681,7 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
-      if (/offer|service|product/i.test(text)) {
+    if (/offer|service|product/i.test(text)) {
       return {
         gap: text,
         ownerAction:
@@ -6664,7 +6691,7 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
-      if (/audience/i.test(text)) {
+    if (/audience/i.test(text)) {
       return {
         gap: text,
         ownerAction:
@@ -6674,7 +6701,7 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
-        if (/outcome|result|benefit|transformation|customer win|solved|save|saved|stress|before\/after|before and after|value received/i.test(text)) {
+    if (/outcome|result|benefit|transformation|customer win|solved|save|saved|stress|before\/after|before and after|value received/i.test(text)) {
       return {
         gap: text,
         ownerAction:
@@ -6684,7 +6711,7 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
-        if (/founder|owner|story|leadership|human|face|behind the business|why we started|values/i.test(text)) {
+    if (/founder|owner|story|leadership|human|face|behind the business|why we started|values/i.test(text)) {
       return {
         gap: text,
         ownerAction:
@@ -6694,7 +6721,7 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
-        if (/education|educate|explain|explanation|faq|process|teach|teaching|question|how we do|advice/i.test(text)) {
+    if (/education|educate|explain|explanation|faq|process|teach|teaching|question|how we do|advice/i.test(text)) {
       return {
         gap: text,
         ownerAction:
@@ -6704,7 +6731,7 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
-        if (/activity|active|recent|post|posting|update|movement|latest|fresh|new/i.test(text)) {
+    if (/activity|active|recent|post|posting|update|movement|latest|fresh|new/i.test(text)) {
       return {
         gap: text,
         ownerAction:
@@ -6714,7 +6741,7 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
-        if (/location|local|area|region|market|suburb|service area|delivery area/i.test(text)) {
+    if (/location|local|area|region|market|suburb|service area|delivery area/i.test(text)) {
       return {
         gap: text,
         ownerAction:
@@ -6733,7 +6760,19 @@ function buildSourceImprovementGuidance(profile = {}) {
     };
   }
 
-  const nextActions = uniqueStrings(missingEvidence, 8).map(actionForGap);
+  const channelGap = hasChannelOrPlatformSignal
+    ? ""
+    : "Channel, platform, social presence, website presence, public profile, Google Business/Profile, referral source, or enquiry channel is unclear.";
+
+  const enrichedMissingEvidence = uniqueStrings(
+    [
+      channelGap,
+      ...missingEvidence,
+    ],
+    8
+  );
+
+  const nextActions = enrichedMissingEvidence.map(actionForGap);
 
   const sourceLimitAction = (() => {
     if (nextActions.length > 0) return null;
@@ -6788,7 +6827,7 @@ function buildSourceImprovementGuidance(profile = {}) {
     priority = "medium";
   }
 
-    return {
+  return {
     shouldImproveSources,
     priority: shouldImproveSources ? priority : "none",
     summary: shouldImproveSources
