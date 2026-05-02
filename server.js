@@ -6634,13 +6634,13 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
-    if (/trust|proof/i.test(text)) {
+        if (/trust|proof/i.test(text)) {
       return {
         gap: text,
         ownerAction:
-          "Add proof that helps customers trust the business, such as reviews, testimonials, certifications, guarantees, before/after examples, process standards, or delivery promises.",
+          "Add one customer-facing proof point that shows a real result, real standard, or real reason to trust the business.",
         minimumInput:
-          "Paste one review, one testimonial, or one short proof statement.",
+          "Paste one customer review, testimonial, before/after result, guarantee, certification, or service standard.",
       };
     }
 
