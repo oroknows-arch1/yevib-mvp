@@ -6674,6 +6674,16 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
+        if (/outcome|result|benefit|transformation|customer win|solved|save|saved|stress|before\/after|before and after|value received/i.test(text)) {
+      return {
+        gap: text,
+        ownerAction:
+          "Add one practical customer outcome signal so YEVIB can understand the real value customers receive, not just what the business offers.",
+        minimumInput:
+          "Paste one customer result, before/after note, solved problem, saved time or money example, reduced-stress example, customer win, or lived benefit.",
+      };
+    }
+
         if (/founder|owner|story|leadership|human|face|behind the business|why we started|values/i.test(text)) {
       return {
         gap: text,
