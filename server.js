@@ -6661,13 +6661,13 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
-    if (/trust|proof/i.test(text)) {
+       if (/trust|proof|review|testimonial|customer result|customer outcome|guarantee|certification|before\/after|before and after|service standard|case study|result|evidence|verified|rating|quality signal/i.test(text)) {
       return {
         gap: text,
         ownerAction:
-          "Add one practical proof point so YEVIB can ground trust advice in something the business can actually show, not just imply.",
+          "Add one practical proof signal so YEVIB can ground trust advice in evidence the business can actually show, not just imply.",
         minimumInput:
-          "Paste one review, testimonial, before/after result, guarantee, certification, service standard, customer outcome, or short proof note.",
+          "Paste one review, testimonial, customer result, before/after note, guarantee, certification, service standard, rating, case study, or short proof point.",
       };
     }
 
