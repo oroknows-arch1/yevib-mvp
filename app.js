@@ -110,6 +110,25 @@ function safeText(value, fallback = "Not enough signal yet.") {
   return text || fallback;
 }
 
+function renderSourceImprovementPrompt(profile = {}) {
+  if (!sourceChangePrompt) return;
+
+  const guidance = profile?.sourceImprovementGuidance || {};
+  const shouldImproveSources = guidance?.shouldImproveSources === true;
+  const minimumUsefulAction = safeText(guidance?.minimumUsefulAction, "");
+
+  if (
+    !shouldImproveSources ||
+    !minimumUsefulAction ||
+    minimumUsefulAction === "No extra source material is needed right now."
+  ) {
+    sourceChangePrompt.innerText = "";
+    return;
+  }
+
+  sourceChangePrompt.innerText = `Source check: ${minimumUsefulAction}`;
+}
+
 function clearOutputs() {
   postsDiv.innerHTML = "";
   selectedPostBox.innerText = "";
@@ -142,7 +161,11 @@ function clearSnapshotUI() {
   educationSignalsDisplay.innerText = "Education signals will appear here after the scan.";
   activitySignalsDisplay.innerText = "Public activity signals will appear here after the scan.";
   founderVisibilitySignalsDisplay.innerText = "Founder visibility signals will appear here after the scan.";
-  voiceInput.value = "";
+    voiceInput.value = "";
+
+  if (sourceChangePrompt) {
+    sourceChangePrompt.innerText = "";
+  }
   
   executionSummary.innerText = "";
   executionEta.innerText = "";
@@ -398,7 +421,9 @@ successSignalDisplay.innerText = safeText(
     sourceProfile?.voiceSourceText,
     ""
   );
-  populateExecutionPlan(profile);
+    populateExecutionPlan(profile);
+  renderSourceImprovementPrompt(profile);
+
   toggleBrandIntelligenceBtn.style.display = "inline-flex";
   continueToGenerateBtn.style.display = "inline-flex";
 
