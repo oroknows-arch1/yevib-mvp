@@ -6651,13 +6651,13 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
-    if (/owner-written|owner voice/i.test(text)) {
+       if (/owner-written|owner voice|owner writing|founder wording|founder explanation|caption|customer message|founder note|owner note|real business wording|real words|how the owner speaks|how we say it|tone of voice/i.test(text)) {
       return {
         gap: text,
         ownerAction:
-          "Add one real owner-written sample so YEVIB can understand how the owner actually explains, reassures, teaches, or speaks about the business.",
+          "Add one real owner-written sample so YEVIB can understand how the owner actually explains, reassures, teaches, messages, or speaks about the business.",
         minimumInput:
-          "Paste one short post, caption, customer message, founder note, or 3–5 sentence explanation written in the owner’s real words.",
+          "Paste one short post, caption, customer message, founder note, owner note, real business wording, or 3–5 sentence explanation written in the owner’s real words.",
       };
     }
 
