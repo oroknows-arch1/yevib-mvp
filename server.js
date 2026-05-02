@@ -6654,13 +6654,13 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
-    if (/offer|service/i.test(text)) {
+      if (/offer|service|product/i.test(text)) {
       return {
         gap: text,
         ownerAction:
-          "Clarify the main offer so YEVIB can understand what the business sells, who it is for, and what outcome the customer gets.",
+          "Clarify the offer signal so YEVIB can ground recommendations in what the business actually sells, delivers, includes, or solves.",
         minimumInput:
-          "Paste the top 1–3 services or products, who each one helps, and the main result each one delivers.",
+          "Paste one practical offer note: a service description, product detail, package, price point, inclusion, delivery method, or customer problem the offer solves.",
       };
     }
 
