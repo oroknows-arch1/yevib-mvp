@@ -1043,7 +1043,10 @@ function normalizeRegistryLookupResult(rawLookup = {}) {
 }
 
 async function lookupOfficialRegistryForBusiness(input = {}) {
-  const registryAdapterEnabled = false;
+  const registryAdapterEnabled =
+    String(process.env.UBDG_REGISTRY_ADAPTER_ENABLED || "")
+      .trim()
+      .toLowerCase() === "true";
 
   try {
     if (!registryAdapterEnabled) {
@@ -1064,6 +1067,16 @@ async function lookupOfficialRegistryForBusiness(input = {}) {
       });
     }
 
+    const abnLookupGuid = String(process.env.ABN_LOOKUP_GUID || "").trim();
+
+    if (!abnLookupGuid) {
+      return normalizeRegistryLookupResult({
+        lookupStatus: "skipped",
+        warning:
+          "Registry lookup skipped because ABN_LOOKUP_GUID is not configured.",
+      });
+    }
+
     return normalizeRegistryLookupResult({
       lookupStatus: "skipped",
       warning: "Live registry lookup has not been implemented yet.",
@@ -1072,7 +1085,7 @@ async function lookupOfficialRegistryForBusiness(input = {}) {
     return normalizeRegistryLookupResult({
       lookupStatus: "error",
       warning:
-        err?.message || "Registry lookup failed inside the disabled adapter.",
+        err?.message || "Registry lookup failed inside the registry adapter.",
     });
   }
 }
@@ -1329,20 +1342,46 @@ async function runUbdgEvidenceHelperSelfTest() {
     error: "Mock registry service failed.",
   });
 
-    const normalizedSkippedLookup = normalizeRegistryLookupResult({
+      const normalizedSkippedLookup = normalizeRegistryLookupResult({
     sourceType: "registry",
     sourceName: "Mock Official Registry",
     lookupStatus: "skipped",
     warning: "Registry lookup skipped for this test.",
   });
 
-    const disabledRegistryAdapterLookup = await lookupOfficialRegistryForBusiness({
+  const previousRegistryAdapterEnabledEnv = process.env.UBDG_REGISTRY_ADAPTER_ENABLED;
+  const previousAbnLookupGuidEnv = process.env.ABN_LOOKUP_GUID;
+
+  delete process.env.UBDG_REGISTRY_ADAPTER_ENABLED;
+  delete process.env.ABN_LOOKUP_GUID;
+
+  const disabledRegistryAdapterLookup = await lookupOfficialRegistryForBusiness({
     businessName: "Example Plumbing Pty Ltd",
     businessUrl: "https://example.com",
     jurisdiction: "AU",
   });
 
+  process.env.UBDG_REGISTRY_ADAPTER_ENABLED = "true";
+
   const emptyRegistryAdapterLookup = await lookupOfficialRegistryForBusiness({});
+
+  const missingGuidRegistryAdapterLookup = await lookupOfficialRegistryForBusiness({
+    businessName: "Example Plumbing Pty Ltd",
+    businessUrl: "https://example.com",
+    jurisdiction: "AU",
+  });
+
+  if (typeof previousRegistryAdapterEnabledEnv === "undefined") {
+    delete process.env.UBDG_REGISTRY_ADAPTER_ENABLED;
+  } else {
+    process.env.UBDG_REGISTRY_ADAPTER_ENABLED = previousRegistryAdapterEnabledEnv;
+  }
+
+  if (typeof previousAbnLookupGuidEnv === "undefined") {
+    delete process.env.ABN_LOOKUP_GUID;
+  } else {
+    process.env.ABN_LOOKUP_GUID = previousAbnLookupGuidEnv;
+  }
 
   const disabledRegistryAdapterEvidence = buildRegistryEvidenceForProfile({
     registryProfile: disabledRegistryAdapterLookup.registryProfile,
@@ -1350,6 +1389,10 @@ async function runUbdgEvidenceHelperSelfTest() {
 
   const emptyRegistryAdapterEvidence = buildRegistryEvidenceForProfile({
     registryProfile: emptyRegistryAdapterLookup.registryProfile,
+  });
+
+  const missingGuidRegistryAdapterEvidence = buildRegistryEvidenceForProfile({
+    registryProfile: missingGuidRegistryAdapterLookup.registryProfile,
   });
 
   const ambiguousMockLookupProfile = {
