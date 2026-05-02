@@ -6709,9 +6709,9 @@ function buildSourceImprovementGuidance(profile = {}) {
       return {
         gap: "Source confidence could be improved",
         ownerAction:
-          "Add one small supporting source so YEVIB can make the recommendation with less caution.",
+          "Add one real proof point so YEVIB can make the recommendation with less caution.",
         minimumInput:
-          "Paste one review, testimonial, proof point, service detail, founder note, or customer outcome that supports the strongest business claim.",
+          "Paste one customer review, testimonial, result, service detail, or founder note that proves the main claim.",
       };
     }
 
