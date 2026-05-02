@@ -6634,15 +6634,15 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
-        if (/trust|proof/i.test(text)) {
+      if (/trust|proof/i.test(text)) {
       return {
         gap: text,
         ownerAction:
-          "Add one customer-facing proof point that shows a real result, real standard, or real reason to trust the business.",
+          "Add one practical proof point so YEVIB can ground trust advice in something the business can actually show, not just imply.",
         minimumInput:
-          "Paste one customer review, testimonial, before/after result, guarantee, certification, or service standard.",
+          "Paste one review, testimonial, before/after result, guarantee, certification, service standard, customer outcome, or short proof note.",
       };
-    }
+    }   
 
     if (/founder presence/i.test(text)) {
       return {
