@@ -112,7 +112,7 @@ function showAppScreen(screenName = "intake") {
     activeScreen.style.display = "block";
     activeScreen.style.opacity = "0";
     activeScreen.style.transform = "translateY(12px)";
-    activeScreen.style.transition = "opacity 280ms ease, transform 280ms ease";
+    activeScreen.style.transition = "opacity 650ms ease, transform 650ms ease";
 
     requestAnimationFrame(() => {
       activeScreen.style.opacity = "1";
@@ -128,7 +128,7 @@ function showAppScreen(screenName = "intake") {
     extra.style.display = "block";
     extra.style.opacity = "0";
     extra.style.transform = "translateY(12px)";
-    extra.style.transition = "opacity 280ms ease, transform 280ms ease";
+    extra.style.transition = "opacity 650ms ease, transform 650ms ease";
 
     requestAnimationFrame(() => {
       extra.style.opacity = "1";
