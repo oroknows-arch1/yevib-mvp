@@ -6658,9 +6658,9 @@ function buildSourceImprovementGuidance(profile = {}) {
       return {
         gap: text,
         ownerAction:
-          "Clarify the main offer, service, product, or outcome so YEVIB can understand what the business is actually asking customers to choose.",
+          "Clarify the main offer so YEVIB can understand what the business sells, who it is for, and what outcome the customer gets.",
         minimumInput:
-          "Paste a simple list of the top 1–3 services or products and who they are for.",
+          "Paste the top 1–3 services or products, who each one helps, and the main result each one delivers.",
       };
     }
 
