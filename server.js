@@ -6674,6 +6674,16 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
+        if (/location|local|area|region|market|suburb|service area|delivery area/i.test(text)) {
+      return {
+        gap: text,
+        ownerAction:
+          "Clarify the location or local-market signal so YEVIB understands where the business actually serves, sells, delivers, or wants attention.",
+        minimumInput:
+          "Paste one practical location note: suburb, service area, delivery area, pickup area, region, shipping area, or main local market.",
+      };
+    }
+
     return {
       gap: text,
       ownerAction:
@@ -6682,7 +6692,7 @@ function buildSourceImprovementGuidance(profile = {}) {
         "Paste one short piece of source material that explains the business more clearly.",
     };
   }
-
+  
   const nextActions = uniqueStrings(missingEvidence, 8).map(actionForGap);
 
   const sourceLimitAction = (() => {
