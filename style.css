@@ -540,6 +540,31 @@ select:focus {
   margin-top: 0;
 }
 
+.execution-plan-wrap {
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: 22px;
+  background: linear-gradient(145deg, rgba(24, 36, 55, 0.82), rgba(12, 19, 31, 0.88));
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-soft);
+  color: var(--text);
+}
+
+.execution-plan-wrap h3 {
+  margin-top: 0;
+  color: var(--text);
+}
+
+.execution-plan-wrap p,
+.execution-plan-wrap li,
+.execution-plan-wrap div {
+  color: var(--muted-strong);
+}
+
+.execution-plan-wrap .primary-btn {
+  margin-top: 16px;
+}
+
 @media (max-width: 860px) {
   .app-shell {
     padding: 18px 14px 44px;
