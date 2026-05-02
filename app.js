@@ -126,7 +126,8 @@ function renderSourceImprovementPrompt(profile = {}) {
     return;
   }
 
-  sourceChangePrompt.innerText = `Source check: ${minimumUsefulAction}`;
+  sourceChangePrompt.innerText =
+    `To make this scan more useful, add one real proof point: ${minimumUsefulAction} This helps YEVIB give advice based on what the business can actually prove.`;
 }
 
 function clearOutputs() {
