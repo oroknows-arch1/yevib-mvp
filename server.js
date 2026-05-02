@@ -1477,12 +1477,52 @@ async function runUbdgEvidenceHelperSelfTest() {
     buildUbdgEvidencePacket(mockLookupRegistryEvidence);
   const missingRegistryPacket = buildUbdgEvidencePacket(missingRegistryEvidence);
 
-  const registryEvidenceItem = registryEvidence[0] || null;
+    const registryEvidenceItem = registryEvidence[0] || null;
   const mockLookupRegistryEvidenceItem = mockLookupRegistryEvidence[0] || null;
   const registryOnlyBoundary =
     registryOnlyPacket?.strengthSummary?.claimBoundary || {};
   const mockLookupRegistryOnlyBoundary =
     mockLookupRegistryOnlyPacket?.strengthSummary?.claimBoundary || {};
+
+    const sourceImprovementGuidanceTest = buildSourceImprovementGuidance({
+    evidenceProfile: {
+      missingEvidence: [],
+    },
+    qualificationProfile: {
+      executionEligible: true,
+      level: "diagnosable",
+    },
+    ubdgEvidencePacket: {
+      evidenceCaution: {
+        cautionType: "limited_source_support",
+      },
+      strengthSummary: {
+        safeClaimLevel: "cautious",
+      },
+    },
+  });
+
+  function sourceImprovementGuidanceHasContradictoryOwnerGuidance(guidance = {}) {
+    const shouldImproveSources = guidance?.shouldImproveSources === true;
+    const nextActions = Array.isArray(guidance?.nextActions)
+      ? guidance.nextActions
+      : [];
+    const serializedNextActions = JSON.stringify(nextActions);
+
+    if (!shouldImproveSources) return false;
+
+    return (
+      nextActions.length === 0 ||
+      guidance.minimumUsefulAction ===
+        "No extra source material is needed right now." ||
+      serializedNextActions.includes("No extra source material is needed right now.")
+    );
+  }
+
+  const sourceImprovementGuidanceHasContradiction =
+    sourceImprovementGuidanceHasContradictoryOwnerGuidance(
+      sourceImprovementGuidanceTest
+    );
 
     const checks = {
     basePacketHasNormalizedEvidence: Array.isArray(packet.normalizedEvidence),
@@ -1494,6 +1534,19 @@ async function runUbdgEvidenceHelperSelfTest() {
       typeof packet.evidenceCaution?.shouldSurface === "boolean",
     basePacketEvidenceCautionHasType:
       Boolean(packet.evidenceCaution?.cautionType),
+
+        sourceImprovementGuidanceReturnsObject:
+      Boolean(sourceImprovementGuidanceTest),
+    sourceImprovementGuidanceShouldImproveSourcesIsTrue:
+      sourceImprovementGuidanceTest?.shouldImproveSources === true,
+    sourceImprovementGuidanceNextActionsNotEmpty:
+      Array.isArray(sourceImprovementGuidanceTest?.nextActions) &&
+      sourceImprovementGuidanceTest.nextActions.length > 0,
+    sourceImprovementGuidanceMinimumUsefulActionIsNotNoExtraSourceMaterial:
+      sourceImprovementGuidanceTest?.minimumUsefulAction !==
+      "No extra source material is needed right now.",
+    sourceImprovementGuidanceHasNoContradiction:
+      sourceImprovementGuidanceHasContradiction === false,
 
     registryOnlyPacketSurfacesEvidenceCaution:
       registryOnlyPacket.evidenceCaution?.shouldSurface === true,
