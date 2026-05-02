@@ -93,22 +93,47 @@ const screenExtras = {
 
 function showAppScreen(screenName = "intake") {
   Object.values(appScreens).forEach((section) => {
-    if (section) section.style.display = "none";
+    if (!section) return;
+    section.style.display = "none";
+    section.style.opacity = "0";
+    section.style.transform = "translateY(12px)";
   });
 
   Object.values(screenExtras).flat().forEach((extra) => {
-    if (extra) extra.style.display = "none";
+    if (!extra) return;
+    extra.style.display = "none";
+    extra.style.opacity = "0";
+    extra.style.transform = "translateY(12px)";
   });
 
   const activeScreen = appScreens[screenName] || appScreens.intake;
 
   if (activeScreen) {
     activeScreen.style.display = "block";
+    activeScreen.style.opacity = "0";
+    activeScreen.style.transform = "translateY(12px)";
+    activeScreen.style.transition = "opacity 280ms ease, transform 280ms ease";
+
+    requestAnimationFrame(() => {
+      activeScreen.style.opacity = "1";
+      activeScreen.style.transform = "translateY(0)";
+    });
+
     activeScreen.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   (screenExtras[screenName] || []).forEach((extra) => {
-    if (extra) extra.style.display = "block";
+    if (!extra) return;
+
+    extra.style.display = "block";
+    extra.style.opacity = "0";
+    extra.style.transform = "translateY(12px)";
+    extra.style.transition = "opacity 280ms ease, transform 280ms ease";
+
+    requestAnimationFrame(() => {
+      extra.style.opacity = "1";
+      extra.style.transform = "translateY(0)";
+    });
   });
 }
 
