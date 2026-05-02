@@ -6664,13 +6664,13 @@ function buildSourceImprovementGuidance(profile = {}) {
       };
     }
 
-    if (/audience/i.test(text)) {
+      if (/audience/i.test(text)) {
       return {
         gap: text,
         ownerAction:
-          "Clarify who the business serves so YEVIB can make recommendations that fit the right customer.",
+          "Clarify the audience signal so YEVIB knows whether to aim strategy at the customer, buyer, or local market the business actually serves.",
         minimumInput:
-          "Paste one sentence describing the ideal customer, buyer, or local audience.",
+          "Paste one practical audience note: who usually buys, who uses the product or service, or which local market the business mainly serves.",
       };
     }
 
