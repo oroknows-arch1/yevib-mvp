@@ -8901,6 +8901,7 @@ app.post("/build-profile", async (req, res) => {
 
     return res.json({
       profile,
+      sourceImprovementGuidance: profile.sourceImprovementGuidance || null,
     });
   } catch (err) {
     console.error("BUILD PROFILE ERROR:", err);
@@ -8916,14 +8917,18 @@ app.post("/run-agent-cycle", async (req, res) => {
     const { profile } = req.body || {};
     const result = runAgentCycleForProfile(profile);
 
-    return res.json(result);
+    return res.json({
+      ...result,
+      sourceImprovementGuidance:
+        result?.profile?.sourceImprovementGuidance || null,
+    });
   } catch (err) {
     console.error("RUN AGENT CYCLE ERROR:", err);
     res.status(500).json({
       error: err.message || "Failed to run agent cycle.",
     });
   }
-});
+});  
 
 app.post("/analyze-voice", async (req, res) => {
   const { input } = req.body;
