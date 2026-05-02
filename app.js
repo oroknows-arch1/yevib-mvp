@@ -77,6 +77,44 @@ let selectedFeeling = "";
 let snapshotChart = null;
 let activeSliceIndex = null;
 
+/* ------------------ SCREEN FLOW ------------------ */
+
+const appScreens = {
+  intake: document.getElementById("section-intake"),
+  profile: document.getElementById("section-profile"),
+  generate: document.getElementById("section-generate"),
+  posts: document.getElementById("section-posts"),
+  output: document.getElementById("section-output"),
+};
+
+const screenExtras = {
+  profile: [document.getElementById("executionPlanWrap")],
+};
+
+function showAppScreen(screenName = "intake") {
+  Object.values(appScreens).forEach((section) => {
+    if (section) section.style.display = "none";
+  });
+
+  Object.values(screenExtras).flat().forEach((extra) => {
+    if (extra) extra.style.display = "none";
+  });
+
+  const activeScreen = appScreens[screenName] || appScreens.intake;
+
+  if (activeScreen) {
+    activeScreen.style.display = "block";
+    activeScreen.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  (screenExtras[screenName] || []).forEach((extra) => {
+    if (extra) extra.style.display = "block";
+  });
+}
+
+showAppScreen("intake");
+
+
 /* ------------------ CORE HELPERS ------------------ */
 
 function getFounderGoal() {
