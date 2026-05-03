@@ -24,21 +24,24 @@
     <div class="hero-visual-frame">
       <div class="hero-visual-badge">Built for SMB owners</div>
 
-      <div
-        class="hero-visual-photo"
-        role="img"
-        aria-label="A calm small business owner feeling clear and confident after finding a better way to work with YEVIB"
-      >
-        <div class="hero-visual-placeholder">
-          <div class="hero-visual-eyebrow">Owner moment</div>
-          <h3 class="hero-visual-title">
-            A calm business owner finally feeling clear on the next move.
-          </h3>
-          <p class="hero-visual-support">
-            This gives the page a human anchor now. If the structure feels right, we can swap this for a real owner image next.
-          </p>
-        </div>
-      </div>
+  <div class="hero-visual-photo">
+  <img
+    class="hero-owner-image"
+    src="assets/yevib-owner-hero.jpg"
+    alt="A calm small business owner feeling clear and confident while using YEVIB to understand the next best move."
+    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+  />
+
+  <div class="hero-visual-placeholder" style="display: none;">
+    <div class="hero-visual-eyebrow">Owner moment</div>
+    <h3 class="hero-visual-title">
+      A calm business owner finally feeling clear on the next move.
+    </h3>
+    <p class="hero-visual-support">
+      Add a real owner image at assets/yevib-owner-hero.jpg to complete this trust layer.
+    </p>
+  </div>
+</div>
 
       <div class="hero-visual-caption">
         <strong>Scan. Understand. Move.</strong>
