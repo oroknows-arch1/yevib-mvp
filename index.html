@@ -2,26 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=headerdevice-width, initial-scale=1.0" />
   <title>YEVIB</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <div class="app-shell">
-    <header class="hero-card">
+    <main class="screen-stack">
+  <section class="screen-card intake-landing-card" id="section-intake">
+    <div class="landing-head">
       <div class="brand-mark">YEVIB</div>
       <h1>Your Voice Your Brand</h1>
-      <p class="hero-sub">
-        Tell YEVIB about the business, scan what the brand looks like today, then generate content with more direction and less guesswork.
-      </p>
-
-      <main class="screen-stack">
-  <section class="screen-card" id="section-intake">
-    <div class="screen-head">
-      <div class="brand-mark">YEVIB</div>
-      <div class="step-tag">Step 1</div>
-      <h2>Business Intake</h2>
       <p class="hero-sub">
         Tell YEVIB about the business, scan what the brand looks like today, then generate content with more direction and less guesswork.
       </p>
@@ -35,6 +27,11 @@
       </div>
     </div>
 
+    <div class="screen-head intake-step-head">
+      <div class="step-tag">Step 1</div>
+      <h2>Business Intake</h2>
+      <p>Enter the minimum YEVIB needs to scan the brand properly.</p>
+    </div>
         <div class="form-grid">
           <div class="field field-full">
             <label for="businessUrl">Website URL</label>
@@ -260,25 +257,26 @@
 
         <div id="profilePrompt" class="subtle-line"></div>
       </section>
-<div id="executionPlanWrap" class="execution-plan-wrap"></div>
+<section id="executionPlanWrap" class="screen-card execution-plan-wrap" style="display:none;">
   <h3>What YEVIB Is Going To Do</h3>
 
-  <div id="primaryStrategyDisplay" style="margin-top:8px;"></div>
-  <div id="supportingStrategiesDisplay" style="margin-top:8px;"></div>
-  <div id="chosenMoveDisplay" style="margin-top:8px;"></div>
-  <div id="successSignalDisplay" style="margin-top:8px;"></div>
+  <div id="primaryStrategyDisplay" class="plan-line"></div>
+  <div id="supportingStrategiesDisplay" class="plan-line"></div>
+  <div id="chosenMoveDisplay" class="plan-line"></div>
+  <div id="successSignalDisplay" class="plan-line"></div>
 
-  <p id="executionSummary" style="font-weight:500;"></p>
-  <p id="executionEta" style="margin-top:8px;"></p>
-  <p id="executionOutcome" style="margin-top:8px;"></p>
+  <p id="executionSummary" class="plan-summary"></p>
+  <p id="executionEta" class="plan-line"></p>
+  <p id="executionOutcome" class="plan-line"></p>
 
-  <ul id="executionActions" style="margin-top:10px; padding-left:20px;"></ul>
+  <ul id="executionActions" class="plan-actions"></ul>
 
-  <button id="runPlanBtn" style="margin-top:15px; padding:10px 16px; border-radius:8px; background:#2563eb; color:white; border:none;">
+  <button id="runPlanBtn" class="primary-btn" type="button">
     Run This Plan
-</button>
-<div id="runPlanStatus" style="margin-top:10px; font-size:14px; opacity:0.8;"></div>
-</div>
+  </button>
+
+  <div id="runPlanStatus" class="subtle-line"></div>
+</section>
       <section class="screen-card" id="section-generate">
         <div class="screen-head">
           <div class="step-tag">Step 3</div>
