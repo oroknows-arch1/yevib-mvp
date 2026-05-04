@@ -1,3 +1,38 @@
+function setYevibStatus(el, message = "", state = "idle") {
+  if (!el) return;
+
+  el.innerText = message || "";
+
+  el.classList.remove(
+    "yevib-status",
+    "is-idle",
+    "is-loading",
+    "is-success",
+    "is-error"
+  );
+
+  if (!message) return;
+
+  el.classList.add("yevib-status");
+
+  if (state === "loading") {
+    el.classList.add("is-loading");
+    return;
+  }
+
+  if (state === "success") {
+    el.classList.add("is-success");
+    return;
+  }
+
+  if (state === "error") {
+    el.classList.add("is-error");
+    return;
+  }
+
+  el.classList.add("is-idle");
+}
+
 const postsDiv = document.getElementById("posts");
 const selectedPostBox = document.getElementById("selectedPost");
 const generatedImage = document.getElementById("generatedImage");
@@ -165,7 +200,7 @@ function getOwnerFeeling() {
 
 function safeJoin(items, fallback = "Not enough signal yet.") {
   if (!Array.isArray(items) || items.length === 0) return fallback;
-  return "• " + items.join("\n• ");
+  return "-" + items.join("\n- ");
 }
 
 function safeText(value, fallback = "Not enough signal yet.") {
@@ -198,8 +233,8 @@ function clearOutputs() {
   selectedPostBox.innerText = "";
   generatedImage.style.display = "none";
   generatedImage.src = "";
-  imageStatus.innerText = "";
-  postsPrompt.innerText = "";
+  setYevibStatus(imageStatus, "", "idle");
+  setYevibStatus(postsPrompt, "", "idle");
   selectedPost = "";
 
   if (approvePostBtn) {
@@ -241,7 +276,7 @@ function clearSnapshotUI() {
   brandIntelligenceDrawer.style.display = "none";
 
 if (runPlanStatus) {
-  runPlanStatus.innerText = "";
+  setYevibStatus(runPlanStatus, "", "idle");
 }
   closeActiveSlice();
   destroySnapshotChart();
@@ -268,7 +303,7 @@ function formatChannelList(channels = {}) {
   if (channels.x) found.push("X");
   if (channels.linkedin) found.push("LinkedIn");
 
-  return found.length ? "• " + found.join("\n• ") : "No public channels detected yet.";
+  return found.length ? "- " + found.join("\n- ") : "No public channels detected yet.";
 }
 
 /* ------------------ LENS + FEELING ------------------ */
@@ -326,11 +361,11 @@ function openActiveSlice(group, index) {
   activeSliceWrap.style.display = "block";
 
   activeSliceTitle.innerText = group.title || "Snapshot Detail";
-  activeSliceMeta.innerText = `${group.score || 0}/${group.max || 0} • ${group.stateLabel || "Unknown"}`;
+  activeSliceMeta.innerText = `${group.score || 0}/${group.max || 0} - ${group.stateLabel || "Unknown"}`;
   activeSliceSummary.innerText = safeText(group.summary, "No summary yet.");
   activeSliceNextMove.innerText = safeText(group.nextMove, "No next move yet.");
-  activeSliceStrengths.innerText = `Strengths\n${safeJoin(group.strengths, "• Not enough strengths detected yet.")}`;
-  activeSliceWeaknesses.innerText = `Weaknesses\n${safeJoin(group.weaknesses, "• No clear weaknesses detected yet.")}`;
+  activeSliceStrengths.innerText = `Strengths\n${safeJoin(group.strengths, "-Not enough strengths detected yet.")}`;
+  activeSliceWeaknesses.innerText = `Weaknesses\n${safeJoin(group.weaknesses, "- No clear weaknesses detected yet.")}`;
 }
 
 function renderSnapshotChart(groupedSnapshot) {
@@ -500,10 +535,10 @@ function populateExecutionPlan(profile) {
   executionOutcome.innerText = "";
   executionActions.innerHTML = "";
 
-  // ✅ SUMMARY (THIS is your "YEVIB WILL DO")
+  // âœ… SUMMARY (THIS is your "YEVIB WILL DO")
   executionSummary.innerText = plan.summary || "";
 
-  // ✅ ADD CORE CAMPAIGN (THIS IS WHAT YOU’RE MISSING)
+  // âœ… ADD CORE CAMPAIGN (THIS IS WHAT YOUâ€™RE MISSING)
   if (plan.coreCampaign) {
     const core = document.createElement("p");
     core.style.marginTop = "10px";
@@ -512,7 +547,7 @@ function populateExecutionPlan(profile) {
     executionSummary.appendChild(core);
   }
 
-  // ✅ SCHEDULE
+  // âœ… SCHEDULE
   if (plan.schedule) {
     const schedule = document.createElement("p");
     schedule.style.marginTop = "6px";
@@ -520,26 +555,26 @@ function populateExecutionPlan(profile) {
     executionSummary.appendChild(schedule);
   }
 
-  // ✅ ETA
+  // âœ… ETA
   if (plan.eta) {
     executionEta.innerText =
       `ETA: Setup ${plan.eta.setup}, First signal ${plan.eta.firstSignal}, Compounding ${plan.eta.compounding}`;
   }
 
-  // ✅ EXPECTED OUTCOME
+  // âœ… EXPECTED OUTCOME
   if (plan.expectedOutcome) {
     executionOutcome.innerText =
       `Expected: ${plan.expectedOutcome.likely}`;
   }
 
-  // ✅ ACTIONS (MAIN LIST)
+  // âœ… ACTIONS (MAIN LIST)
   (plan.actions || []).forEach((action) => {
     const li = document.createElement("li");
     li.innerText = action;
     executionActions.appendChild(li);
   });
 
-  // ✅ 🔥 THIS IS THE BIG ONE → CAMPAIGN LAYERS
+  // âœ… ðŸ”¥ THIS IS THE BIG ONE â†’ CAMPAIGN LAYERS
   if (plan.campaignLayers) {
     const layersWrap = document.createElement("div");
     layersWrap.style.marginTop = "15px";
@@ -564,7 +599,7 @@ function populateExecutionPlan(profile) {
     executionActions.appendChild(layersWrap);
   }
 
-  // ✅ TOOLS
+  // âœ… TOOLS
   if (plan.tools?.length) {
     const tools = document.createElement("p");
     tools.style.marginTop = "10px";
@@ -572,7 +607,7 @@ function populateExecutionPlan(profile) {
     executionActions.appendChild(tools);
   }
 
-  // ✅ SUCCESS SIGNAL
+  // âœ… SUCCESS SIGNAL
   if (plan.successSignal) {
     const success = document.createElement("p");
     success.style.marginTop = "10px";
@@ -586,11 +621,11 @@ async function runAgentCycle() {
 
   if (runPlanBtn) {
     runPlanBtn.disabled = true;
-    runPlanBtn.innerText = "Running Plan...";
+    runPlanBtn.innerText = "Run This Plan";
   }
 
   if (runPlanStatus) {
-    runPlanStatus.innerText = "YEVIB is running the current strategy cycle...";
+    setYevibStatus(runPlanStatus, "YEVIB is building the plan...", "loading");
   }
 
   try {
@@ -608,7 +643,7 @@ async function runAgentCycle() {
       console.error("Agent cycle failed:", data.error);
 
       if (runPlanStatus) {
-        runPlanStatus.innerText = "Plan run failed.";
+        setYevibStatus(runPlanStatus, "Plan run failed.", "error");
       }
 
       return null;
@@ -619,7 +654,7 @@ async function runAgentCycle() {
     populateSnapshot(initialProfile);
 
     if (runPlanStatus) {
-      runPlanStatus.innerText = "Plan run complete. YEVIB refreshed the strategy cycle.";
+      setYevibStatus(runPlanStatus, "Plan run complete. YEVIB refreshed the strategy cycle.", "success");
     }
 
     console.log("Agent cycle complete:", data.runLog);
@@ -628,7 +663,7 @@ async function runAgentCycle() {
     console.error("Agent cycle error:", err.message);
 
     if (runPlanStatus) {
-      runPlanStatus.innerText = `Plan run error: ${err.message}`;
+      setYevibStatus(runPlanStatus, `Plan run error: ${err.message}`, "error");
     }
 
     return null;
@@ -659,16 +694,16 @@ async function runPlanAndGenerateFirstArtifact() {
   }
 
   if (runPlanStatus) {
-    runPlanStatus.innerText = "YEVIB completed the strategy cycle and is now generating the first execution artifact...";
+    setYevibStatus(runPlanStatus, "YEVIB is generating the first execution artifact", "loading");
   }
 
-  generatePrompt.innerText = "YEVIB is generating the first execution artifact...";
+  setYevibStatus(generatePrompt, "YEVIB is generating the first execution artifact...", "loading");
   await generateExecutionPlan();
 
     showAppScreen("posts");
 
   if (runPlanStatus) {
-    runPlanStatus.innerText = "First execution artifact generated. Review the post options below.";
+    setYevibStatus(runPlanStatus, "First execution artifact generated. Review the post options below.", "success");
   }
 }
 
@@ -705,13 +740,13 @@ async function buildInitialProfile() {
   clearSnapshotUI();
 
   if (!businessUrl && !pastedSourceText) {
-    intakeStatus.innerText = "Add a website or text first.";
+    setYevibStatus(intakeStatus, "Add a website URL or owner writing sample before scanning.", "idle");
     return;
   }
 
-  intakeStatus.innerText = "Scanning brand...";
-  profilePrompt.innerText = "";
-  generatePrompt.innerText = "";
+  setYevibStatus(intakeStatus, "YEVIB is scanning the brand...", "loading");
+  setYevibStatus(profilePrompt, "", "idle");
+  setYevibStatus(generatePrompt, "", "idle");
 
   try {
     const res = await fetch("/build-profile", {
@@ -731,7 +766,7 @@ async function buildInitialProfile() {
     const data = await res.json();
 
     if (!res.ok) {
-      intakeStatus.innerText = "Scan failed: " + (data.error || "Failed to build profile.");
+      setYevibStatus(intakeStatus, "Scan failed: " + (data.error || "Failed to build profile."), "error");
       return;
     }
 
@@ -741,8 +776,12 @@ async function buildInitialProfile() {
 
     await runAgentCycle();
 
-    intakeStatus.innerText = "Brand scan complete.";
-    profilePrompt.innerText = "Snapshot ready. YEVIB has run its agent cycle. Open Brand Intelligence or continue to content action.";
+    setYevibStatus(intakeStatus, "Brand scan complete.", "success");
+    setYevibStatus(
+  profilePrompt,
+  "Snapshot ready. YEVIB has completed the first read.",
+  "success"
+);
     
 
         if (initialProfile?.ownerKbMeta?.entryCount) {
@@ -753,7 +792,7 @@ async function buildInitialProfile() {
 
     showAppScreen("profile");
   } catch (err) {
-    intakeStatus.innerText = "Error: " + err.message;
+    setYevibStatus(intakeStatus, "Error: " + err.message, "error");
   }
 }
 
@@ -789,17 +828,20 @@ if (approvePostBtn) {
     }
 
     approvePostBtn.disabled = true;
-    approvePostBtn.innerText = "Generating Image...";
+    approvePostBtn.innerText = "Approved - generating image...";
+    approvePostBtn.classList.add("is-working");
 
     selectedPostBox.innerText = selectedPost;
-    imageStatus.innerText = "Generating image from approved post...";
+    setYevibStatus(postsPrompt, "Post approved. YEVIB is moving to image generation...", "loading");
+    setYevibStatus(imageStatus, "YEVIB is generating the image...", "loading");
+
+    showAppScreen("output");
 
     await generateImage(selectedPost);
 
     approvePostBtn.innerText = "Approved";
+    approvePostBtn.classList.remove("is-working");
     approvePostBtn.disabled = false;
-
-        showAppScreen("output");
   });
 }
 
@@ -816,13 +858,13 @@ async function handleGeneratePostsClick() {
     return;
   }
 
-  generatePrompt.innerText = "Generating posts...";
+  setYevibStatus(generatePrompt, "YEVIB is generating post options...", "loading");
   await generateExecutionPlan();
 }
 
 async function generateExecutionPlan() {
-  postsDiv.innerHTML = "Generating...";
-  postsPrompt.innerText = "YEVIB is generating your posts.";
+  postsDiv.innerHTML = "";
+  setYevibStatus(postsPrompt, "YEVIB is preparing the post options...", "loading");
 
   try {
     const res = await fetch("/generate", {
@@ -853,18 +895,24 @@ async function generateExecutionPlan() {
     const data = await res.json();
 
     if (!res.ok) {
-      postsDiv.innerHTML = "Error: " + (data.error || "Failed.");
-      generatePrompt.innerText = "Post generation failed.";
+      postsDiv.innerHTML = "";
+      setYevibStatus(postsPrompt, "Error: " + (data.error || "Failed."), "error");
+      setYevibStatus(generatePrompt, "Post generation failed.", "error");
       return;
     }
 
     const posts = data.text.split("\n\n\n").filter(Boolean);
     renderPostChoices(posts);
-    generatePrompt.innerText = "Posts ready. Choose the one that feels most right.";
+      setYevibStatus(
+      generatePrompt,
+      "Posts ready. Choose the one that feels most right.",
+      "success"
+    );
     showAppScreen("posts");
   } catch (err) {
-    postsDiv.innerHTML = "Error: " + err.message;
-    generatePrompt.innerText = "Post generation failed.";
+    postsDiv.innerHTML = "";
+    setYevibStatus(postsPrompt, "Error: " + err.message, "error");
+    setYevibStatus(generatePrompt, "Post generation failed.", "error");
   }
 }
 
@@ -872,12 +920,16 @@ async function generateExecutionPlan() {
 
 function renderPostChoices(posts) {
   postsDiv.innerHTML = "";
-  postsPrompt.innerText = "Choose one, then click Approve & Continue.";
+  setYevibStatus(
+    postsPrompt,
+    "Choose one, then click Approve & Continue.",
+    "idle"
+  );
   selectedPost = "";
   selectedPostBox.innerText = "";
   generatedImage.style.display = "none";
   generatedImage.src = "";
-  imageStatus.innerText = "";
+  setYevibStatus(imageStatus, "", "idle");
 
   if (approvePostBtn) {
     approvePostBtn.style.display = "inline-block";
@@ -1058,18 +1110,19 @@ NON-NEGOTIABLE SAFETY / VISUAL RULES:
     if (!res.ok || !data.imageUrl) {
       generatedImage.style.display = "none";
       generatedImage.src = "";
-      imageStatus.innerText = "Image failed: " + (data.error || "No image returned.");
+      setYevibStatus(imageStatus, "Image failed: " + (data.error || "No image returned."), "error");
       return;
     }
 
     generatedImage.src = data.imageUrl;
     generatedImage.style.display = "block";
-    imageStatus.innerText = "Execution complete.";
+    setYevibStatus(imageStatus, "Execution complete.", "success");
   } catch (err) {
     generatedImage.style.display = "none";
     generatedImage.src = "";
-    imageStatus.innerText = "Error: " + err.message;
+    setYevibStatus(imageStatus, "Error: " + err.message, "error");
   }
 }
+
 window.buildInitialProfile = buildInitialProfile;
 window.handleGeneratePostsClick = handleGeneratePostsClick;

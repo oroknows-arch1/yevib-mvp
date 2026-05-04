@@ -4887,12 +4887,12 @@ function validatePostBatch(posts = []) {
     warnings.push("Primary claims are too similar.");
   }
 
-  if (!openingStyles.includes("direct_statement")) {
-    failedReasons.push("Missing direct statement opener.");
+   if (!openingStyles.includes("direct_statement")) {
+    warnings.push("Missing direct statement opener.");
   }
 
   if (!openingStyles.includes("memory_scene")) {
-    failedReasons.push("Missing scene/memory opener.");
+    warnings.push("Missing scene/memory opener.");
   }
 
   if (!lengthBucketSet.has("short")) {

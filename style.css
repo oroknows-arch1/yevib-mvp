@@ -172,7 +172,7 @@ select {
 }
 
 .screen-card {
-  padding: 32px 30px;
+  padding: 32px 30px 24px;
 }
 
 .screen-head {
@@ -1067,4 +1067,292 @@ select:focus {
 .snapshot-grid,
 .slice-support-grid {
   gap: 22px;
+}
+
+/* --- YEVIB LIGHT CORPORATE OUTPUT SYSTEM OVERRIDE --- */
+/* Keeps generated sections readable, professional, and aligned with the intake page. */
+
+.screen-card,
+.post-choice-card,
+.selected-post,
+.snapshot-card,
+.snapshot-flower-card,
+.flower-detail-card,
+.next-move-card,
+.execution-plan-wrap,
+.chart-wrap {
+  background:
+    linear-gradient(180deg, rgba(255, 252, 245, 0.98), rgba(242, 237, 228, 0.96)) !important;
+  border: 1px solid rgba(65, 92, 106, 0.18) !important;
+  border-top: 3px solid rgba(111, 148, 120, 0.26) !important;
+  color: var(--text) !important;
+  box-shadow:
+    0 18px 42px rgba(38, 48, 54, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82) !important;
+}
+
+.post-choice-card {
+  cursor: pointer;
+}
+
+.post-choice-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(111, 148, 120, 0.34) !important;
+  box-shadow:
+    0 22px 48px rgba(38, 48, 54, 0.13),
+    inset 0 1px 0 rgba(255, 255, 255, 0.86) !important;
+}
+
+.post-choice-card.selected {
+  background:
+    linear-gradient(180deg, rgba(246, 250, 244, 0.99), rgba(234, 243, 232, 0.97)) !important;
+  border-color: rgba(111, 148, 120, 0.5) !important;
+  box-shadow:
+    0 22px 48px rgba(56, 124, 76, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+.post-text,
+.selected-post,
+.snapshot-display,
+.compact-display,
+.execution-plan-wrap p,
+.execution-plan-wrap li,
+.execution-plan-wrap div,
+.snapshot-card p,
+.snapshot-flower-card p,
+.flower-detail-card p,
+.next-move-card p {
+  color: var(--text) !important;
+}
+
+.snapshot-display,
+.compact-display,
+.selected-post {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 250, 0.99), rgba(247, 242, 233, 0.97)) !important;
+  border: 1px solid rgba(65, 92, 106, 0.2) !important;
+  color: var(--text) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    0 10px 24px rgba(38, 48, 54, 0.08) !important;
+}
+
+.screen-head h2,
+.snapshot-card h3,
+.snapshot-flower-card h3,
+.flower-detail-card h3,
+.next-move-card h3,
+.execution-plan-wrap h3 {
+  color: var(--text) !important;
+}
+
+.screen-head p,
+.post-meta,
+.post-helper,
+.signal-label,
+.execution-plan-wrap p,
+.execution-plan-wrap li,
+.snapshot-display,
+.compact-display {
+  color: var(--muted-strong) !important;
+}
+
+.signal-score {
+  color: var(--primary) !important;
+}
+
+.next-move-label,
+.step-tag {
+  color: var(--primary) !important;
+}
+
+/* Keep dark action button intentional, not accidental. */
+#toggleBrandIntelligenceBtn {
+  background:
+    linear-gradient(180deg, rgba(34, 55, 68, 0.96), rgba(23, 39, 51, 0.98)) !important;
+  border: 1px solid rgba(65, 92, 106, 0.28) !important;
+  color: #f7f2e8 !important;
+  box-shadow:
+    0 14px 30px rgba(38, 48, 54, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Green primary flow buttons. */
+#continueToGenerateBtn,
+#runPlanBtn,
+.primary-btn {
+  background:
+    linear-gradient(180deg, #7fb98a, #5f9f6d) !important;
+  border: 1px solid rgba(111, 148, 120, 0.34) !important;
+  color: #07140d !important;
+  box-shadow:
+    0 14px 30px rgba(56, 124, 76, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+}
+
+/* Keep all generated flow sections controlled on wider screens. */
+.screen-card {
+  max-width: 1120px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.post-choice-card,
+.snapshot-card,
+.snapshot-flower-card,
+.flower-detail-card,
+.next-move-card,
+.execution-plan-wrap {
+  border-radius: 22px !important;
+}
+
+/* Improve generated post option readability. */
+.post-choice-card .post-text,
+.post-choice-card div,
+.post-choice-card p {
+  color: var(--text) !important;
+  opacity: 1 !important;
+}
+
+/* Avoid the old hidden-dark-dashboard feeling. */
+.snapshot-shell,
+.snapshot-top,
+.snapshot-grid,
+.slice-support-grid {
+  gap: 24px;
+}
+
+/* --- YEVIB SHARED PROCESS STATUS SYSTEM --- */
+
+.yevib-status {
+  margin-top: 14px;
+  min-height: 24px;
+  display: block;
+  font-weight: 760;
+  line-height: 1.55;
+  letter-spacing: -0.01em;
+  transition: color 0.25s ease, opacity 0.25s ease;
+}
+
+.yevib-status.is-loading {
+  background: linear-gradient(
+    90deg,
+    rgba(111, 148, 120, 0.45),
+    rgba(111, 159, 167, 0.95),
+    rgba(127, 111, 150, 0.72),
+    rgba(177, 120, 63, 0.68),
+    rgba(111, 148, 120, 0.45)
+  );
+  background-size: 260% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+  animation: yevibStatusRoll 1.45s linear infinite;
+}
+
+.yevib-status.is-success {
+  animation: none;
+  background: none;
+  color: var(--primary) !important;
+}
+
+.yevib-status.is-error {
+  animation: none;
+  background: none;
+  color: var(--warning) !important;
+}
+
+@keyframes yevibStatusRoll {
+  0% {
+    background-position: 220% 0;
+  }
+
+  100% {
+    background-position: -220% 0;
+  }
+}
+
+/* --- YEVIB UNIFIED PROCESS STATUS SYSTEM --- */
+
+.yevib-status,
+.status-line,
+.subtle-line,
+.warning-line {
+  margin-top: 14px !important;
+  min-height: 26px;
+  display: block;
+  font-size: 0.98rem;
+  font-weight: 760;
+  line-height: 1.55;
+  letter-spacing: -0.01em;
+  transition:
+    color 0.25s ease,
+    opacity 0.25s ease,
+    background-position 0.25s ease;
+}
+
+.yevib-status.is-idle {
+  background: none !important;
+  color: var(--muted-strong) !important;
+  animation: none !important;
+}
+
+.yevib-status.is-loading {
+  background: linear-gradient(
+    90deg,
+    rgba(111, 148, 120, 0.5),
+    rgba(111, 159, 167, 0.98),
+    rgba(127, 111, 150, 0.78),
+    rgba(177, 120, 63, 0.72),
+    rgba(111, 148, 120, 0.5)
+  ) !important;
+  background-size: 280% 100% !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+  animation: yevibStatusRoll 1.45s linear infinite !important;
+}
+
+.yevib-status.is-success {
+  background: none !important;
+  color: var(--primary) !important;
+  animation: none !important;
+}
+
+.yevib-status.is-error {
+  background: none !important;
+  color: var(--warning) !important;
+  animation: none !important;
+}
+
+.status-line {
+  color: var(--primary) !important;
+}
+
+.subtle-line {
+  color: var(--muted-strong) !important;
+}
+
+.warning-line {
+  color: var(--warning) !important;
+}
+
+@keyframes yevibStatusRoll {
+  0% {
+    background-position: 240% 0;
+  }
+
+  100% {
+    background-position: -240% 0;
+  }
+}
+
+.primary-btn.is-working,
+.secondary-btn.is-working,
+#approvePostBtn.is-working {
+  opacity: 0.78;
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 8px rgba(38, 48, 54, 0.18);
+  cursor: wait;
 }
