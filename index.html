@@ -367,12 +367,18 @@
           <p>Pick the one that feels most like the business and the moment.</p>
         </div>
 
-        <div id="postsPrompt" class="subtle-line"></div>
+                <div id="postsPrompt" class="subtle-line"></div>
         <div id="posts"></div>
 
-        <button id="approvePostBtn" style="display:none; margin-top:15px; padding:10px 16px; border-radius:8px; background:#16a34a; color:white; border:none;" disabled>
-          Approve & Continue
-        </button>
+        <div class="post-decision-row">
+          <button id="regeneratePostsBtn" class="secondary-btn" type="button" style="display:none;">
+            Regenerate Posts
+          </button>
+
+          <button id="approvePostBtn" class="primary-btn" type="button" style="display:none;" disabled>
+            Approve & Continue
+          </button>
+        </div>
       </section>
 
       <section class="screen-card" id="section-output">

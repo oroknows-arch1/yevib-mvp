@@ -41,6 +41,7 @@ let selectedPost = "";
 
 const imageStatus = document.getElementById("imageStatus");
 const approvePostBtn = document.getElementById("approvePostBtn");
+const regeneratePostsBtn = document.getElementById("regeneratePostsBtn");
 
 const intakeStatus = document.getElementById("intakeStatus");
 const ownerKbStatus = document.getElementById("ownerKbStatus");
@@ -237,10 +238,16 @@ function clearOutputs() {
   setYevibStatus(postsPrompt, "", "idle");
   selectedPost = "";
 
-  if (approvePostBtn) {
+   if (approvePostBtn) {
     approvePostBtn.style.display = "none";
     approvePostBtn.disabled = true;
     approvePostBtn.innerText = "Approve & Continue";
+  }
+
+  if (regeneratePostsBtn) {
+    regeneratePostsBtn.style.display = "none";
+    regeneratePostsBtn.disabled = false;
+    regeneratePostsBtn.innerText = "Regenerate Posts";
   }
 }
 
@@ -257,8 +264,8 @@ function clearSnapshotUI() {
   opportunitiesDisplay.innerText = "Opportunities will appear here after the scan.";
   channelsDisplay.innerText = "Detected channels will appear here after the scan.";
   trustSignalsDisplay.innerText = "Trust and proof signals will appear here after the scan.";
-  educationSignalsDisplay.innerText = "Education signals will appear here after the scan.";
-  activitySignalsDisplay.innerText = "Public activity signals will appear here after the scan.";
+    educationSignalsDisplay.innerText = "More educational content sources are needed for a stronger signal to diagnose.";
+    activitySignalsDisplay.innerText = "More public activity sources are needed for a stronger signal to diagnose how active, visible, and current the business appears publicly.";
   founderVisibilitySignalsDisplay.innerText = "Founder visibility signals will appear here after the scan.";
     voiceInput.value = "";
 
@@ -356,16 +363,30 @@ function closeActiveSlice() {
   activeSliceWeaknesses.innerText = "";
 }
 
+function isYevibProductFeedbackText(value = "") {
+  const text = String(value || "").toLowerCase();
+
+  return /yevib|app|ui|interface|screen|button|approve|continue|regenerate|generated post|post options|language rules|voice consistently|product flow|user flow|frontend|backend/.test(text);
+}
+
+function getBusinessOnlyWeaknesses(weaknesses = []) {
+  if (!Array.isArray(weaknesses)) return [];
+
+  return weaknesses.filter((item) => !isYevibProductFeedbackText(item));
+}
+
 function openActiveSlice(group, index) {
   activeSliceIndex = index;
   activeSliceWrap.style.display = "block";
+
+  const businessWeaknesses = getBusinessOnlyWeaknesses(group.weaknesses);
 
   activeSliceTitle.innerText = group.title || "Snapshot Detail";
   activeSliceMeta.innerText = `${group.score || 0}/${group.max || 0} - ${group.stateLabel || "Unknown"}`;
   activeSliceSummary.innerText = safeText(group.summary, "No summary yet.");
   activeSliceNextMove.innerText = safeText(group.nextMove, "No next move yet.");
   activeSliceStrengths.innerText = `Strengths\n${safeJoin(group.strengths, "-Not enough strengths detected yet.")}`;
-  activeSliceWeaknesses.innerText = `Weaknesses\n${safeJoin(group.weaknesses, "- No clear weaknesses detected yet.")}`;
+  activeSliceWeaknesses.innerText = `Business Weaknesses\n${safeJoin(businessWeaknesses, "- No clear business weaknesses detected yet.")}`;
 }
 
 function renderSnapshotChart(groupedSnapshot) {
@@ -498,14 +519,14 @@ successSignalDisplay.innerText = safeText(
     "Trust and proof signals will appear here after the scan."
   );
 
-  educationSignalsDisplay.innerText = safeJoin(
+    educationSignalsDisplay.innerText = safeJoin(
     discoveryProfile?.educationSignals,
-    "Education signals will appear here after the scan."
+    "More educational content sources are needed for a stronger signal to diagnose."
   );
 
-  activitySignalsDisplay.innerText = safeJoin(
+    activitySignalsDisplay.innerText = safeJoin(
     discoveryProfile?.activitySignals,
-    "Public activity signals will appear here after the scan."
+    "More public activity sources are needed for a stronger signal to diagnose how active, visible, and current the business appears publicly."
   );
 
   founderVisibilitySignalsDisplay.innerText = safeJoin(
@@ -831,6 +852,10 @@ if (approvePostBtn) {
     approvePostBtn.innerText = "Approved - generating image...";
     approvePostBtn.classList.add("is-working");
 
+    if (regeneratePostsBtn) {
+      regeneratePostsBtn.disabled = true;
+    }
+
     selectedPostBox.innerText = selectedPost;
     setYevibStatus(postsPrompt, "Post approved. YEVIB is moving to image generation...", "loading");
     setYevibStatus(imageStatus, "YEVIB is generating the image...", "loading");
@@ -842,6 +867,42 @@ if (approvePostBtn) {
     approvePostBtn.innerText = "Approved";
     approvePostBtn.classList.remove("is-working");
     approvePostBtn.disabled = false;
+
+    if (regeneratePostsBtn) {
+      regeneratePostsBtn.disabled = false;
+    }
+  });
+}
+
+if (regeneratePostsBtn) {
+  regeneratePostsBtn.addEventListener("click", async () => {
+    if (!initialProfile) {
+      alert("Scan first.");
+      return;
+    }
+
+    selectedPost = "";
+    selectedPostBox.innerText = "";
+    generatedImage.style.display = "none";
+    generatedImage.src = "";
+
+    if (approvePostBtn) {
+      approvePostBtn.disabled = true;
+      approvePostBtn.innerText = "Approve & Continue";
+    }
+
+    regeneratePostsBtn.disabled = true;
+    regeneratePostsBtn.innerText = "Regenerating Posts...";
+
+    setYevibStatus(postsPrompt, "YEVIB is regenerating post options...", "loading");
+    setYevibStatus(generatePrompt, "YEVIB is regenerating post options...", "loading");
+
+    try {
+      await generateExecutionPlan();
+    } finally {
+      regeneratePostsBtn.disabled = false;
+      regeneratePostsBtn.innerText = "Regenerate Posts";
+    }
   });
 }
 
@@ -931,8 +992,14 @@ function renderPostChoices(posts) {
   generatedImage.src = "";
   setYevibStatus(imageStatus, "", "idle");
 
+    if (regeneratePostsBtn) {
+    regeneratePostsBtn.style.display = "inline-flex";
+    regeneratePostsBtn.disabled = false;
+    regeneratePostsBtn.innerText = "Regenerate Posts";
+  }
+
   if (approvePostBtn) {
-    approvePostBtn.style.display = "inline-block";
+    approvePostBtn.style.display = "inline-flex";
     approvePostBtn.disabled = true;
     approvePostBtn.innerText = "Approve & Continue";
   }
