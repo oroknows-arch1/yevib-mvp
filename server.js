@@ -9963,15 +9963,377 @@ let posts = await generatePostsWithHistoryGuard(
   }
 });
 
+function buildImageDecisionPacket(input = {}) {
+  const imagePrompt = String(input.imagePrompt || "").trim();
+  const discoveryProfile = input.discoveryProfile || {};
+  const sceneType = String(input.sceneType || "").trim();
+
+  const visualIdentity = discoveryProfile.visualIdentity || {};
+  const locationContext = discoveryProfile.locationContext || {};
+
+  const businessSummary = String(
+    discoveryProfile.businessSummary ||
+      discoveryProfile.summary ||
+      discoveryProfile.businessDescription ||
+      ""
+  ).toLowerCase();
+
+  const combinedText = [
+    imagePrompt,
+    sceneType,
+    businessSummary,
+    visualIdentity.tone,
+    visualIdentity.palette,
+    visualIdentity.environment,
+    visualIdentity.brandingStyle,
+    locationContext.environmentType,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  const includesAny = (patterns = []) =>
+    patterns.some((pattern) => pattern.test(combinedText));
+
+    let businessArchetype = "unknown_smb";
+
+  if (
+    includesAny([
+      /app|software|saas|digital|online|ai tool|platform|dashboard|website|web app|client website|site migration|website migration|digital agency|marketing tool|automation|content tool/,
+    ])
+  ) {
+    businessArchetype = "digital_saas_online";
+  } else if (
+    includesAny([
+      /florist|artist|photographer|jeweller|designer|ceramic|maker|studio|creative/,
+    ])
+  ) {
+    businessArchetype = "creative_maker";
+  } else if (
+    includesAny([
+      /health|care|therapy|disability|aged care|allied health|clinic/,
+    ])
+  ) {
+    businessArchetype = "health_care_sensitive";
+  } else if (
+    includesAny([
+      /accountant|lawyer|consultant|broker|agency|coach|professional service/,
+    ])
+  ) {
+    businessArchetype = "professional_service";
+  } else if (
+    includesAny([
+      /beauty|wellness|salon|barber|massage|skin|fitness|nail/,
+    ])
+  ) {
+    businessArchetype = "beauty_wellness";
+  } else if (
+    includesAny([
+      /cafe|restaurant|bakery|coffee|food|beverage|catering|hospitality/,
+    ])
+  ) {
+    businessArchetype = "hospitality";
+  } else if (
+    includesAny([
+      /product|ecommerce|shop|store|apparel|skincare|matcha|candle|packaging|retail/,
+    ])
+  ) {
+    businessArchetype = "retail_product";
+  } else if (
+    includesAny([
+      /pergola|patio|renovation|bathroom|kitchen|flooring|painting|concrete|deck|home improvement/,
+    ])
+  ) {
+    businessArchetype = "home_improvement";
+  } else if (
+    includesAny([
+      /plumb|electric|carpenter|mechanic|roof|clean|landscap|builder|trade|repair|maintenance|install/,
+    ])
+  ) {
+    businessArchetype = "local_trade";
+  }
+
+  let messageIntent = "brand_mood";
+
+  if (
+    includesAny([
+      /trust|proof|reliable|standard|quality|care|confidence|safe|dependable/,
+    ])
+  ) {
+    messageIntent = "trust_proof";
+  } else if (
+    includesAny([
+      /product|buy|order|shop|range|collection|item|pack|package/,
+    ])
+  ) {
+    messageIntent = "product_proof";
+  } else if (
+    includesAny([
+      /repair|install|build|clean|fix|inspect|service|process|method|work/,
+    ])
+  ) {
+    messageIntent = "service_process_proof";
+  } else if (
+    includesAny([
+      /owner|founder|i run|i make|my business|behind the business/,
+    ])
+  ) {
+    messageIntent = "founder_presence";
+  } else if (
+    includesAny([
+      /result|outcome|finished|complete|after|relief|enjoy|use|living/,
+    ])
+  ) {
+    messageIntent = "customer_outcome";
+  } else if (
+    includesAny([
+      /learn|explain|why|how|tip|education|understand|guide/,
+    ])
+  ) {
+    messageIntent = "education";
+  } else if (
+    includesAny([
+      /local|community|area|nearby|suburb|sydney|region/,
+    ])
+  ) {
+    messageIntent = "local_presence";
+  }
+
+  let visualSourceScore = 25;
+
+  if (businessArchetype !== "unknown_smb") visualSourceScore += 20;
+  if (imagePrompt.length > 80) visualSourceScore += 15;
+  if (visualIdentity.tone || visualIdentity.palette || visualIdentity.environment) {
+    visualSourceScore += 15;
+  }
+  if (locationContext.city || locationContext.state || locationContext.environmentType) {
+    visualSourceScore += 10;
+  }
+  if (businessSummary.length > 80) visualSourceScore += 10;
+
+  visualSourceScore = clampNumber(visualSourceScore, 0, 100);
+
+  let visualSourceLevel = "weak";
+  if (visualSourceScore >= 85) visualSourceLevel = "strong";
+  else if (visualSourceScore >= 65) visualSourceLevel = "good";
+  else if (visualSourceScore >= 45) visualSourceLevel = "limited";
+  else if (visualSourceScore >= 25) visualSourceLevel = "weak";
+  else visualSourceLevel = "unsafe";
+
+  let selectedMode = "clean_text_free_fallback";
+
+  if (messageIntent === "product_proof" && businessArchetype === "retail_product") {
+    selectedMode = "product_truth";
+  } else if (messageIntent === "service_process_proof") {
+    selectedMode = "process_proof";
+  } else if (messageIntent === "customer_outcome") {
+    selectedMode = "outcome_proof";
+  } else if (messageIntent === "founder_presence") {
+    selectedMode = "owner_presence";
+  } else if (messageIntent === "education") {
+    selectedMode = "educational_visual";
+  } else if (businessArchetype === "digital_saas_online") {
+    selectedMode = "owner_presence";
+  } else if (visualSourceLevel === "limited" || visualSourceLevel === "weak") {
+    selectedMode = "environment_trust";
+  } else {
+    selectedMode = "source_matched_realism";
+  }
+
+  const visualRisks = [];
+  const blockedVisualClaims = [
+    "invented logos",
+    "invented business names",
+    "fake labels",
+    "fake signage",
+    "fake uniforms",
+    "fake certifications",
+    "readable text",
+  ];
+
+  if (businessArchetype === "home_improvement" && /finished|complete|completed|done/.test(combinedText)) {
+    visualRisks.push(
+      "Do not show workers performing unclear active construction on an already completed structure."
+    );
+    selectedMode = "outcome_proof";
+  }
+
+  if (businessArchetype === "digital_saas_online") {
+    blockedVisualClaims.push(
+      "fake dashboard text",
+      "fake UI claims",
+      "robot imagery",
+      "generic futuristic AI visuals"
+    );
+  }
+
+  if (businessArchetype === "health_care_sensitive") {
+    blockedVisualClaims.push(
+      "medical overclaims",
+      "vulnerable people used as props",
+      "fake clinical authority"
+    );
+  }
+
+  const fallbackUsed =
+    visualSourceLevel === "weak" ||
+    visualSourceLevel === "unsafe" ||
+    selectedMode === "clean_text_free_fallback";
+
+  const fallbackReason = fallbackUsed
+    ? "YEVIB does not have enough safe visual grounding for a highly specific business image, so it should use a cleaner trust-safe visual move."
+    : "";
+
+  const mustShow = [];
+  const mustNotShow = [...blockedVisualClaims];
+
+  if (selectedMode === "process_proof") {
+    mustShow.push(
+      "a believable work process",
+      "the correct subject of the work",
+      "hands, tools, or attention connected to the correct serviceable area"
+    );
+    mustNotShow.push("fake work", "physically unclear action", "wrong tools for the business type");
+  }
+
+  if (selectedMode === "outcome_proof") {
+    mustShow.push(
+      "the finished or resolved state",
+      "a believable result connected to the message",
+      "proof of value rather than fake active work"
+    );
+    mustNotShow.push("workers pretending to build a finished result", "unsupported before-and-after claims");
+  }
+
+  if (selectedMode === "owner_presence") {
+    mustShow.push(
+      "a believable small business owner or operator moment",
+      "realistic workday context",
+      "calm clarity or practical progress"
+    );
+    mustNotShow.push("fake founder likeness", "fake corporate boardroom", "over-polished stock-photo scene");
+  }
+
+  if (selectedMode === "environment_trust") {
+    mustShow.push(
+      "a business-relevant environment",
+      "context that supports the message without overclaiming"
+    );
+    mustNotShow.push("specific branded assets not grounded by source material");
+  }
+
+  return {
+    selectedMode,
+    visualSourceScore,
+    visualSourceLevel,
+    businessArchetype,
+    messageIntent,
+    recommendedVisualJob:
+      "Choose the most trustworthy visual move before generation, using source strength and message intent.",
+    approvedVisualClaims: mustShow,
+    blockedVisualClaims,
+    visualRisks,
+    fallbackUsed,
+    fallbackReason,
+    mustShow,
+    mustNotShow,
+    promptGuidance:
+      "Show proof of the message, not always a literal enactment of the message. Avoid unsupported branding, fake work, fake labels, and visual claims the source does not support.",
+    ownerFacingReason:
+      fallbackUsed
+        ? "YEVIB chose a safer visual direction because the source material does not support a highly specific image yet."
+        : "YEVIB found enough source and message signal to choose a more specific visual direction.",
+  };
+}
+
+function buildSafeImagePlanningPrompt(imagePrompt = "", imageDecisionPacket = {}) {
+  const rawPrompt = String(imagePrompt || "").trim();
+  const businessArchetype = String(
+    imageDecisionPacket?.businessArchetype || ""
+  ).trim();
+  const selectedMode = String(
+    imageDecisionPacket?.selectedMode || ""
+  ).trim();
+  const messageIntent = String(
+    imageDecisionPacket?.messageIntent || ""
+  ).trim();
+
+  if (businessArchetype === "digital_saas_online") {
+    return `
+Create a documentary-realistic 4-panel visual scene plan for a digital, software, website, marketing tool, app, online platform, or AI business workflow.
+
+The visual must show the human value of the digital service, not a literal construction metaphor.
+
+SAFE DIGITAL BUSINESS SCENE:
+- show a small business owner, operator, founder, or client reviewing digital work in a realistic workspace
+- use a real SMB setting such as a desk, small office, home office, shop counter, studio, cafe table, or quiet work area
+- a laptop, tablet, or phone may appear, but all screens must be abstract, blurred, layout-based, and unreadable
+- the scene should communicate clarity, review, approval, handover, relief, planning, confidence, or practical progress
+- keep the mood professional, calm, grounded, and business-grade
+
+IMAGE MODE:
+${selectedMode || "owner_presence"}
+
+MESSAGE INTENT:
+${messageIntent || "trust_proof"}
+
+RAW MESSAGE TO SUPPORT:
+${clipText(rawPrompt, 1200)}
+
+STRICT VISUAL BLOCKS:
+- no construction site
+- no scaffolding
+- no hard hats
+- no high-visibility clothing
+- no safety vests
+- no trade uniforms
+- no building-site planning boards
+- no literal website construction metaphor
+- no readable screen text
+- no readable UI
+- no readable notes
+- no fake dashboard metrics
+- no fake client messages
+- no fake signage
+- no invented logos
+- no extra unintroduced people
+
+CAST RULES:
+- keep one clear business owner, founder, operator, or client identity across all panels
+- do not switch clothing, role, face, age, or job identity between panels
+- if a laptop user appears in multiple panels, they must remain the same person
+- do not turn a plain-clothed business owner into a worker, technician, builder, or tradesperson
+- do not add safety gear or uniforms to the business owner unless source-proven
+
+The image should show the proof of digital value through human clarity and practical business workflow.
+`.trim();
+  }
+
+  return rawPrompt;
+}
+
 app.post("/generate-image", async (req, res) => {
   const { imagePrompt, discoveryProfile } = req.body;
   const sceneType = classifySceneType(imagePrompt || "");
 
   try {
-    const scenePlan = await buildImageScenePlan(imagePrompt || "", {
-      ...(discoveryProfile || {}),
+    const imageDecisionPacket = buildImageDecisionPacket({
+      imagePrompt,
+      discoveryProfile,
       sceneType,
     });
+
+        const safePlanningPrompt = buildSafeImagePlanningPrompt(
+      imagePrompt || "",
+      imageDecisionPacket
+    );
+
+    const scenePlan = await buildImageScenePlan(safePlanningPrompt, {
+      ...(discoveryProfile || {}),
+      sceneType,
+      imageDecisionPacket,
+    });
+
 
        const panelLines =
       scenePlan.panels.length === 4
@@ -10112,11 +10474,59 @@ Show the outcome, result, lived use, or resolved state tied to the same subject.
 - do not drift into a visually similar but incorrect subject
 - do not crop the main working area so tightly that it becomes unclear or partial`;
 
+    const imageDecisionLines = imageDecisionPacket
+      ? `
+IMAGE DECISION PACKET:
+- selected image mode: ${imageDecisionPacket.selectedMode || "not specified"}
+- business archetype: ${imageDecisionPacket.businessArchetype || "unknown_smb"}
+- message intent: ${imageDecisionPacket.messageIntent || "not specified"}
+- visual source level: ${imageDecisionPacket.visualSourceLevel || "not specified"}
+- recommended visual job: ${imageDecisionPacket.recommendedVisualJob || "choose the most trustworthy visual move before generation"}
+
+APPROVED VISUAL CLAIMS:
+${
+  Array.isArray(imageDecisionPacket.approvedVisualClaims) &&
+  imageDecisionPacket.approvedVisualClaims.length > 0
+    ? imageDecisionPacket.approvedVisualClaims.map((item) => `- ${item}`).join("\n")
+    : "- only show visually grounded business context"
+}
+
+BLOCKED VISUAL CLAIMS:
+${
+  Array.isArray(imageDecisionPacket.blockedVisualClaims) &&
+  imageDecisionPacket.blockedVisualClaims.length > 0
+    ? imageDecisionPacket.blockedVisualClaims.map((item) => `- ${item}`).join("\n")
+    : "- invented logos\n- fake labels\n- fake signage\n- fake uniforms\n- fake certifications\n- readable text"
+}
+
+IMAGE DECISION MUST-SHOW RULES:
+${
+  Array.isArray(imageDecisionPacket.mustShow) &&
+  imageDecisionPacket.mustShow.length > 0
+    ? imageDecisionPacket.mustShow.map((item) => `- ${item}`).join("\n")
+    : "- the safest visual proof of the message"
+}
+
+IMAGE DECISION MUST-NOT-SHOW RULES:
+${
+  Array.isArray(imageDecisionPacket.mustNotShow) &&
+  imageDecisionPacket.mustNotShow.length > 0
+    ? imageDecisionPacket.mustNotShow.map((item) => `- ${item}`).join("\n")
+    : "- unsupported branding\n- fake work\n- identity drift\n- role swaps"
+}
+
+IMAGE DECISION PROMPT GUIDANCE:
+${imageDecisionPacket.promptGuidance || "Show proof of the message, not always a literal enactment of the message."}
+`.trim()
+      : "";
+
 const hardenedPrompt = `
 Create exactly one documentary-realistic 4-panel collage image.
 
 ORIGINAL REQUEST:
 ${clipText(imagePrompt || "", 2200)}
+
+${imageDecisionLines}
 
 GLOBAL SCENE:
 ${scenePlan.globalScene || "A single coherent real-world scene built from the request."}
@@ -10174,6 +10584,18 @@ UNIVERSAL SUBJECT-ROLE ENFORCEMENT:
 - each panel may contain support context, but only one true operative subject may own the action
 - the subject being touched, inspected, repaired, or resolved must be the same subject that visually owns the frame
 
+NON-NEGOTIABLE CAST IDENTITY RULES:
+- define one clear primary actor and keep that exact person visually consistent across every panel where they appear
+- define one clear secondary actor and keep that exact person visually consistent across every panel where they appear
+- clothing, safety gear, facial hair, hair colour, age, body type, and role must not swap between actors
+- a person wearing a hard hat or high-visibility workwear in one panel must not become the plain-clothed client in another panel
+- a plain-clothed client, owner, or laptop user must not gain a hard hat, safety vest, trade uniform, or worker role in another panel
+- if one actor is operating the laptop in any panel, that same actor identity must operate or review the laptop consistently in all related laptop panels
+- do not merge two people into one mixed identity
+- do not give a secondary actor the costume, equipment, or job role of the primary actor
+- do not introduce a new person in a panel unless the request explicitly requires a new person
+- every person in each panel must be recognisable as one of the already established actors
+
 NON-NEGOTIABLE FRAMING RULES:
 - each panel must frame its target subject clearly and readably at first glance
 - if a panel shows inspection, setup, or repair, the full working area must be clearly visible in frame
@@ -10198,8 +10620,14 @@ NON-NEGOTIABLE WEBSITE ALIGNMENT RULES:
 - do not use random colours, props, or moods that clash with the website
 - if the website feels minimal, earthy, luxurious, warm, clinical, handcrafted, industrial, soft, family-led, or modern, reflect that visually
 
-NON-NEGOTIABLE IMAGE SAFETY RULES:
-- no readable words anywhere in the image
+NON-NEGOTIABLE DIGITAL / ONLINE BUSINESS RULES:
+- if the business archetype is digital_saas_online, the image must show business clarity, owner relief, planning, review, workflow, or digital service value
+- if the business archetype is digital_saas_online, do not turn the scene into literal construction, trade labour, or physical building work unless the business itself is a construction business
+- website, app, software, marketing tool, dashboard, platform, or online service imagery must not use fake readable UI text
+- do not show fake interface claims, fake dashboards, fake metrics, fake client data, or readable website copy
+- if showing a laptop, screen, app, website, or dashboard, keep the UI mostly abstract, blurred, or layout-based with no readable text
+- do not use construction helmets, safety vests, building sites, or trade uniforms as metaphors for digital work unless they are explicitly grounded by the business source
+- show the human outcome of the digital tool before showing fake software details
 - no signage text, shop signs, labels, written words, route numbers, motorway names, street names, suburb names, or location text
 - no readable logos anywhere in the image
 - no fake brand names
@@ -10209,6 +10637,8 @@ NON-NEGOTIABLE IMAGE SAFETY RULES:
 - if a location is implied, show it through environment only, never through text or signage unless exact verified text was explicitly provided and intentionally requested
 - do not invent Australian road labels, motorway numbers, or geographic markers
 - keep all clothing, vehicles, roads, signage, and objects visually unbranded unless real assets were explicitly provided
+NON-NEGOTIABLE IMAGE SAFETY RULES:
+- no readable words anywhere in the image
 `.trim();
 
     const response = await openai.images.generate({
@@ -10222,10 +10652,12 @@ NON-NEGOTIABLE IMAGE SAFETY RULES:
       return res.status(500).json({ error: "No image returned from OpenAI." });
     }
 
-    res.json({
+                res.json({
    imageUrl: `data:image/png;base64,${base64Image}`,
    scenePlan,
    sceneType,
+   imageDecisionPacket,
+   safePlanningPrompt,
  });
   } catch (err) {
     console.error("IMAGE GENERATION ERROR:", err);
