@@ -765,7 +765,7 @@ async function buildInitialProfile() {
     return;
   }
 
-  setYevibStatus(intakeStatus, "YEVIB is scanning the brand...", "loading");
+  setYevibStatus(intakeStatus, "YEVIB is scanning the business and preparing the first useful marketing move...", "loading");
   setYevibStatus(profilePrompt, "", "idle");
   setYevibStatus(generatePrompt, "", "idle");
 
@@ -782,7 +782,7 @@ async function buildInitialProfile() {
         founderGoal: getFounderGoal(),
         ownerWritingSample: pastedSourceText
       })
-        });
+    });
 
     const data = await res.json();
 
@@ -795,23 +795,40 @@ async function buildInitialProfile() {
 
     console.log("UBDG PACKET (RAW SCAN):", data.profile?.ubdgEvidencePacket);
 
-    await runAgentCycle();
+    const cycleResult = await runAgentCycle();
 
-    setYevibStatus(intakeStatus, "Brand scan complete.", "success");
-    setYevibStatus(
-  profilePrompt,
-  "Snapshot ready. YEVIB has completed the first read.",
-  "success"
-);
-    
+    if (!cycleResult) {
+      setYevibStatus(intakeStatus, "Scan completed, but the plan refresh failed.", "error");
+      showAppScreen("profile");
+      return;
+    }
 
-        if (initialProfile?.ownerKbMeta?.entryCount) {
+    if (initialProfile?.ownerKbMeta?.entryCount) {
       ownerKbStatus.innerText = `Owner KB entries found for this business: ${initialProfile.ownerKbMeta.entryCount}`;
     } else {
       ownerKbStatus.innerText = "No owner KB history detected for this business yet.";
     }
 
-    showAppScreen("profile");
+    if (!selectedLens) {
+      selectedLens = "Business";
+
+      lensButtons.forEach((btn) => {
+        const isBusiness = (btn.dataset.type || "") === "Business";
+        btn.classList.toggle("selected", isBusiness);
+      });
+
+      selectedLensPrompt.innerText = "Selected lens: Business";
+    }
+
+    setYevibStatus(intakeStatus, "Free scan complete. YEVIB is preparing your first post options.", "success");
+    setYevibStatus(
+      profilePrompt,
+      "Snapshot ready. YEVIB has completed the first read.",
+      "success"
+    );
+    setYevibStatus(generatePrompt, "YEVIB is generating the first Free V1 post options...", "loading");
+
+    await generateExecutionPlan();
   } catch (err) {
     setYevibStatus(intakeStatus, "Error: " + err.message, "error");
   }
