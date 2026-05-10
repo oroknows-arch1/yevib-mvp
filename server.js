@@ -9995,11 +9995,23 @@ function buildImageDecisionPacket(input = {}) {
   const includesAny = (patterns = []) =>
     patterns.some((pattern) => pattern.test(combinedText));
 
-       let businessArchetype = "unknown_smb";
+     let businessArchetype = "unknown_smb";
 
   if (
     includesAny([
-      /plumb|plumber|plumbing|electric|electrician|carpenter|mechanic|roof|roofer|clean|cleaner|landscap|landscaper|builder|trade|trades|tradie|repair|maintenance|install|installation|service call|callout|home service/,
+      /marketplace|classifieds|classified|directory|find tradies|find a tradie|find local tradies|compare tradies|connect with tradies|connect customers with tradies|post a job|post your job|get quotes|compare quotes|book a tradie|hire a tradie|list your business|service marketplace|task marketplace|customer matching|provider matching/,
+    ])
+  ) {
+    businessArchetype = "trade_marketplace_directory";
+  } else if (
+    includesAny([
+      /laundry|dry cleaning|dry-cleaning|garment care|washing service|wash and fold|pickup and delivery|laundromat|ironing|clothing care|linen service/,
+    ])
+  ) {
+    businessArchetype = "laundry_service";
+  } else if (
+    includesAny([
+      /plumb|plumber|plumbing|electric|electrician|carpenter|mechanic|roof|roofer|cleaner|landscap|landscaper|builder|trade service|trades service|tradie service|repair|maintenance|install|installation|service call|callout|home service/,
     ])
   ) {
     businessArchetype = "local_trade";
@@ -10051,7 +10063,7 @@ function buildImageDecisionPacket(input = {}) {
     ])
   ) {
     businessArchetype = "retail_product";
-  }
+  }    
 
   let messageIntent = "brand_mood";
 
@@ -10200,8 +10212,44 @@ function buildImageDecisionPacket(input = {}) {
     ? "YEVIB does not have enough safe visual grounding for a highly specific business image, so it should use a cleaner trust-safe visual move."
     : "";
 
-    const mustShow = [];
+      const mustShow = [];
   const mustNotShow = [...blockedVisualClaims];
+
+  if (businessArchetype === "trade_marketplace_directory") {
+    mustShow.push(
+      "trade marketplace, directory, or classifieds platform context",
+      "customer search, comparison, booking, quote, or matching moment",
+      "the business represented as the platform, not as an individual tradie"
+    );
+
+    mustNotShow.push(
+      "individual tradie business viewpoint",
+      "pretending the platform personally performs trade work",
+      "fake contractor testimonial from the platform",
+      "fake before-and-after trade job proof",
+      "fake branded uniforms",
+      "fake vehicle signage",
+      "generic construction-site hero scene"
+    );
+  }
+
+  if (businessArchetype === "laundry_service") {
+    mustShow.push(
+      "laundry, garment-care, pickup, delivery, or cleaning-service context",
+      "physically plausible laundry or garment-care action",
+      "clean text-free documentary realism"
+    );
+
+    mustNotShow.push(
+      "construction-site environment",
+      "tradie worksite environment",
+      "pouring liquid into a non-serviceable machine area",
+      "fake branded uniforms",
+      "fake laundry labels",
+      "readable detergent labels",
+      "unsafe or physically impossible washing-machine action"
+    );
+  }
 
   if (businessArchetype === "local_trade") {
     mustShow.push(

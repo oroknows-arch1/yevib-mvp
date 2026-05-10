@@ -1,0 +1,107 @@
+{
+  "meta": {
+    "name": "YEVIB Free V1 Standing Test Sites",
+    "version": "2026-05-10-v1",
+    "status": "active_living_batch",
+    "purpose": "Reusable Free V1 smoke/regression batch for business identity, source strength, post perspective, and image-governance checks.",
+    "rule": "These sites are allowed to change when a site dies, changes positioning, becomes unsuitable, or a stronger regression candidate is found."
+  },
+  "sites": [
+    {
+      "id": "trade_marketplace_hipages",
+      "url": "https://hipages.com.au/",
+      "category": "trade_marketplace_directory",
+      "expectedBusinessIdentity": "platform_or_directory",
+      "mustNotGenerateAs": "individual_tradie",
+      "testPurpose": "Large marketplace identity test. YEVIB must write as the platform connecting customers with tradies, not as a tradie doing the work."
+    },
+    {
+      "id": "trade_marketplace_service_com_au",
+      "url": "https://www.service.com.au/",
+      "category": "trade_marketplace_directory",
+      "expectedBusinessIdentity": "platform_or_directory",
+      "mustNotGenerateAs": "individual_tradie",
+      "testPurpose": "Service directory identity test. YEVIB must describe the platform value, comparison, quotes, verified providers, and customer matching."
+    },
+    {
+      "id": "trade_marketplace_find_me_tradies",
+      "url": "https://www.findmetradies.com.au/",
+      "category": "trade_marketplace_directory",
+      "expectedBusinessIdentity": "platform_or_directory",
+      "mustNotGenerateAs": "individual_tradie",
+      "testPurpose": "Directory wording test. YEVIB must not collapse listed tradespeople into the business voice."
+    },
+    {
+      "id": "trade_marketplace_tradevault_sydney",
+      "url": "https://tradevault.com.au/locations/sydney",
+      "category": "trade_marketplace_directory",
+      "expectedBusinessIdentity": "platform_or_directory",
+      "mustNotGenerateAs": "individual_tradie",
+      "testPurpose": "Location-based trade platform test. YEVIB must preserve marketplace/directory identity."
+    },
+    {
+      "id": "trade_marketplace_sydney_tradies",
+      "url": "https://sydneytradies.com.au/",
+      "category": "trade_marketplace_directory",
+      "expectedBusinessIdentity": "platform_or_directory",
+      "mustNotGenerateAs": "individual_tradie",
+      "testPurpose": "Smaller/possibly weaker directory signal test. YEVIB must stay cautious if source signal is thin."
+    },
+    {
+      "id": "trade_marketplace_search_a_tradie",
+      "url": "https://searchatradie.com.au/",
+      "category": "trade_marketplace_directory",
+      "expectedBusinessIdentity": "platform_or_directory",
+      "mustNotGenerateAs": "individual_tradie",
+      "testPurpose": "Classified/directory identity test. YEVIB must generate from the directory's point of view."
+    },
+    {
+      "id": "laundry_wash_on_the_rocks",
+      "url": "https://www.washontherocks.com.au/",
+      "category": "laundry_local_service",
+      "expectedBusinessIdentity": "laundry_or_dry_cleaning_service",
+      "mustNotGenerateAs": "construction_or_tradie_site",
+      "testPurpose": "Image-environment guard. Laundry service must not become construction-site imagery."
+    },
+    {
+      "id": "laundry_my_butler_service",
+      "url": "https://mybutlerservice.com.au/",
+      "category": "laundry_pickup_delivery_service",
+      "expectedBusinessIdentity": "laundry_pickup_delivery_service",
+      "mustNotGenerateAs": "construction_or_tradie_site",
+      "testPurpose": "Laundry pickup/delivery service test. Image and post should stay in garment/laundry service world."
+    },
+    {
+      "id": "professional_service_orbit",
+      "url": "https://www.theorbitgroup.com.au/",
+      "category": "professional_service",
+      "expectedBusinessIdentity": "small_business_accounting_or_advisory",
+      "mustNotGenerateAs": "generic_marketing_agency",
+      "testPurpose": "Professional-service read. YEVIB should understand advice/accounting positioning."
+    },
+    {
+      "id": "health_sensitive_sydney_allied_health_clinic",
+      "url": "https://www.sydneyalliedhealthclinic.com.au/",
+      "category": "health_sensitive_service",
+      "expectedBusinessIdentity": "allied_health_or_clinic",
+      "mustNotGenerateAs": "overconfident_medical_claim",
+      "testPurpose": "Sensitive service caution test. YEVIB must avoid unsupported medical/health claims."
+    },
+    {
+      "id": "ecommerce_go_to_skincare",
+      "url": "https://gotoskincare.com/",
+      "category": "ecommerce_product_brand",
+      "expectedBusinessIdentity": "skincare_product_brand",
+      "mustNotGenerateAs": "local_service_business",
+      "testPurpose": "Ecommerce/product-brand identity test."
+    },
+    {
+      "id": "directory_airtasker_tradesman",
+      "url": "https://www.airtasker.com/au/services/tradesman/",
+      "category": "service_marketplace_directory",
+      "expectedBusinessIdentity": "task_or_service_marketplace",
+      "mustNotGenerateAs": "individual_tradie",
+      "testPurpose": "Marketplace/platform identity test with broader task-service framing."
+    }
+  ]
+}
