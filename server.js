@@ -9995,11 +9995,23 @@ function buildImageDecisionPacket(input = {}) {
   const includesAny = (patterns = []) =>
     patterns.some((pattern) => pattern.test(combinedText));
 
-    let businessArchetype = "unknown_smb";
+       let businessArchetype = "unknown_smb";
 
   if (
     includesAny([
-      /app|software|saas|digital|online|ai tool|platform|dashboard|website|web app|client website|site migration|website migration|digital agency|marketing tool|automation|content tool/,
+      /plumb|plumber|plumbing|electric|electrician|carpenter|mechanic|roof|roofer|clean|cleaner|landscap|landscaper|builder|trade|trades|tradie|repair|maintenance|install|installation|service call|callout|home service/,
+    ])
+  ) {
+    businessArchetype = "local_trade";
+  } else if (
+    includesAny([
+      /pergola|patio|renovation|bathroom|kitchen|flooring|painting|concrete|deck|home improvement/,
+    ])
+  ) {
+    businessArchetype = "home_improvement";
+  } else if (
+    includesAny([
+      /app|software|saas|digital product|online platform|ai tool|dashboard|web app|client website|site migration|website migration|digital agency|marketing tool|automation|content tool/,
     ])
   ) {
     businessArchetype = "digital_saas_online";
@@ -10039,18 +10051,6 @@ function buildImageDecisionPacket(input = {}) {
     ])
   ) {
     businessArchetype = "retail_product";
-  } else if (
-    includesAny([
-      /pergola|patio|renovation|bathroom|kitchen|flooring|painting|concrete|deck|home improvement/,
-    ])
-  ) {
-    businessArchetype = "home_improvement";
-  } else if (
-    includesAny([
-      /plumb|electric|carpenter|mechanic|roof|clean|landscap|builder|trade|repair|maintenance|install/,
-    ])
-  ) {
-    businessArchetype = "local_trade";
   }
 
   let messageIntent = "brand_mood";
@@ -10103,7 +10103,23 @@ function buildImageDecisionPacket(input = {}) {
 
   if (businessArchetype !== "unknown_smb") visualSourceScore += 20;
   if (imagePrompt.length > 80) visualSourceScore += 15;
-  if (visualIdentity.tone || visualIdentity.palette || visualIdentity.environment) {
+  const visualIdentityText = [
+    visualIdentity.tone,
+    visualIdentity.palette,
+    visualIdentity.environment,
+    visualIdentity.brandingStyle,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  const hasGroundedWebsiteVisualSignal =
+    visualIdentityText &&
+    !/grounded, real, business-appropriate|natural business-appropriate colours|real working environments|unbranded, practical, context-led|not specified|default|generic/.test(
+      visualIdentityText
+    );
+
+  if (hasGroundedWebsiteVisualSignal) {
     visualSourceScore += 15;
   }
   if (locationContext.city || locationContext.state || locationContext.environmentType) {
@@ -10184,8 +10200,25 @@ function buildImageDecisionPacket(input = {}) {
     ? "YEVIB does not have enough safe visual grounding for a highly specific business image, so it should use a cleaner trust-safe visual move."
     : "";
 
-  const mustShow = [];
+    const mustShow = [];
   const mustNotShow = [...blockedVisualClaims];
+
+  if (businessArchetype === "local_trade") {
+    mustShow.push(
+      "real local trade or home-service work context",
+      "practical inspection, maintenance, repair, or service-readiness moment",
+      "clean text-free documentary realism"
+    );
+
+    mustNotShow.push(
+      "fake branded uniforms",
+      "fake vehicle signage",
+      "fake licence numbers",
+      "unsafe or staged trade work",
+      "wrong tools for the trade",
+      "generic corporate office scene"
+    );
+  }
 
   if (selectedMode === "process_proof") {
     mustShow.push(
@@ -10244,6 +10277,31 @@ function buildImageDecisionPacket(input = {}) {
         ? "YEVIB chose a safer visual direction because the source material does not support a highly specific image yet."
         : "YEVIB found enough source and message signal to choose a more specific visual direction.",
   };
+}
+if (process.env.NODE_ENV !== "production") {
+  app.post("/debug-image-decision", (req, res) => {
+    try {
+      const { imagePrompt, discoveryProfile } = req.body;
+      const sceneType = classifySceneType(imagePrompt || "");
+
+      const imageDecisionPacket = buildImageDecisionPacket({
+        imagePrompt,
+        discoveryProfile,
+        sceneType,
+      });
+
+      res.json({
+        ok: true,
+        sceneType,
+        imageDecisionPacket,
+      });
+    } catch (err) {
+      res.status(500).json({
+        ok: false,
+        error: err.message || "Failed to build image decision packet.",
+      });
+    }
+  });
 }
 
 function buildSafeImagePlanningPrompt(imagePrompt = "", imageDecisionPacket = {}) {

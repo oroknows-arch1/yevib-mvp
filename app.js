@@ -1099,10 +1099,16 @@ FOUNDER VISIBILITY SIGNALS:
 ${founderSignals || "Not enough signal yet"}
 
 WEBSITE VISUAL DIRECTIONS:
-${visualDirections || "Use the website's visible tone, colour mood, and styling where possible"}
+${
+  visualDirections ||
+  "No grounded website visual directions were returned. Do not invent a website style. Use only clean, text-free, documentary-realistic owner-shot business context."
+}
 
 WEBSITE VISUAL AVOID RULES:
-${avoidRules || "Avoid anything that clashes with the website identity"}
+${
+  avoidRules ||
+  "Avoid invented branding, fake signage, fake labels, fake uniforms, fake website styling, random colours, and anything that implies unsupported brand knowledge."
+}
 
 PRIMARY INSTRUCTION:
 - do NOT make a generic brand collage
