@@ -5041,24 +5041,34 @@ function getVariationRules(category = "") {
       : `- Do NOT use any of these words anywhere in the posts: quiet, calm, gentle, subtle, steady, small`;
 
   return `
-LANGUAGE SEPARATION RULE:
-- The 3 posts must not sound like rewrites of each other
-- Use clearly different opening styles across the 3 posts
-- Vary sentence length and rhythm more aggressively
-- At least one post should open with a direct statemen
+YEVIB POST LANE LAW:
+- Do not let the model decide what kind of post it is allowed to write.
+- The post type must be controlled by source evidence, not by creative instinct.
+- Weak evidence allows educational, category-safe, cautious posts only.
+- Medium evidence allows website-supported service, offer, audience, or positioning posts only.
+- Strong evidence allows specific proof claims only when the source explicitly supports them.
+- If a detail is not visible in the website, owner note, business summary, evidence packet, or supplied source text, do not write it.
 
-SCENE RULE (STRICT):
-- At least one post MUST begin with a real-world moment
-- This means a specific situation, time, or action (e.g. “I remember…”, “Last week…”, “Woke up…”, “Sat there…”)
-- Do NOT begin that post with an abstract idea or reflection
-- The reader should be able to picture the moment immediately
+SOURCE-BOUND CONTENT RULE:
+- Do not invent real incidents, times, emergencies, customer scenes, founder memories, job stories, delivery moments, inspections, guarantees, certifications, years, warranties, supplier relationships, safety procedures, or personal oversight.
+- Do not create a fake lived moment just to make the writing feel human.
+- Do not use phrases like “last night,” “last week,” “I remember,” “woke up,” “the courier arrived,” or “when I first saw” unless that exact scenario was supplied in the source.
+- If the source is thin, write about the customer problem, category education, or the next useful action instead.
+
+LANGUAGE SEPARATION RULE:
+- The 3 posts must not sound like rewrites of each other.
+- Use clearly different opening styles across the 3 posts.
+- Vary sentence length and rhythm without inventing scenes.
+- At least one post should open with a direct, useful statement.
+- At least one post should open with an educational customer problem.
+- At least one post should open with a cautious business observation.
 
 INSIGHT RULE:
-- At least one post should open with an insight, decision, or truth
-- Avoid repeating the same emotional posture across all 3 posts
-- Avoid repeating the same nouns, same transitions, and same cadence too closely
-- If one post is softer and reflective, another should be clearer and firmer
-- Do not let all 3 default into the same calm, polished phrasing family
+- At least one post should open with an insight, decision, or truth.
+- Avoid repeating the same emotional posture across all 3 posts.
+- Avoid repeating the same nouns, same transitions, and same cadence too closely.
+- If one post is softer and reflective, another should be clearer and firmer.
+- Do not let all 3 default into the same polished AI phrasing family.
 ${quietOnlyRule}
 `.trim();
 }
@@ -5303,6 +5313,8 @@ The previous batch failed output enforcement.
 Reason: ${retryReason}
 
 You must correct this now:
+- obey the YEVIB Post Lane Law
+- do not write above the available source evidence
 - make each first sentence clearly distinct in structure and wording
 - do not reuse the same opener word family
 - ${
@@ -5310,11 +5322,13 @@ You must correct this now:
               ? `the word "quiet" may appear in at most one post in the batch`
               : `do not use any of these words anywhere in the posts: quiet, calm, gentle, subtle, steady, small`
           }
-- one opener should be direct
-- one opener should be scene-based
-- one opener should be insight/decision/truth-based
-- if the previous attempt was too repetitive, increase structural diversity instead of paraphrasing the same idea
-- keep the same owner voice, but change the construction and primary claim focus
+- one opener should be direct and useful
+- one opener should be educational or customer-problem based
+- one opener should be a cautious business observation
+- do not create invented scenes, founder memories, emergencies, delivery moments, job stories, warranties, certifications, licences, guarantees, years of experience, supplier claims, safety procedures, or internal process claims
+- if a claim was blocked, rewrite the post as a safer category-level or educational post instead of trying another specific proof claim
+- if the previous attempt was too repetitive, increase structural diversity without inventing new facts
+- keep the same owner voice, but change the construction and primary claim focus within the evidence-supported lane
 `;
 
     const model = getPostGenerationModel(attempt);
@@ -9750,8 +9764,10 @@ app.post("/generate", async (req, res) => {
   }
 
   try {
-    const finalBusinessName =
-      initialProfile?.businessProfile?.name || businessName || "Your Brand";
+  const finalBusinessName =
+  initialProfile?.businessProfile?.name || businessName || "Your Brand";
+
+
 
     const ownerKbContext = summarizeOwnerKbForPrompt(finalBusinessName);
     const generationContext = buildGenerationContext({
@@ -9948,12 +9964,13 @@ Post 3 = DIRECT
 - focus on what changed, what problem is reduced, or why it matters
 - still must not sound like an ad
 
-REAL LIFE RULE:
-- every post must feel like it came from a real moment
-- the product/service must appear naturally inside that moment
-- do NOT describe the product directly like a brochure
-- show what it does to the day, not just what it is
-- write as if the owner is reflecting on a real situation
+SOURCE-BOUND REALITY RULE:
+- every post must stay inside the selected post lane
+- the product/service may be explained directly when the source is weak
+- do NOT create a fake real-life moment to make the post feel human
+- do NOT write as if the owner is reflecting on a real situation unless the owner supplied that real situation
+- weak evidence should produce useful customer education, not invented proof
+- show what the category problem means for the customer, without inventing how the business operates
 
 STYLE:
 - write like a real person
