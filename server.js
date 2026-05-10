@@ -8923,11 +8923,41 @@ async function buildBusinessProfile(input = {}) {
 
     profile.evidenceProfile = buildEvidenceProfile(profile);
   profile.ubdgEvidencePacket = buildUbdgEvidencePacketForProfile(profile);
+
+  profile.debug = {
+    ...(profile.debug || {}),
+    evidencePacketSummary: profile.ubdgEvidencePacket?.strengthSummary || {},
+    allowedPostClaimEvidence: Array.isArray(profile.ubdgEvidencePacket?.normalizedEvidence)
+      ? profile.ubdgEvidencePacket.normalizedEvidence
+          .filter((item) => item?.claimType === "fact" || item?.claimType === "signal")
+          .map((item) => ({
+            sourceType: item.sourceType || "inferred",
+            sourceUrl: item.sourceUrl || "",
+            claimType: item.claimType || "inference",
+            confidence: item.confidence || "low",
+            evidenceText: clipText(item.evidenceText || "", 220),
+          }))
+      : [],
+    inferredOnlyClaims: Array.isArray(profile.ubdgEvidencePacket?.normalizedEvidence)
+      ? profile.ubdgEvidencePacket.normalizedEvidence
+          .filter((item) => item?.claimType === "inference" || item?.sourceType === "inferred")
+          .map((item) => ({
+            sourceType: item.sourceType || "inferred",
+            sourceUrl: item.sourceUrl || "",
+            claimType: item.claimType || "inference",
+            confidence: item.confidence || "low",
+            evidenceText: clipText(item.evidenceText || "", 220),
+          }))
+      : [],
+    claimWording: profile.ubdgEvidencePacket?.claimWording || null,
+    evidenceCaution: profile.ubdgEvidencePacket?.evidenceCaution || null,
+    };
+
   profile.qualificationProfile = buildQualificationProfile(
     profile.evidenceProfile,
     profile
   );
-    profile.readinessProfile = buildReadinessProfile(profile);
+  profile.readinessProfile = buildReadinessProfile(profile);
   profile.sourceImprovementGuidance = buildSourceImprovementGuidance(profile);
 
   profile.strategyEngine = buildStrategyEngine(profile);
