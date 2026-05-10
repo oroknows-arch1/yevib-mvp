@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=headerdevice-width, initial-scale=1.0" />
+ <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>YEVIB</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -11,52 +11,22 @@
   <div class="app-shell">
     <main class="screen-stack">
   <section class="screen-card intake-landing-card" id="section-intake">
- <div class="landing-head">
-  <div class="landing-copy">
+     <div class="demo-first-head">
   <div class="brand-mark">YEVIB</div>
-  <h1>Your Voice Your Brand</h1>
-  <p class="hero-sub">
-    Tell YEVIB about the business, scan what the brand looks like today, then generate content with more direction and less guesswork.
-  </p>
-</div>
 
-  <div class="hero-visual-shell" aria-label="Owner success visual area">
-    <div class="hero-visual-frame">
-      <div class="hero-visual-badge">Built for SMB owners</div>
-
-  <div class="hero-visual-photo">
-  <img
-    class="hero-owner-image"
-    src="assets/yevib-owner-hero.jpg"
-    alt="A calm small business owner feeling clear and confident while using YEVIB to understand the next best move."
-    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-  />
-
-  <div class="hero-visual-placeholder" style="display: none;">
-    <div class="hero-visual-eyebrow">Owner moment</div>
-    <h3 class="hero-visual-title">
-      A calm business owner finally feeling clear on the next move.
-    </h3>
-    <p class="hero-visual-support">
-      Add a real owner image at assets/yevib-owner-hero.jpg to complete this trust layer.
+  <div class="demo-first-copy">
+    <div class="step-tag">Free V1 Demo · No signup · No card</div>
+    <h1>Start with the scan.</h1>
+    <p class="hero-sub">
+      Paste a business website. YEVIB will read the signals, check the steps, then reveal the snapshot, recommendation, post draft, and visual direction.
     </p>
   </div>
 </div>
 
-      <div class="hero-visual-caption">
-        <strong>Scan. Understand. Move.</strong>
-        <span>
-          YEVIB helps owners turn real business input into clearer brand direction and more usable next actions.
-        </span>
-      </div>
-    </div>
-  </div>
-</div>  
-
     <div class="screen-head intake-step-head">
       <div class="step-tag">Step 1</div>
-      <h2>Business Intake</h2>
-      <p>Enter the minimum YEVIB needs to scan the brand properly.</p>
+      <h2>Start Your Free Business Scan</h2>
+<p>Enter the website first. As YEVIB scans, each step will check off before the results appear.</p>
     </div>
         <div class="form-grid">
           <div class="field field-full">
@@ -69,7 +39,7 @@
           </div>
 
           <div class="field field-full">
-            <label for="founderGoal">Founder Goal</label>
+            <label for="founderGoal">Primary Goal</label>
             <select id="founderGoal">
               <option value="">Select a goal</option>
               <option value="Improve posting consistency">Improve posting consistency</option>
@@ -82,7 +52,7 @@
           </div>
 
           <div class="field field-full">
-            <label for="pastedSourceText">Owner Writing / Pasted Text</label>
+            <label for="pastedSourceText">Owner Note / Optional Context</label>
             <textarea
               id="pastedSourceText"
               rows="8"
@@ -92,7 +62,7 @@
         </div>
 
         <div class="action-row">
-          <button class="primary-btn" onclick="buildInitialProfile()">Scan Brand</button>
+          <button class="primary-btn" onclick="buildInitialProfile()">Start Free Business Scan</button>
         </div>
 
         <div id="intakeStatus" class="status-line"></div>
@@ -103,7 +73,7 @@
       <section class="screen-card" id="section-profile">
         <div class="screen-head">
           <div class="step-tag">Step 2</div>
-          <h2>Brand Snapshot</h2>
+          <h2>Your Business Snapshot</h2>
           <p>This is YEVIB’s first read on what the brand looks like today.</p>
         </div>
 
@@ -172,7 +142,7 @@
               type="button"
               style="display:none;"
             >
-              Open Brand Intelligence
+               Open Deeper Business Read
             </button>
 
             <button
@@ -187,7 +157,7 @@
 
           <div id="brandIntelligenceDrawer" class="intelligence-drawer" style="display:none;">
             <div class="screen-head top-section-gap">
-              <h2>Brand Intelligence</h2>
+              <h2>Deeper Business Read</h2>
               <p>Deeper discovery signals and scan reasoning, only when you want them.</p>
             </div>
 

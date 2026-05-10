@@ -797,9 +797,9 @@ async function buildInitialProfile() {
 
     const cycleResult = await runAgentCycle();
 
-    if (!cycleResult) {
-      setYevibStatus(intakeStatus, "Scan completed, but the plan refresh failed.", "error");
-      showAppScreen("profile");
+        if (!cycleResult) {
+      setYevibStatus(intakeStatus, "Scan completed, but the post preparation failed.", "error");
+      showAppScreen("intake");
       return;
     }
 
@@ -822,9 +822,9 @@ async function buildInitialProfile() {
 
     setYevibStatus(intakeStatus, "Free scan complete. YEVIB is preparing your first post options.", "success");
     setYevibStatus(
-      profilePrompt,
-      "Snapshot ready. YEVIB has completed the first read.",
-      "success"
+      postsPrompt,
+      "Scan complete. YEVIB is preparing your first Free V1 post options.",
+      "loading"
     );
     setYevibStatus(generatePrompt, "YEVIB is generating the first Free V1 post options...", "loading");
 
