@@ -4862,11 +4862,67 @@ function getPostLengthBucket(post = "") {
   return "medium";
 }
 
+function detectSuspiciousSpecificClaims(post = "") {
+  const text = String(post || "").toLowerCase();
+
+  const suspiciousPatterns = [
+    {
+      id: "emergency_scene",
+      pattern: /\b(woke up|last night|midnight|flooded kitchen|burst pipe|water running|panic hits|every minute counts)\b/i,
+      reason: "Unsupported emergency scene or first-person incident."
+    },
+    {
+      id: "response_time",
+      pattern: /\b(24\/7|same day|within \d+\s?(minutes|hours)|fast response|emergency callout|always on call|arrive fast|get there fast)\b/i,
+      reason: "Unsupported response-time, emergency, or availability claim."
+    },
+    {
+      id: "delivery_window",
+      pattern: /\b(next day delivery|same day delivery|delivered within|delivery window|guaranteed delivery|pickup and delivery)\b/i,
+      reason: "Unsupported delivery or pickup window claim."
+    },
+    {
+      id: "pricing_guarantee",
+      pattern: /\b(no hidden fees|fixed price|price guarantee|lowest price|no surprises|upfront pricing|beat any quote)\b/i,
+      reason: "Unsupported pricing guarantee or pricing policy claim."
+    },
+    {
+      id: "experience_years",
+      pattern: /\b(\d+\+?\s?years|over \d+\s?years|decades of experience|years of training)\b/i,
+      reason: "Unsupported years-of-experience or training-duration claim."
+    },
+    {
+      id: "supplier_claim",
+      pattern: /\b(direct from supplier|trusted suppliers|certified suppliers|approved suppliers|premium materials only|locally sourced)\b/i,
+      reason: "Unsupported supplier, sourcing, or material claim."
+    },
+    {
+      id: "inspection_routine",
+      pattern: /\b(full inspection|safety inspection|routine inspection|we check every|we inspect every|maintenance checklist|safety procedure)\b/i,
+      reason: "Unsupported inspection, safety, or operating procedure claim."
+    },
+    {
+      id: "policy_claim",
+      pattern: /\b(fully insured|licensed and insured|warranty|guarantee|compliance|certified|accredited)\b/i,
+      reason: "Unsupported policy, licence, warranty, certification, or compliance claim."
+    }
+  ];
+
+  const hits = suspiciousPatterns.filter((item) => item.pattern.test(text));
+
+  return {
+    hasSuspiciousSpecificClaims: hits.length > 0,
+    hits,
+    reasons: hits.map((item) => item.reason)
+  };
+}
+
 function validatePostBatch(posts = []) {
   const openingStyles = posts.map(detectOpeningStyle);
   const claims = posts.map(detectPrimaryClaim);
   const lengths = posts.map((post) => String(post || "").trim().length);
   const lengthBuckets = posts.map(getPostLengthBucket);
+  const suspiciousSpecificClaimChecks = posts.map(detectSuspiciousSpecificClaims);
 
   const openingSet = new Set(openingStyles);
   const claimSet = new Set(claims);
@@ -4879,6 +4935,16 @@ function validatePostBatch(posts = []) {
   const failedReasons = [];
   const warnings = [];
 
+  const suspiciousSpecificClaims = suspiciousSpecificClaimChecks
+    .flatMap((check) => check.reasons || [])
+    .filter(Boolean);
+
+  if (suspiciousSpecificClaims.length > 0) {
+    failedReasons.push(
+      `Unsupported specific operational claim detected: ${uniqueStrings(suspiciousSpecificClaims, 6).join("; ")}`
+    );
+  }
+
   if (openingSet.size < 3) {
     warnings.push("Opening styles are not diverse.");
   }
@@ -4887,7 +4953,7 @@ function validatePostBatch(posts = []) {
     warnings.push("Primary claims are too similar.");
   }
 
-   if (!openingStyles.includes("direct_statement")) {
+  if (!openingStyles.includes("direct_statement")) {
     warnings.push("Missing direct statement opener.");
   }
 
@@ -4916,9 +4982,9 @@ function validatePostBatch(posts = []) {
     lengthBuckets,
     lengths,
     lengthSpread,
+    suspiciousSpecificClaimChecks,
   };
 }
-
 function getFeelingRules(ownerNudge = "") {
   const feeling = String(ownerNudge || "").trim();
   const lower = feeling.toLowerCase();
