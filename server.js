@@ -49,6 +49,99 @@ function normalizeUrl(input) {
   return `https://${trimmed}`;
 }
 
+function extractReadableNameFromUrl(input = "") {
+  const normalized = normalizeUrl(input);
+
+  try {
+    const host = new URL(normalized).hostname.replace(/^www\./i, "");
+    const base = host.split(".")[0] || "";
+    const words = base
+      .replace(/[-_]+/g, " ")
+      .replace(/\bndis\b/gi, "NDIS")
+      .replace(/\bnsw\b/gi, "NSW")
+      .replace(/\bau\b/gi, "AU")
+      .trim();
+
+    if (!words) return "";
+
+    return words
+      .split(/\s+/)
+      .map((word) => {
+        if (/^(NDIS|NSW|AU)$/i.test(word)) return word.toUpperCase();
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      })
+      .join(" ");
+  } catch (err) {
+    return "";
+  }
+}
+
+function isPlaceholderBusinessName(value = "") {
+  const text = String(value || "").trim().toLowerCase();
+
+  if (!text) return true;
+
+  return [
+    "unknown business",
+    "your brand",
+    "the business",
+    "best next move",
+    "not enough signal yet",
+    "unknown",
+  ].includes(text);
+}
+
+function buildBusinessIdentityReadinessGate(input = {}) {
+  const profileName = String(input?.profileName || "").trim();
+  const requestName = String(input?.requestName || "").trim();
+  const businessUrl = String(input?.businessUrl || "").trim();
+  const summary = String(input?.summary || "").trim();
+  const offers = Array.isArray(input?.offers)
+    ? input.offers.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+  const evidenceCount = Number(input?.evidenceCount || 0);
+
+  const urlDerivedName = extractReadableNameFromUrl(businessUrl);
+  const selectedName =
+    !isPlaceholderBusinessName(profileName)
+      ? profileName
+      : !isPlaceholderBusinessName(requestName)
+      ? requestName
+      : "";
+
+  const hasUsableName = !isPlaceholderBusinessName(selectedName);
+  const hasUrlNameFallback = !isPlaceholderBusinessName(urlDerivedName);
+  const hasBusinessSignal =
+    summary.length >= 40 || offers.length > 0 || evidenceCount > 0;
+
+  const ready = hasUsableName && hasBusinessSignal;
+
+  const shouldBlock =
+    !ready &&
+    Boolean(businessUrl) &&
+    (
+      isPlaceholderBusinessName(profileName) ||
+      isPlaceholderBusinessName(requestName) ||
+      !hasBusinessSignal
+    );
+
+  return {
+    ready,
+    shouldBlock,
+    selectedName,
+    urlDerivedName,
+    hasUsableName,
+    hasUrlNameFallback,
+    hasBusinessSignal,
+    reason: shouldBlock
+      ? "Business identity is not ready. YEVIB should not generate posts from placeholder or weak website identity."
+      : "",
+    ownerMessage: shouldBlock
+      ? `YEVIB could not confidently identify the business from the scan yet. I found a possible URL name: "${urlDerivedName || "unknown"}", but the website read is not strong enough to safely generate posts. Add a short owner note or rescan before generating.`
+      : "",
+  };
+}
+
 async function runJsonChat(prompt) {
   const response = await openai.chat.completions.create({
     model: "gpt-4.1-mini",
@@ -838,6 +931,58 @@ function getUbdgClaimWording(summary = {}) {
     instruction:
       "Do not make a business claim. Ask for stronger owner input, owned website evidence, official records, or clearer public source material.",
     claimBoundary,
+  };
+}
+
+function buildApprovedPostClaimsPacket(profile = {}) {
+  const packet = profile?.ubdgEvidencePacket || {};
+  const sortedEvidence = Array.isArray(packet?.sortedEvidence)
+    ? packet.sortedEvidence
+    : Array.isArray(packet?.normalizedEvidence)
+    ? packet.normalizedEvidence
+    : [];
+
+  const strengthSummary = packet?.strengthSummary || {};
+  const safeClaimLevel = String(strengthSummary?.safeClaimLevel || "blocked").trim();
+
+  const approvedClaims = sortedEvidence
+    .filter((item) => {
+      if (!item || typeof item !== "object") return false;
+
+      const sourceType = String(item.sourceType || "").trim();
+      const confidence = String(item.confidence || "").trim();
+      const claimType = String(item.claimType || "").trim();
+      const evidenceText = String(item.evidenceText || "").trim();
+
+      if (!evidenceText) return false;
+      if (claimType === "inference") return false;
+      if (sourceType === "inferred") return false;
+      if (confidence === "low") return false;
+
+      return true;
+    })
+    .map((item) => ({
+      sourceType: String(item.sourceType || "").trim(),
+      confidence: String(item.confidence || "").trim(),
+      claimType: String(item.claimType || "").trim(),
+      claim: clipText(item.evidenceText || "", 220),
+    }))
+    .slice(0, 8);
+
+  const hasSpecificClaims = approvedClaims.length > 0;
+
+  const fallbackMode =
+    !hasSpecificClaims ||
+    ["blocked", "inference_only", "identity_only"].includes(safeClaimLevel);
+
+  return {
+    safeClaimLevel,
+    hasSpecificClaims,
+    fallbackMode,
+    approvedClaims,
+    instruction: fallbackMode
+      ? "Do not make specific proof claims. Write category-level educational posts only, using cautious language and no invented business proof."
+      : "Use only the approved claims below. Do not upgrade, embellish, dramatise, or add proof not present in the claims.",
   };
 }
 
@@ -9763,13 +9908,37 @@ app.post("/generate", async (req, res) => {
 `;
   }
 
-  try {
+   try {
+  const businessIdentityGate = buildBusinessIdentityReadinessGate({
+    profileName: initialProfile?.businessProfile?.name || "",
+    requestName: businessName || "",
+    businessUrl,
+    summary:
+      initialProfile?.businessProfile?.summary ||
+      businessSummary ||
+      "",
+    offers: initialProfile?.brandProductTruth?.offers || [],
+    evidenceCount:
+      initialProfile?.ubdgEvidencePacket?.strengthSummary?.evidenceCount ||
+      initialProfile?.ubdgEvidencePacket?.normalizedEvidence?.length ||
+      0,
+  });
+
+  if (businessIdentityGate.shouldBlock) {
+    return res.status(422).json({
+      error: businessIdentityGate.ownerMessage,
+      code: "BUSINESS_IDENTITY_NOT_READY",
+      businessIdentityGate,
+    });
+  }
+
   const finalBusinessName =
-  initialProfile?.businessProfile?.name || businessName || "Your Brand";
+    businessIdentityGate.selectedName ||
+    businessIdentityGate.urlDerivedName ||
+    businessName ||
+    "Your Brand";
 
-
-
-    const ownerKbContext = summarizeOwnerKbForPrompt(finalBusinessName);
+const ownerKbContext = summarizeOwnerKbForPrompt(finalBusinessName);
     const generationContext = buildGenerationContext({
       mode,
       initialProfile,
@@ -9824,12 +9993,38 @@ app.post("/generate", async (req, res) => {
       ...(normalizeStringArray(discoveryProfile?.founderVisibilitySignals, 4).map((x) => `- Founder visibility: ${x}`)),
     ].join("\n");
 
-    const previousPosts = (initialProfile?.recentPosts || []).join("\n\n");
+        const previousPosts = (initialProfile?.recentPosts || []).join("\n\n");
+
+    const approvedPostClaimsPacket = buildApprovedPostClaimsPacket(initialProfile || {});
+    const approvedPostClaimLines = approvedPostClaimsPacket.approvedClaims.length
+      ? approvedPostClaimsPacket.approvedClaims
+          .map((item) => `- ${item.claim}`)
+          .join("\n")
+      : "- No specific approved claims available.";
 
     const prompt = `
 Create exactly 3 X posts.
 
 ${generationContext}
+
+EVIDENCE QUOTE LOCK:
+${approvedPostClaimsPacket.instruction}
+
+SAFE CLAIM LEVEL:
+${approvedPostClaimsPacket.safeClaimLevel}
+
+APPROVED CLAIMS:
+${approvedPostClaimLines}
+
+NON-NEGOTIABLE CLAIM RULES:
+- Use only the approved claims listed above when making business-specific claims.
+- Do not upgrade source facts into stronger promises.
+- Do not turn source facts into guarantees, superiority claims, sales results, customer outcomes, or operational promises unless they appear in the approved claims.
+- Do not invent founder beliefs, founder emotions, internal standards, direct relationships, process details, customer expectations, or behind-the-scenes behaviour.
+- Do not write in first person as the founder, owner, team, or business unless owner-provided text or website source text directly supports that voice.
+- If owner-provided voice is not available, write in third person or neutral brand voice.
+- If approved claims are weak or unavailable, write useful category-level education instead of specific proof claims.
+- Do not use phrases like "I refuse", "I demand", "I make it a priority", "we don't compromise", or "we demand" unless that exact strength is source-backed.
 
 QUICK LENS:
 ${lensTitle}
@@ -9891,21 +10086,22 @@ VOICE PROFILE:
 ${buildVoiceInstructions(voiceProfile)}
 
 CORE RULE:
-All 3 posts must sound like the SAME owner / founder / business voice.
+All 3 posts must sound like the SAME business voice.
 Do NOT create 3 different personalities.
-The owner must remain the speaker and central force behind the business.
+The business must remain clear, consistent, and human-led without inventing owner perspective.
 
 OWNER-CENTRED RULE:
-- The owner is the main character behind the operation
-- The post should feel aware of the owner's effort, judgment, care, articulation, and signal
-- The business should feel human-led, not faceless
-- Even when the lens changes, keep the owner as the constant presence behind the words
+- If owner-provided writing exists, the owner can remain the speaker and central force behind the words.
+- If the only source is the public website, do not invent founder or owner first-person perspective.
+- The business may feel human-led, but only through claims and tone supported by the source material.
+- Keep the owner present only when owner visibility, founder writing, or approved claims support it.
 
 IMPORTANT VOICE RULE:
-- Do NOT write like a customer testimonial
-- Do NOT write as if praising the business from the outside
-- Write from inside the owner voice, not from the buyer's review perspective
-- Even when customer outcome is strong, keep the post framed as owner reflection, owner observation, or owner-led business truth
+- Do NOT write like a customer testimonial.
+- Do NOT write as if praising the business from the outside.
+- Do NOT write from inside the owner voice unless owner-provided writing or approved source evidence supports that voice.
+- When owner voice is not source-backed, use neutral brand voice or third-person business voice.
+- Even when customer outcome is strong, keep the post grounded in approved claims and category education.
 
 LENS SEPARATION RULE:
 - Make this lens clearly distinct from the other quick buttons
