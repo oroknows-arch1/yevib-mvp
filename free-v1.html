@@ -1,0 +1,219 @@
+cat > free-v1.html <<'EOF'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YEVIB Free Demo</title>
+  <link rel="stylesheet" href="free-v1.css" />
+</head>
+
+<body>
+  <main class="yevib-demo-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">🌿</div>
+        <div>
+          <h1>YEVIB</h1>
+          <p>Your business. Your voice.</p>
+        </div>
+      </div>
+
+      <nav class="side-nav">
+        <button class="side-link active" data-step="1">🌐 <span>Website</span></button>
+        <button class="side-link" data-step="2">💬 <span>Owner Truth</span></button>
+        <button class="side-link" data-step="3">◎ <span>Scan</span></button>
+        <button class="side-link" data-step="4">💡 <span>Recommendation</span></button>
+        <button class="side-link" data-step="5">📄 <span>Post Options</span></button>
+        <button class="side-link" data-step="6">🖼️ <span>Visual Direction</span></button>
+        <button class="side-link" data-step="7">✓ <span>Ready to Use</span></button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <p>Built for real business owners —<br />Not agencies.</p>
+      </div>
+    </aside>
+
+    <section class="workspace">
+      <header class="top-tracker">
+        <button class="track-step active" data-step="1"><span>1</span>Website</button>
+        <button class="track-step" data-step="2"><span>2</span>Owner Truth</button>
+        <button class="track-step" data-step="3"><span>3</span>Scan</button>
+        <button class="track-step" data-step="4"><span>4</span>Recommendation</button>
+        <button class="track-step" data-step="5"><span>5</span>Post Options</button>
+        <button class="track-step" data-step="6"><span>6</span>Visual Direction</button>
+        <button class="track-step" data-step="7"><span>7</span>Ready to Use</button>
+      </header>
+
+      <section class="card-grid">
+        <article class="demo-card step-card" data-panel="1">
+          <div class="card-title"><span>1</span><div><h2>Website</h2><p>Tell us where to look.</p></div></div>
+
+          <label>Enter your website URL</label>
+          <div class="input-check">
+            <input id="businessUrl" value="https://oakandstonebuilders.com" />
+            <strong>✓</strong>
+          </div>
+
+          <div class="note-box">🌿 We’ll scan your website to understand your business and find your strongest content angle.</div>
+
+          <button class="primary-btn next-btn" data-next="2">Continue <span>→</span></button>
+          <p class="tiny-note">Takes about 60 seconds</p>
+        </article>
+
+        <article class="demo-card step-card" data-panel="2">
+          <div class="card-title"><span>2</span><div><h2>Owner Truth</h2><p>Help us get to know the real you.</p></div></div>
+
+          <label>What do you want customers to understand about how you run your business?</label>
+          <textarea id="ownerTruth">We treat every project like it’s our own home. Clear communication, quality craftsmanship, and showing up when we say we will.</textarea>
+
+          <label>What are customers often misunderstanding about your business? (optional)</label>
+          <textarea id="ownerMisunderstanding">That custom building is only for luxury budgets. We’re actually very transparent and have options for different budgets.</textarea>
+
+          <button class="primary-btn next-btn" data-next="3">Continue to Scan <span>→</span></button>
+        </article>
+
+        <article class="demo-card step-card" data-panel="3">
+          <div class="card-title"><span>3</span><div><h2>Scan</h2><p>YEVIB is reading your business.</p></div></div>
+
+          <div class="scan-list">
+            <div class="scan-row done">📄 <p>Reading your website</p><strong>✓</strong></div>
+            <div class="scan-row done">📦 <p>Understanding your services and offers</p><strong>✓</strong></div>
+            <div class="scan-row done">🛡️ <p>Checking trust signals</p><strong>✓</strong></div>
+            <div class="scan-row active">🎯 <p>Finding your strongest content angle</p><strong class="spinner"></strong></div>
+            <div class="scan-row muted">♡ <p>Preparing your recommendation</p></div>
+          </div>
+
+          <div class="note-box">🌿 We’re looking for what makes your business different and worth talking about.</div>
+        </article>
+
+        <article class="demo-card step-card" data-panel="4">
+          <div class="card-title"><span>4</span><div><h2>Recommendation</h2><p>Here’s the smartest move right now.</p></div></div>
+
+          <div class="recommend-box">
+            <p class="label">🌿 Top Recommendation</p>
+            <h3>Show Your Process, Build More Trust</h3>
+            <p>Your site shows great work. Now show how you build it. People want to see your process, communication, and reliability.</p>
+
+            <h4>Why this will work</h4>
+            <ul>
+              <li>Builds trust with homeowners early</li>
+              <li>Differentiates you from other builders</li>
+              <li>Positions you as organized and dependable</li>
+              <li>Makes your content more shareable</li>
+            </ul>
+          </div>
+
+          <button class="primary-btn next-btn" data-next="5">See Post Options <span>→</span></button>
+        </article>
+
+        <article class="demo-card step-card wide" data-panel="5">
+          <div class="card-title"><span>5</span><div><h2>Post Options</h2><p>Choose the version that feels most like you.</p></div></div>
+
+          <div class="option-tabs">
+            <button class="active">Option 1</button>
+            <button>Option 2</button>
+            <button>Option 3</button>
+          </div>
+
+          <div class="post-options">
+            <div class="post-option recommended">
+              <small>⭐ Recommended</small>
+              <h3>The Home Starts Long Before Construction</h3>
+              <p>A behind-the-scenes look at how we plan, communicate, and build with care.</p>
+              <ul><li>Process-focused</li><li>Trust-building</li><li>Owner-led</li></ul>
+            </div>
+
+            <div class="post-option">
+              <h3>It’s Not Just What We Build, It’s How We Build It</h3>
+              <p>Highlight your values, communication, and commitment to doing things the right way.</p>
+              <ul><li>Values-led</li><li>Differentiating</li><li>Relationship-focused</li></ul>
+            </div>
+
+            <div class="post-option">
+              <h3>Custom Homes. Real Budgets. Clear Process.</h3>
+              <p>Address the budget misconception and show your transparent approach.</p>
+              <ul><li>Objection-handling</li><li>Reassuring</li><li>Conversion-focused</li></ul>
+            </div>
+          </div>
+
+          <button class="primary-btn next-btn" data-next="6">Choose Option 1</button>
+        </article>
+
+        <article class="demo-card step-card wide visual-panel" data-panel="6">
+          <div class="card-title"><span>6</span><div><h2>Visual Direction</h2><p>Here’s a visual idea for your post.</p></div></div>
+
+          <div class="visual-layout">
+            <div>
+              <h4>Visual Direction</h4>
+              <p>Warm, natural photo from a job site or in-progress home. Shows planning and care, not just the finished result.</p>
+
+              <h4>Suggested Overlay Text</h4>
+              <p>Built with care.<br />Built for you.</p>
+
+              <h4>Tone</h4>
+              <div class="tone-tags"><span>Warm</span><span>Authentic</span><span>Trustworthy</span></div>
+            </div>
+
+            <div class="image-mock">
+              <div class="image-shape"></div>
+              <strong>Built with care.<br />Built for you.</strong>
+            </div>
+          </div>
+
+          <div class="note-box">🌿 This is a draft idea. You’ll review and approve before using.</div>
+        </article>
+
+        <article class="demo-card step-card ready-card" data-panel="7">
+          <div class="card-title"><span>7</span><div><h2>Ready to Use</h2><p>Your post is ready.</p></div></div>
+
+          <div class="ready-layout">
+            <div class="final-post">
+              <h4>Your Post</h4>
+              <p>The home starts long before construction begins.</p>
+              <p>Here’s what you can expect when we build with you: clear communication, honest timelines, quality craftsmanship, and a team that treats your home like our own.</p>
+              <p>That’s the Oak & Stone difference.</p>
+
+              <div class="button-row">
+                <button>Copy Text</button>
+                <button>Download</button>
+              </div>
+            </div>
+
+            <div class="final-preview">
+              <div class="social-icons">● ● ●</div>
+              <div class="image-mock small">
+                <div class="image-shape"></div>
+                <strong>Built with care.<br />Built for you.</strong>
+              </div>
+            </div>
+
+            <div class="all-set">
+              <div class="big-check">✓</div>
+              <h3>You’re all set.</h3>
+              <p>Your owner-led content is ready to share and start building trust.</p>
+
+              <div class="next-box">
+                <h4>What’s Next?</h4>
+                <p>↗ Post on your social channels</p>
+                <p>✉ Add to your email newsletter</p>
+                <p>▣ Save for future use</p>
+              </div>
+
+              <button class="primary-btn" data-next="1">Start a New Scan</button>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <footer class="workspace-footer">
+        <p>🌿 YEVIB helps you turn what you already show online into content that builds trust.</p>
+        <p>Slower pace. Stronger content. Sustainable growth.</p>
+      </footer>
+    </section>
+  </main>
+
+  <script src="free-v1.js"></script>
+</body>
+</html>
+EOF
