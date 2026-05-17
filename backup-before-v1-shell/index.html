@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=headerdevice-width, initial-scale=1.0" />
+  <title>YEVIB</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <main class="screen-stack">
+  <section class="screen-card intake-landing-card" id="section-intake">
+ <div class="landing-head">
+  <div class="landing-copy">
+  <div class="brand-mark">YEVIB</div>
+  <h1>Your Voice Your Brand</h1>
+  <p class="hero-sub">
+    Tell YEVIB about the business, scan what the brand looks like today, then generate content with more direction and less guesswork.
+  </p>
+</div>
+
+  <div class="hero-visual-shell" aria-label="Owner success visual area">
+    <div class="hero-visual-frame">
+      <div class="hero-visual-badge">Built for SMB owners</div>
+
+  <div class="hero-visual-photo">
+  <img
+    class="hero-owner-image"
+    src="assets/yevib-owner-hero.jpg"
+    alt="A calm small business owner feeling clear and confident while using YEVIB to understand the next best move."
+    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+  />
+
+  <div class="hero-visual-placeholder" style="display: none;">
+    <div class="hero-visual-eyebrow">Owner moment</div>
+    <h3 class="hero-visual-title">
+      A calm business owner finally feeling clear on the next move.
+    </h3>
+    <p class="hero-visual-support">
+      Add a real owner image at assets/yevib-owner-hero.jpg to complete this trust layer.
+    </p>
+  </div>
+</div>
+
+      <div class="hero-visual-caption">
+        <strong>Scan. Understand. Move.</strong>
+        <span>
+          YEVIB helps owners turn real business input into clearer brand direction and more usable next actions.
+        </span>
+      </div>
+    </div>
+  </div>
+</div>  
+
+    <div class="screen-head intake-step-head">
+      <div class="step-tag">Step 1</div>
+      <h2>Business Intake</h2>
+      <p>Enter the minimum YEVIB needs to scan the brand properly.</p>
+    </div>
+        <div class="form-grid">
+          <div class="field field-full">
+            <label for="businessUrl">Website URL</label>
+            <input
+              id="businessUrl"
+              type="text"
+              placeholder="https://yourbusiness.com"
+            />
+          </div>
+
+          <div class="field field-full">
+            <label for="founderGoal">Founder Goal</label>
+            <select id="founderGoal">
+              <option value="">Select a goal</option>
+              <option value="Improve posting consistency">Improve posting consistency</option>
+              <option value="Clarify brand voice">Clarify brand voice</option>
+              <option value="Create better educational content">Create better educational content</option>
+              <option value="Build more trust">Build more trust</option>
+              <option value="Promote products or services better">Promote products or services better</option>
+              <option value="Show more founder presence">Show more founder presence</option>
+            </select>
+          </div>
+
+          <div class="field field-full">
+            <label for="pastedSourceText">Owner Writing / Pasted Text</label>
+            <textarea
+              id="pastedSourceText"
+              rows="8"
+              placeholder="Paste real owner writing here..."
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="action-row">
+          <button class="primary-btn" onclick="buildInitialProfile()">Scan Brand</button>
+        </div>
+
+        <div id="intakeStatus" class="status-line"></div>
+        <div id="ownerKbStatus" class="subtle-line"></div>
+        <div id="sourceChangePrompt" class="warning-line"></div>
+      </section>
+
+      <section class="screen-card" id="section-profile">
+        <div class="screen-head">
+          <div class="step-tag">Step 2</div>
+          <h2>Brand Snapshot</h2>
+          <p>This is YEVIB’s first read on what the brand looks like today.</p>
+        </div>
+
+        <div class="snapshot-shell">
+          <div class="snapshot-top">
+            <div class="snapshot-card snapshot-card-wide">
+              <h3>Brand Summary</h3>
+              <textarea id="businessSummary" rows="5" placeholder="Brand summary will appear here..."></textarea>
+            </div>
+
+            <div class="snapshot-card snapshot-card-wide">
+              <h3>Founder Goal</h3>
+              <div id="founderGoalDisplay" class="snapshot-display">
+                No goal selected yet.
+              </div>
+            </div>
+          </div>
+
+          <div class="snapshot-flower-card">
+            <div class="snapshot-flower-head">
+              <h3>Brand Signal State</h3>
+              <div id="brandSignalStateDisplay" class="signal-state-wrap">
+                <div id="brandSignalScore" class="signal-score">-- / 100</div>
+                <div id="brandSignalLabel" class="signal-label">Not scanned yet</div>
+              </div>
+              <p class="subtle-line no-top-margin">
+                Tap a section of the pie to reveal that part of YEVIB’s scan. Tap it again to close.
+              </p>
+            </div>
+
+            <div class="chart-wrap flower-chart-wrap">
+              <canvas id="snapshotPieChart"></canvas>
+            </div>
+
+            <div id="activeSliceWrap" class="flower-detail-wrap" style="display:none;">
+              <div class="flower-detail-card">
+                <div class="slice-head-row">
+                  <div>
+                    <h3 id="activeSliceTitle">Snapshot Detail</h3>
+                    <div id="activeSliceMeta" class="subtle-line no-top-margin"></div>
+                  </div>
+                  <button id="closeActiveSliceBtn" class="secondary-btn" type="button">
+                    Close
+                  </button>
+                </div>
+
+                <div id="activeSliceSummary" class="snapshot-display compact-display slice-summary-box"></div>
+
+                <div class="next-move-card">
+                  <div class="next-move-label">Best next move</div>
+                  <div id="activeSliceNextMove" class="next-move-text"></div>
+                </div>
+
+                <div class="slice-support-grid">
+                  <div id="activeSliceStrengths" class="snapshot-display compact-display slice-support-box"></div>
+                  <div id="activeSliceWeaknesses" class="snapshot-display compact-display slice-support-box"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="action-row centered-actions">
+            <button
+              id="toggleBrandIntelligenceBtn"
+              class="secondary-btn"
+              type="button"
+              style="display:none;"
+            >
+              Open Brand Intelligence
+            </button>
+
+            <button
+              id="continueToGenerateBtn"
+              class="primary-btn"
+              type="button"
+              style="display:none;"
+            >
+              Continue to Content Action
+            </button>
+          </div>
+
+          <div id="brandIntelligenceDrawer" class="intelligence-drawer" style="display:none;">
+            <div class="screen-head top-section-gap">
+              <h2>Brand Intelligence</h2>
+              <p>Deeper discovery signals and scan reasoning, only when you want them.</p>
+            </div>
+
+            <div class="snapshot-grid">
+              <div class="snapshot-card snapshot-card-wide">
+                <h3>YEVIB Read</h3>
+                <div id="intelligenceSummaryDisplay" class="snapshot-display">
+                  Brand intelligence summary will appear here after the scan.
+                </div>
+              </div>
+
+              <div class="snapshot-card">
+                <h3>Voice Summary</h3>
+                <div id="voiceSummaryDisplay" class="snapshot-display">
+                  Voice summary will appear here after the scan.
+                </div>
+              </div>
+
+              <div class="snapshot-card">
+                <h3>Recommended Focus</h3>
+                <div id="recommendedFocusDisplay" class="snapshot-display">
+                  Recommended focus will appear here after the scan.
+                </div>
+              </div>
+
+              <div class="snapshot-card">
+                <h3>Offers / Services</h3>
+                <div id="offersDisplay" class="snapshot-display">
+                  Offers and services will appear here after the scan.
+                </div>
+              </div>
+
+              <div class="snapshot-card">
+                <h3>Audience</h3>
+                <div id="audienceDisplay" class="snapshot-display">
+                  Audience clues will appear here after the scan.
+                </div>
+              </div>
+
+              <div class="snapshot-card snapshot-card-wide">
+                <h3>Content Opportunities</h3>
+                <div id="opportunitiesDisplay" class="snapshot-display">
+                  Opportunities will appear here after the scan.
+                </div>
+              </div>
+
+              <div class="snapshot-card">
+                <h3>Detected Channels</h3>
+                <div id="channelsDisplay" class="snapshot-display">
+                  Detected channels will appear here after the scan.
+                </div>
+              </div>
+
+              <div class="snapshot-card">
+                <h3>Trust / Proof Signals</h3>
+                <div id="trustSignalsDisplay" class="snapshot-display">
+                  Trust and proof signals will appear here after the scan.
+                </div>
+              </div>
+
+              <div class="snapshot-card">
+                <h3>Education Signals</h3>
+                <div id="educationSignalsDisplay" class="snapshot-display">
+                  Education signals will appear here after the scan.
+                </div>
+              </div>
+
+              <div class="snapshot-card">
+                <h3>Public Activity Signals</h3>
+                <div id="activitySignalsDisplay" class="snapshot-display">
+                  Public activity signals will appear here after the scan.
+                </div>
+              </div>
+
+              <div class="snapshot-card snapshot-card-wide">
+                <h3>Founder Visibility Signals</h3>
+                <div id="founderVisibilitySignalsDisplay" class="snapshot-display">
+                  Founder visibility signals will appear here after the scan.
+                </div>
+              </div>
+
+              <div class="snapshot-card snapshot-card-wide">
+                <h3>Voice Source</h3>
+                <textarea
+                  id="voiceInput"
+                  rows="8"
+                  placeholder="Voice source used for the brand build will appear here..."
+                ></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="profilePrompt" class="subtle-line"></div>
+      </section>
+<section id="executionPlanWrap" class="screen-card execution-plan-wrap" style="display:none;">
+  <h3>What YEVIB Is Going To Do</h3>
+
+  <div id="primaryStrategyDisplay" class="plan-line"></div>
+  <div id="supportingStrategiesDisplay" class="plan-line"></div>
+  <div id="chosenMoveDisplay" class="plan-line"></div>
+  <div id="successSignalDisplay" class="plan-line"></div>
+
+  <p id="executionSummary" class="plan-summary"></p>
+  <p id="executionEta" class="plan-line"></p>
+  <p id="executionOutcome" class="plan-line"></p>
+
+  <ul id="executionActions" class="plan-actions"></ul>
+
+  <button id="runPlanBtn" class="primary-btn" type="button">
+    Run This Plan
+  </button>
+
+  <div id="runPlanStatus" class="subtle-line"></div>
+</section>
+      <section class="screen-card" id="section-generate">
+        <div class="screen-head">
+          <div class="step-tag">Step 3</div>
+          <h2>Generate Content</h2>
+          <p>Choose the lens first, optionally refine the tone, then generate the posts.</p>
+        </div>
+
+        <div class="sub-block">
+          <h3>1. Choose the lens</h3>
+          <div class="chip-row" id="lensButtons">
+            <button type="button" class="lens-btn" data-type="Business">Business</button>
+            <button type="button" class="lens-btn" data-type="Family">Family</button>
+            <button type="button" class="lens-btn" data-type="Educational">Educational</button>
+            <button type="button" class="lens-btn" data-type="Community">Community</button>
+            <button type="button" class="lens-btn" data-type="Personal">Personal</button>
+            <button type="button" class="lens-btn" data-type="Something Real">Something Real</button>
+          </div>
+          <div id="selectedLensPrompt" class="subtle-line"></div>
+        </div>
+
+        <div class="sub-block">
+          <h3>2. Optional feeling refinement</h3>
+          <div id="feelingButtons" class="chip-row">
+            <button type="button" class="feeling-btn" data-feeling="Focused">Focused</button>
+            <button type="button" class="feeling-btn" data-feeling="Proud">Proud</button>
+            <button type="button" class="feeling-btn" data-feeling="Tired">Tired</button>
+            <button type="button" class="feeling-btn" data-feeling="Reflective">Reflective</button>
+            <button type="button" class="feeling-btn" data-feeling="Flat">Flat</button>
+            <button type="button" class="feeling-btn" data-feeling="Grateful">Grateful</button>
+            <button type="button" class="feeling-btn" data-feeling="Fired up">Fired up</button>
+            <button type="button" class="feeling-btn" data-feeling="Not feeling it">Not feeling it</button>
+            <button type="button" class="feeling-btn" data-feeling="Random">Random</button>
+          </div>
+
+          <div class="field top-gap">
+            <label for="customFeeling">Optional: add your own</label>
+            <input
+              id="customFeeling"
+              type="text"
+              placeholder="more direct, less polished, more human..."
+            />
+          </div>
+
+          <div id="feelingPrompt" class="subtle-line"></div>
+        </div>
+
+        <div class="sub-block">
+          <h3>3. Generate</h3>
+          <div class="action-row">
+            <button id="generatePostsBtn" class="primary-btn" type="button" onclick="handleGeneratePostsClick()">
+              Generate Posts
+            </button>
+          </div>
+          <div id="generatePrompt" class="subtle-line"></div>
+        </div>
+      </section>
+
+      <section class="screen-card" id="section-posts">
+        <div class="screen-head">
+          <div class="step-tag">Step 4</div>
+          <h2>Generated Post Options</h2>
+          <p>Pick the one that feels most like the business and the moment.</p>
+        </div>
+
+                <div id="postsPrompt" class="subtle-line"></div>
+        <div id="posts"></div>
+
+        <div class="post-decision-row">
+          <button id="regeneratePostsBtn" class="secondary-btn" type="button" style="display:none;">
+            Regenerate Posts
+          </button>
+
+          <button id="approvePostBtn" class="primary-btn" type="button" style="display:none;" disabled>
+            Approve & Continue
+          </button>
+        </div>
+      </section>
+
+      <section class="screen-card" id="section-output">
+        <div class="screen-head">
+          <div class="step-tag">Step 5</div>
+          <h2>Selected Post</h2>
+          <p>This is the post you chose, along with its generated image.</p>
+        </div>
+
+        <div id="selectedPost" class="selected-post"></div>
+        <div id="imageStatus" class="status-line"></div>
+
+        <img
+          id="generatedImage"
+          alt="Generated image"
+          class="generated-image"
+        />
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

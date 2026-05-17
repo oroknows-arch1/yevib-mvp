@@ -1,0 +1,139 @@
+{
+  "meta": {
+    "name": "YEVIB Phase 3 Intelligence Regression Matrix",
+    "version": "2026-04-27",
+    "purpose": "Tests whether YEVIB can qualify business signal, diagnose readiness, choose a useful strategy, and avoid overclaiming when source evidence is weak.",
+    "status": "active"
+  },
+  "defaults": {
+    "mode": "hybrid",
+    "founderGoal": "Build more trust",
+    "pastedSourceText": "",
+    "ownerWritingSample": ""
+  },
+  "sites": [
+    {
+      "id": "local_service_01",
+      "group": "local_service",
+      "label": "Sydney CBD Plumbing",
+      "businessUrl": "https://cbdplumbers.com.au/",
+      "expectedQualification": "diagnosable",
+      "expectedSignalLevel": "medium_to_strong",
+      "expectedStrategyPressure": "trust_or_visibility",
+      "notes": "Local service test with clear service category, location signal, and emergency/service language."
+    },
+    {
+      "id": "local_service_02",
+      "group": "local_service",
+      "label": "Lukins Plumbing",
+      "businessUrl": "https://lukinsplumbing.com.au/",
+      "expectedQualification": "diagnosable",
+      "expectedSignalLevel": "medium_to_strong",
+      "expectedStrategyPressure": "trust_or_visibility",
+      "notes": "Local service test with Sydney-area signal, plumbing offer clarity, and service proof."
+    },
+    {
+      "id": "local_service_03",
+      "group": "local_service",
+      "label": "Network Plumbing",
+      "businessUrl": "https://networkplumbing.com.au/",
+      "expectedQualification": "diagnosable",
+      "expectedSignalLevel": "medium_to_strong",
+      "expectedStrategyPressure": "trust_or_visibility",
+      "notes": "Local service test with broad service signals, review/proof language, and strong local positioning."
+    },
+    {
+      "id": "ecommerce_01",
+      "group": "small_ecommerce",
+      "label": "Go-To Skincare",
+      "businessUrl": "https://gotoskincare.com/",
+      "expectedQualification": "diagnosable",
+      "expectedSignalLevel": "medium_to_strong",
+      "expectedStrategyPressure": "product_truth_or_trust",
+      "notes": "E-commerce brand test with clear product positioning, founder/brand voice, and product truth."
+    },
+    {
+      "id": "ecommerce_02",
+      "group": "small_ecommerce",
+      "label": "Sand & Sky",
+      "businessUrl": "https://www.sandandsky.com/",
+      "expectedQualification": "diagnosable",
+      "expectedSignalLevel": "medium_to_strong",
+      "expectedStrategyPressure": "product_truth_or_trust",
+      "notes": "E-commerce brand test with ingredient claims, product values, and visible brand positioning."
+    },
+    {
+      "id": "ecommerce_03",
+      "group": "small_ecommerce",
+      "label": "Allkinds",
+      "businessUrl": "https://allkinds.com/au/",
+      "expectedQualification": "diagnosable",
+      "expectedSignalLevel": "medium_to_strong",
+      "expectedStrategyPressure": "product_truth_or_trust",
+      "notes": "E-commerce brand test with product category clarity and audience positioning."
+    },
+    {
+      "id": "mixed_signal_01",
+      "group": "mixed_signal",
+      "label": "Ozi Construction Sydney",
+      "businessUrl": "https://www.oziconstruction.com.au/locations/construction-sydney",
+     "expectedQualification": "cautious",
+     "expectedSignalLevel": "limited_to_medium",
+     "expectedStrategyPressure": "clarity_or_trust",
+     "notes": "Mixed-signal test: service and location exist, but page may be location-template style."
+    },
+    
+    {
+      "id": "mixed_signal_02",
+      "group": "mixed_signal",
+      "label": "Utopia Constructions",
+      "businessUrl": "https://www.utopiaconstructions.com.au/",
+      "expectedQualification": "diagnosable",
+      "expectedSignalLevel": "medium_to_strong",
+      "expectedStrategyPressure": "trust_or_visibility"
+    },
+
+    {
+      
+      "id": "mixed_signal_03",
+      "group": "mixed_signal",
+      "label": "Premier Construction",
+      "businessUrl": "https://premierconstruction.com.au/",
+      "expectedQualification": "diagnosable",
+      "expectedSignalLevel": "medium_to_strong",
+      "expectedStrategyPressure": "trust_or_visibility"
+    },
+
+    {
+      "id": "thin_signal_01",
+      "group": "thin_signal",
+      "label": "NicheWorks",
+      "businessUrl": "https://nicheworks.com.au/",
+      "expectedQualification": "blocked_or_low_confidence",
+      "expectedSignalLevel": "weak",
+      "expectedStrategyPressure": "request_more_source_signal",
+      "notes": "Thin-signal test because the website is under construction and should trigger cautious output."
+    },
+
+    {
+      "id": "thin_signal_02",
+      "group": "thin_signal",
+      "label": "Service Sites",
+      "businessUrl": "https://servicesites.com.au/",
+      "expectedQualification": "blocked_or_low_confidence",
+      "expectedSignalLevel": "weak",
+      "expectedStrategyPressure": "request_more_source_signal"
+    },
+    
+    {
+      "id": "thin_signal_03",
+      "group": "thin_signal",
+      "label": "LocalPages",
+      "businessUrl": "https://www.localpages.au/",
+      "expectedQualification": "blocked_or_low_confidence",
+      "expectedSignalLevel": "limited_to_medium",
+      "expectedStrategyPressure": "request_more_source_signal",
+      "notes": "Simple small-business website provider test. Useful for checking if YEVIB overclaims from generic service copy."
+    }
+  ]
+}

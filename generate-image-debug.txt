@@ -1,0 +1,784 @@
+  } catch (err) {
+    console.error("GENERATE ERROR:", err);
+    res.status(500).json({ error: err.message || "Failed to generate posts." });
+  }
+});
+
+function buildImageDecisionPacket(input = {}) {
+  const imagePrompt = String(input.imagePrompt || "").trim();
+  const discoveryProfile = input.discoveryProfile || {};
+  const sceneType = String(input.sceneType || "").trim();
+
+  const visualIdentity = discoveryProfile.visualIdentity || {};
+  const locationContext = discoveryProfile.locationContext || {};
+
+  const businessSummary = String(
+    discoveryProfile.businessSummary ||
+      discoveryProfile.summary ||
+      discoveryProfile.businessDescription ||
+      ""
+  ).toLowerCase();
+
+  const combinedText = [
+    imagePrompt,
+    sceneType,
+    businessSummary,
+    visualIdentity.tone,
+    visualIdentity.palette,
+    visualIdentity.environment,
+    visualIdentity.brandingStyle,
+    locationContext.environmentType,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  const includesAny = (patterns = []) =>
+    patterns.some((pattern) => pattern.test(combinedText));
+
+       let businessArchetype = "unknown_smb";
+
+  if (
+    includesAny([
+      /plumb|plumber|plumbing|electric|electrician|carpenter|mechanic|roof|roofer|clean|cleaner|landscap|landscaper|builder|trade|trades|tradie|repair|maintenance|install|installation|service call|callout|home service/,
+    ])
+  ) {
+    businessArchetype = "local_trade";
+  } else if (
+    includesAny([
+      /app|software|saas|digital product|online platform|ai tool|dashboard|web app|client website|site migration|website migration|digital agency|marketing tool|automation|content tool/,
+    ])
+  ) {
+    businessArchetype = "digital_saas_online";
+  } else if (
+    includesAny([
+      /florist|artist|photographer|jeweller|designer|ceramic|maker|studio|creative/,
+    ])
+  ) {
+    businessArchetype = "creative_maker";
+
+  if (
+    includesAny([
+      /app|software|saas|digital|online|ai tool|platform|dashboard|website|web app|client website|site migration|website migration|digital agency|marketing tool|automation|content tool/,
+    ])
+  ) {
+    businessArchetype = "digital_saas_online";
+  } else if (
+    includesAny([
+      /florist|artist|photographer|jeweller|designer|ceramic|maker|studio|creative/,
+    ])
+  ) {
+    businessArchetype = "creative_maker";
+  } else if (
+    includesAny([
+      /health|care|therapy|disability|aged care|allied health|clinic/,
+    ])
+  ) {
+    businessArchetype = "health_care_sensitive";
+  } else if (
+    includesAny([
+      /accountant|lawyer|consultant|broker|agency|coach|professional service/,
+    ])
+  ) {
+    businessArchetype = "professional_service";
+  } else if (
+    includesAny([
+      /beauty|wellness|salon|barber|massage|skin|fitness|nail/,
+    ])
+  ) {
+    businessArchetype = "beauty_wellness";
+  } else if (
+    includesAny([
+      /cafe|restaurant|bakery|coffee|food|beverage|catering|hospitality/,
+    ])
+  ) {
+    businessArchetype = "hospitality";
+  } else if (
+    includesAny([
+      /product|ecommerce|shop|store|apparel|skincare|matcha|candle|packaging|retail/,
+    ])
+  ) {
+    businessArchetype = "retail_product";
+  } else if (
+    includesAny([
+      /pergola|patio|renovation|bathroom|kitchen|flooring|painting|concrete|deck|home improvement/,
+    ])
+  ) {
+    businessArchetype = "home_improvement";
+  } else if (
+    includesAny([
+      /plumb|electric|carpenter|mechanic|roof|clean|landscap|builder|trade|repair|maintenance|install/,
+    ])
+  ) {
+    businessArchetype = "local_trade";
+  }
+
+  let messageIntent = "brand_mood";
+
+  if (
+    includesAny([
+      /trust|proof|reliable|standard|quality|care|confidence|safe|dependable/,
+    ])
+  ) {
+    messageIntent = "trust_proof";
+  } else if (
+    includesAny([
+      /product|buy|order|shop|range|collection|item|pack|package/,
+    ])
+  ) {
+    messageIntent = "product_proof";
+  } else if (
+    includesAny([
+      /repair|install|build|clean|fix|inspect|service|process|method|work/,
+    ])
+  ) {
+    messageIntent = "service_process_proof";
+  } else if (
+    includesAny([
+      /owner|founder|i run|i make|my business|behind the business/,
+    ])
+  ) {
+    messageIntent = "founder_presence";
+  } else if (
+    includesAny([
+      /result|outcome|finished|complete|after|relief|enjoy|use|living/,
+    ])
+  ) {
+    messageIntent = "customer_outcome";
+  } else if (
+    includesAny([
+      /learn|explain|why|how|tip|education|understand|guide/,
+    ])
+  ) {
+    messageIntent = "education";
+  } else if (
+    includesAny([
+      /local|community|area|nearby|suburb|sydney|region/,
+    ])
+  ) {
+    messageIntent = "local_presence";
+  }
+
+  let visualSourceScore = 25;
+
+  if (businessArchetype !== "unknown_smb") visualSourceScore += 20;
+  if (imagePrompt.length > 80) visualSourceScore += 15;
+  const visualIdentityText = [
+    visualIdentity.tone,
+    visualIdentity.palette,
+    visualIdentity.environment,
+    visualIdentity.brandingStyle,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  const hasGroundedWebsiteVisualSignal =
+    visualIdentityText &&
+    !/grounded, real, business-appropriate|natural business-appropriate colours|real working environments|unbranded, practical, context-led|not specified|default|generic/.test(
+      visualIdentityText
+    );
+
+  if (hasGroundedWebsiteVisualSignal) {
+    visualSourceScore += 15;
+  }
+  if (locationContext.city || locationContext.state || locationContext.environmentType) {
+    visualSourceScore += 10;
+  }
+  if (businessSummary.length > 80) visualSourceScore += 10;
+
+  visualSourceScore = clampNumber(visualSourceScore, 0, 100);
+
+  let visualSourceLevel = "weak";
+  if (visualSourceScore >= 85) visualSourceLevel = "strong";
+  else if (visualSourceScore >= 65) visualSourceLevel = "good";
+  else if (visualSourceScore >= 45) visualSourceLevel = "limited";
+  else if (visualSourceScore >= 25) visualSourceLevel = "weak";
+  else visualSourceLevel = "unsafe";
+
+  let selectedMode = "clean_text_free_fallback";
+
+  if (messageIntent === "product_proof" && businessArchetype === "retail_product") {
+    selectedMode = "product_truth";
+  } else if (messageIntent === "service_process_proof") {
+    selectedMode = "process_proof";
+  } else if (messageIntent === "customer_outcome") {
+    selectedMode = "outcome_proof";
+  } else if (messageIntent === "founder_presence") {
+    selectedMode = "owner_presence";
+  } else if (messageIntent === "education") {
+    selectedMode = "educational_visual";
+  } else if (businessArchetype === "digital_saas_online") {
+    selectedMode = "owner_presence";
+  } else if (visualSourceLevel === "limited" || visualSourceLevel === "weak") {
+    selectedMode = "environment_trust";
+  } else {
+    selectedMode = "source_matched_realism";
+  }
+
+  const visualRisks = [];
+  const blockedVisualClaims = [
+    "invented logos",
+    "invented business names",
+    "fake labels",
+    "fake signage",
+    "fake uniforms",
+    "fake certifications",
+    "readable text",
+  ];
+
+  if (businessArchetype === "home_improvement" && /finished|complete|completed|done/.test(combinedText)) {
+    visualRisks.push(
+      "Do not show workers performing unclear active construction on an already completed structure."
+    );
+    selectedMode = "outcome_proof";
+  }
+
+  if (businessArchetype === "digital_saas_online") {
+    blockedVisualClaims.push(
+      "fake dashboard text",
+      "fake UI claims",
+      "robot imagery",
+      "generic futuristic AI visuals"
+    );
+  }
+
+  if (businessArchetype === "health_care_sensitive") {
+    blockedVisualClaims.push(
+      "medical overclaims",
+      "vulnerable people used as props",
+      "fake clinical authority"
+    );
+  }
+
+  const fallbackUsed =
+    visualSourceLevel === "weak" ||
+    visualSourceLevel === "unsafe" ||
+    selectedMode === "clean_text_free_fallback";
+
+  const fallbackReason = fallbackUsed
+    ? "YEVIB does not have enough safe visual grounding for a highly specific business image, so it should use a cleaner trust-safe visual move."
+    : "";
+
+  const mustShow = [];
+  const mustNotShow = [...blockedVisualClaims];
+
+  if (selectedMode === "process_proof") {
+    mustShow.push(
+      "a believable work process",
+      "the correct subject of the work",
+      "hands, tools, or attention connected to the correct serviceable area"
+    );
+    mustNotShow.push("fake work", "physically unclear action", "wrong tools for the business type");
+  }
+
+  if (selectedMode === "outcome_proof") {
+    mustShow.push(
+      "the finished or resolved state",
+      "a believable result connected to the message",
+      "proof of value rather than fake active work"
+    );
+    mustNotShow.push("workers pretending to build a finished result", "unsupported before-and-after claims");
+  }
+
+  if (selectedMode === "owner_presence") {
+    mustShow.push(
+      "a believable small business owner or operator moment",
+      "realistic workday context",
+      "calm clarity or practical progress"
+    );
+    mustNotShow.push("fake founder likeness", "fake corporate boardroom", "over-polished stock-photo scene");
+  }
+
+  if (selectedMode === "environment_trust") {
+    mustShow.push(
+      "a business-relevant environment",
+      "context that supports the message without overclaiming"
+    );
+    mustNotShow.push("specific branded assets not grounded by source material");
+  }
+
+  return {
+    selectedMode,
+    visualSourceScore,
+    visualSourceLevel,
+    businessArchetype,
+    messageIntent,
+    recommendedVisualJob:
+      "Choose the most trustworthy visual move before generation, using source strength and message intent.",
+    approvedVisualClaims: mustShow,
+    blockedVisualClaims,
+    visualRisks,
+    fallbackUsed,
+    fallbackReason,
+    mustShow,
+    mustNotShow,
+    promptGuidance:
+      "Show proof of the message, not always a literal enactment of the message. Avoid unsupported branding, fake work, fake labels, and visual claims the source does not support.",
+    ownerFacingReason:
+      fallbackUsed
+        ? "YEVIB chose a safer visual direction because the source material does not support a highly specific image yet."
+        : "YEVIB found enough source and message signal to choose a more specific visual direction.",
+  };
+}
+app.post("/debug-image-decision", (req, res) => {
+  try {
+    const { imagePrompt, discoveryProfile } = req.body;
+    const sceneType = classifySceneType(imagePrompt || "");
+
+    const imageDecisionPacket = buildImageDecisionPacket({
+      imagePrompt,
+      discoveryProfile,
+      sceneType,
+    });
+
+    res.json({
+      ok: true,
+      sceneType,
+      imageDecisionPacket,
+    });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      error: err.message || "Failed to build image decision packet.",
+    });
+  }
+});
+
+function buildSafeImagePlanningPrompt(imagePrompt = "", imageDecisionPacket = {}) {
+  const rawPrompt = String(imagePrompt || "").trim();
+  const businessArchetype = String(
+    imageDecisionPacket?.businessArchetype || ""
+  ).trim();
+  const selectedMode = String(
+    imageDecisionPacket?.selectedMode || ""
+  ).trim();
+  const messageIntent = String(
+    imageDecisionPacket?.messageIntent || ""
+  ).trim();
+
+  if (businessArchetype === "digital_saas_online") {
+    return `
+Create a documentary-realistic 4-panel visual scene plan for a digital, software, website, marketing tool, app, online platform, or AI business workflow.
+
+The visual must show the human value of the digital service, not a literal construction metaphor.
+
+SAFE DIGITAL BUSINESS SCENE:
+- show a small business owner, operator, founder, or client reviewing digital work in a realistic workspace
+- use a real SMB setting such as a desk, small office, home office, shop counter, studio, cafe table, or quiet work area
+- a laptop, tablet, or phone may appear, but all screens must be abstract, blurred, layout-based, and unreadable
+- the scene should communicate clarity, review, approval, handover, relief, planning, confidence, or practical progress
+- keep the mood professional, calm, grounded, and business-grade
+
+IMAGE MODE:
+${selectedMode || "owner_presence"}
+
+MESSAGE INTENT:
+${messageIntent || "trust_proof"}
+
+RAW MESSAGE TO SUPPORT:
+${clipText(rawPrompt, 1200)}
+
+STRICT VISUAL BLOCKS:
+- no construction site
+- no scaffolding
+- no hard hats
+- no high-visibility clothing
+- no safety vests
+- no trade uniforms
+- no building-site planning boards
+- no literal website construction metaphor
+- no readable screen text
+- no readable UI
+- no readable notes
+- no fake dashboard metrics
+- no fake client messages
+- no fake signage
+- no invented logos
+- no extra unintroduced people
+
+CAST RULES:
+- keep one clear business owner, founder, operator, or client identity across all panels
+- do not switch clothing, role, face, age, or job identity between panels
+- if a laptop user appears in multiple panels, they must remain the same person
+- do not turn a plain-clothed business owner into a worker, technician, builder, or tradesperson
+- do not add safety gear or uniforms to the business owner unless source-proven
+
+The image should show the proof of digital value through human clarity and practical business workflow.
+`.trim();
+  }
+
+  return rawPrompt;
+}
+
+app.post("/generate-image", async (req, res) => {
+  const { imagePrompt, discoveryProfile } = req.body;
+  const sceneType = classifySceneType(imagePrompt || "");
+
+  try {
+    const imageDecisionPacket = buildImageDecisionPacket({
+      imagePrompt,
+      discoveryProfile,
+      sceneType,
+    });
+
+        const safePlanningPrompt = buildSafeImagePlanningPrompt(
+      imagePrompt || "",
+      imageDecisionPacket
+    );
+
+    const scenePlan = await buildImageScenePlan(safePlanningPrompt, {
+      ...(discoveryProfile || {}),
+      sceneType,
+      imageDecisionPacket,
+    });
+
+
+       const panelLines =
+      scenePlan.panels.length === 4
+        ? scenePlan.panels
+            .map(
+              (p) => `PANEL ${p.panel}:
+ROLE: ${p.role}
+SHOT TYPE: ${p.shotType || (p.panel === 1 ? "wide establishing shot" : p.panel === 2 ? "medium inspection shot" : p.panel === 3 ? "close process shot" : "medium outcome shot")}
+LOCKED SUBJECT: ${p.lockedSubject || scenePlan.primarySubject || scenePlan.mainSubject || "the primary subject from the request"}
+TARGET SUBJECT: ${p.targetSubject || scenePlan.primarySubject || scenePlan.mainSubject || "the primary subject from the request"}
+TARGET ACTOR: ${p.targetActor || scenePlan.primaryActor || "the primary actor from the request"}
+PROBLEM STATE OWNER: ${p.problemStateOwner || (p.panel === 4 ? "none" : scenePlan.problemStateSubject || scenePlan.primarySubject || "the primary subject from the request")}
+RESOLVED STATE OWNER: ${p.resolvedStateOwner || (p.panel === 4 ? scenePlan.resolvedStateSubject || scenePlan.primarySubject || "the primary subject from the request" : "none")}
+SERVICEABLE AREA: ${p.serviceableArea || scenePlan.serviceableArea || "the plausible serviceable area where hands-on work can realistically happen"}
+PRIMARY FRAME OWNER: ${p.primaryFrameOwner || p.targetSubject || scenePlan.primarySubject || scenePlan.mainSubject || "the primary subject from the request"}
+ONLY OPERATIVE SURFACE: ${p.onlyOperativeSurface || "the one visible surface, part, or area of the target subject where the action is actually happening"}
+ACTION ANCHOR: ${p.actionAnchor || "the visible physical point where the action is happening on a plausible serviceable area of the target subject"}
+CONTACT POINT: ${p.contactPoint || "hands, tools, gaze, and body orientation must connect clearly to that same target subject and the same operative surface"}
+SUBJECT INSTANCE LOCK: ${p.subjectInstanceLock || (scenePlan.sameSubjectInstanceAcrossPanels ? "this must be the exact same physical subject instance across the sequence, not a different but similar one" : "keep the primary subject stable unless the story explicitly changes it")}
+ACTOR IDENTITY LOCK: ${p.actorIdentityLock || (scenePlan.sameActorIdentityAcrossPanels ? "this must be the exact same primary actor identity across the sequence unless the story explicitly changes it" : "keep actor identity stable unless the story explicitly changes it")}
+SCENE PROXIMITY: ${p.sceneProximity || "all related subjects in the event must appear spatially connected and plausibly near each other, not separated into different locations"}
+COMPONENT CONTINUITY: ${p.componentContinuity || "if a specific part or component appears in adjacent action panels, it must remain materially consistent in size, type, shape, and position"}
+ENVIRONMENT CONTINUITY: ${p.environmentContinuity || (scenePlan.sameEnvironmentAcrossPanels ? "lighting, time-of-day, background setting, and spatial context must stay consistent across the sequence unless the story explicitly changes them" : "keep environment continuity unless the story explicitly changes it")}
+${p.allowedSupportSubject ? `ALLOWED SUPPORT SUBJECT: ${p.allowedSupportSubject}\n` : scenePlan.supportSubjects?.length ? `ALLOWED SUPPORT SUBJECTS: ${scenePlan.supportSubjects.join(", ")}\n` : ""}MUST SHOW: ${p.mustShow || "the primary subject clearly as the main focus of the frame, with the action physically connected to it, not any supporting element"}
+MUST NOT SHOW: ${p.mustNotShow || "a supporting object, background element, or secondary subject taking over as the main focus, mixed object identities, contradictory states, gestures/body positions disconnected from the target subject, a second working surface on a different subject, or work being performed on an implausible or invented access point"}
+SCENE:
+${p.scene}`
+            )
+            .join("\n\n")
+        : `
+PANEL 1:
+ROLE: establishing
+SHOT TYPE: wide establishing shot
+LOCKED SUBJECT: ${scenePlan.primarySubject || scenePlan.mainSubject || "the primary subject from the request"}
+TARGET SUBJECT: ${scenePlan.primarySubject || scenePlan.mainSubject || "the primary subject from the request"}
+TARGET ACTOR: ${scenePlan.primaryActor || "the primary actor from the request"}
+PROBLEM STATE OWNER: ${scenePlan.problemStateSubject || scenePlan.primarySubject || scenePlan.mainSubject || "the primary subject from the request"}
+RESOLVED STATE OWNER: none
+SERVICEABLE AREA: ${scenePlan.serviceableArea || "the plausible serviceable area where hands-on work can realistically happen"}
+PRIMARY FRAME OWNER: ${scenePlan.primarySubject || scenePlan.mainSubject || "the primary subject from the request"}
+ONLY OPERATIVE SURFACE: the one visible problem area on the same primary subject
+ACTION ANCHOR: the visible location on the primary subject where the issue is happening
+CONTACT POINT: the primary actor's attention, body position, or pointing must clearly relate to the same target subject
+SUBJECT INSTANCE LOCK: ${scenePlan.sameSubjectInstanceAcrossPanels ? "this must be the exact same physical subject instance that appears in later panels, not another similar one" : "keep the primary subject stable unless explicitly changed"}
+ACTOR IDENTITY LOCK: ${scenePlan.sameActorIdentityAcrossPanels ? "this must be the exact same primary actor identity that appears in later panels, not another similar one" : "keep actor identity stable unless explicitly changed"}
+SCENE PROXIMITY: the support context, primary actor, and target subject must appear as part of one connected event, close enough to read as the same active job
+COMPONENT CONTINUITY: if the problem component is implied here, it must match the component later inspected and repaired
+ENVIRONMENT CONTINUITY: ${scenePlan.sameEnvironmentAcrossPanels ? "time-of-day, road context, and lighting must match the rest of the sequence unless the story explicitly changes" : "keep time, place, and lighting stable unless explicitly changed"}
+${scenePlan.supportSubjects?.length ? `ALLOWED SUPPORT SUBJECTS: ${scenePlan.supportSubjects.join(", ")}\n` : ""}MUST SHOW: the primary subject clearly in the real-world environment where the problem happens, with the problem state readable at first glance
+MUST NOT SHOW: fault symbols, warning lights, or problem signals on the wrong subject, a primary actor inspecting empty space, a second subject visually competing as the main problem source, or a target subject that changes identity in later panels
+SCENE:
+Establish the main situation, environment, or source described in the request.
+
+PANEL 2:
+ROLE: inspection
+SHOT TYPE: medium inspection shot
+LOCKED SUBJECT: ${scenePlan.primarySubject || scenePlan.mainSubject || "the primary subject from the request"}
+TARGET SUBJECT: ${scenePlan.primarySubject || scenePlan.mainSubject || "the primary subject from the request"}
+TARGET ACTOR: ${scenePlan.primaryActor || "the primary actor from the request"}
+PROBLEM STATE OWNER: ${scenePlan.problemStateSubject || scenePlan.primarySubject || scenePlan.mainSubject || "the primary subject from the request"}
+RESOLVED STATE OWNER: none
+SERVICEABLE AREA: ${scenePlan.serviceableArea || "the plausible serviceable area where hands-on work can realistically happen"}
+PRIMARY FRAME OWNER: ${scenePlan.primarySubject || scenePlan.mainSubject || "the primary subject from the request"}
+ONLY OPERATIVE SURFACE: the one exact inspection area on the same target subject
+ACTION ANCHOR: the exact inspection point on a plausible serviceable area of the same target subject
+CONTACT POINT: hands, tools, gaze, and body orientation must visibly connect to the inspection point on the same subject and not to any second subject
+SUBJECT INSTANCE LOCK: ${scenePlan.sameSubjectInstanceAcrossPanels ? "this must be the exact same physical subject instance from panel 1, not a different but similar one" : "keep the primary subject stable unless explicitly changed"}
+ACTOR IDENTITY LOCK: ${scenePlan.sameActorIdentityAcrossPanels ? "this must be the exact same primary actor identity from panel 1, not a different but similar one" : "keep actor identity stable unless explicitly changed"}
+SCENE PROXIMITY: support context may appear, but it must remain physically secondary and plausibly adjacent to the same job scene
+COMPONENT CONTINUITY: the inspected component must match the repaired component in the next panel in size, type, form, and position
+ENVIRONMENT CONTINUITY: ${scenePlan.sameEnvironmentAcrossPanels ? "the lighting and location must still feel like the same event, not a different place or time" : "keep lighting and location stable unless explicitly changed"}
+${scenePlan.supportSubjects?.length ? `ALLOWED SUPPORT SUBJECTS: ${scenePlan.supportSubjects.join(", ")}\n` : ""}MUST SHOW: the exact working area of the same subject clearly in the foreground with visible physical interaction, and that same subject must be the closest and dominant object in the frame
+MUST NOT SHOW: inspection focus drifting onto a support subject, the primary actor handling empty space, the target sitting behind while another foreground surface becomes the work area, two separate subjects sharing the action, or work being done on an implausible seam, hinge-like edge, or invented access point
+SCENE:
+Show preparation, inspection, or method focused on the same subject.
+
+PANEL 3:
+ROLE: process
+SHOT TYPE: close process shot
+LOCKED SUBJECT: ${scenePlan.primarySubject || scenePlan.mainSubject || "the primary subject from the request"}
+TARGET SUBJECT: ${scenePlan.primarySubject || scenePlan.mainSubject || "the primary subject from the request"}
+TARGET ACTOR: ${scenePlan.primaryActor || "the primary actor from the request"}
+PROBLEM STATE OWNER: ${scenePlan.problemStateSubject || scenePlan.primarySubject || scenePlan.mainSubject || "the primary subject from the request"}
+RESOLVED STATE OWNER: none
+SERVICEABLE AREA: ${scenePlan.serviceableArea || "the plausible serviceable area where hands-on work can realistically happen"}
+PRIMARY FRAME OWNER: ${scenePlan.primarySubject || scenePlan.mainSubject || "the primary subject from the request"}
+ONLY OPERATIVE SURFACE: the one exact repair area on the same target subject
+ACTION ANCHOR: the key repair point on a plausible serviceable area of the same target subject
+CONTACT POINT: the repair action must visibly connect to the repair point on the same target subject and not to any other surface or subject
+SUBJECT INSTANCE LOCK: ${scenePlan.sameSubjectInstanceAcrossPanels ? "this must still be the exact same physical subject instance from panels 1 and 2" : "keep the primary subject stable unless explicitly changed"}
+ACTOR IDENTITY LOCK: ${scenePlan.sameActorIdentityAcrossPanels ? "this must still be the exact same primary actor identity from panels 1 and 2" : "keep actor identity stable unless explicitly changed"}
+SCENE PROXIMITY: the repair scene must still belong to the same job and same contextual event
+COMPONENT CONTINUITY: the repaired component must remain materially consistent with the component shown in panel 2 in size, type, form, and placement
+ENVIRONMENT CONTINUITY: ${scenePlan.sameEnvironmentAcrossPanels ? "lighting and scene context must continue the same event unless the story explicitly changes" : "keep lighting and scene context stable unless explicitly changed"}
+${scenePlan.supportSubjects?.length ? `ALLOWED SUPPORT SUBJECTS: ${scenePlan.supportSubjects.join(", ")}\n` : ""}MUST SHOW: the key repair process on the same target subject in the foreground with real contact between primary actor, tool, and subject, and that subject must be the dominant and closest object in frame
+MUST NOT SHOW: unrelated parts, contradictory fault signals, a different repair target, repair motions disconnected from the subject, the real target pushed into the background while another surface becomes the active work zone, or any foreground object being treated as the repair surface if it is not the target subject
+SCENE:
+Show the key process, intervention, or transformation focused on the same subject.
+
+PANEL 4:
+ROLE: outcome
+SHOT TYPE: medium outcome shot
+LOCKED SUBJECT: ${scenePlan.resolvedStateSubject || scenePlan.primarySubject || scenePlan.mainSubject || "the primary subject from the request"}
+TARGET SUBJECT: ${scenePlan.resolvedStateSubject || scenePlan.primarySubject || scenePlan.mainSubject || "the primary subject from the request"}
+TARGET ACTOR: ${scenePlan.primaryActor || "the primary actor from the request"}
+PROBLEM STATE OWNER: none
+RESOLVED STATE OWNER: ${scenePlan.resolvedStateSubject || scenePlan.primarySubject || scenePlan.mainSubject || "the primary subject from the request"}
+SERVICEABLE AREA: ${scenePlan.serviceableArea || "the plausible serviceable area where hands-on work can realistically happen"}
+PRIMARY FRAME OWNER: ${scenePlan.resolvedStateSubject || scenePlan.primarySubject || scenePlan.mainSubject || "the primary subject from the request"}
+ONLY OPERATIVE SURFACE: no active work surface, only the resolved final state of the same subject
+ACTION ANCHOR: the resolved final state of the same subject
+CONTACT POINT: if a person gestures or interacts, the face, eyes, hands, and posture must be anatomically normal and naturally open-eyed unless explicitly described otherwise
+SUBJECT INSTANCE LOCK: ${scenePlan.sameSubjectInstanceAcrossPanels ? "this must still read as the exact same physical subject instance from earlier panels" : "keep the resolved subject stable unless explicitly changed"}
+ACTOR IDENTITY LOCK: ${scenePlan.sameActorIdentityAcrossPanels ? "this must still be the exact same primary actor identity from earlier panels unless explicitly changed" : "keep actor identity stable unless explicitly changed"}
+SCENE PROXIMITY: any people shown in the outcome must still belong to the same completed event
+COMPONENT CONTINUITY: the resolved subject should still read as the same machine/object/product from earlier panels
+ENVIRONMENT CONTINUITY: ${scenePlan.sameEnvironmentAcrossPanels ? "the final panel must still feel like the same place and time unless the story explicitly changes" : "keep the final environment stable unless explicitly changed"}
+${scenePlan.supportSubjects?.length ? `ALLOWED SUPPORT SUBJECTS: ${scenePlan.supportSubjects.join(", ")}\n` : ""}MUST SHOW: the resolved state of the same subject after the work is complete, with normal human anatomy, open natural eyes, and a believable finished outcome
+MUST NOT SHOW: active repair posture, leftover fault-state artifacts, distorted hands, fingers, anatomy, closed-eye handshake portraits, or any second subject acting like the true resolved subject
+SCENE:
+Show the outcome, result, lived use, or resolved state tied to the same subject.
+`.trim();
+
+    const continuityLines =
+      scenePlan.continuityRules.length > 0
+        ? scenePlan.continuityRules.map((rule) => `- ${rule}`).join("\n")
+        : `- the primary subject must stay locked across all 4 panels
+- the primary actor must stay locked across all 4 panels unless explicitly changed
+- keep the visual world consistent across all 4 panels`;
+
+    const forbiddenSwapLines =
+      Array.isArray(scenePlan.forbiddenSwaps) && scenePlan.forbiddenSwaps.length > 0
+        ? scenePlan.forbiddenSwaps.map((rule) => `- ${rule}`).join("\n")
+        : `- do not replace the primary subject with a nearby support subject
+- do not promote a support subject into the hero subject
+- do not promote a secondary actor into the primary actor
+- do not reinterpret the collage as a different product, machine, vehicle, service, or job
+- do not drift into a visually similar but incorrect subject
+- do not crop the main working area so tightly that it becomes unclear or partial`;
+
+    const imageDecisionLines = imageDecisionPacket
+      ? `
+IMAGE DECISION PACKET:
+- selected image mode: ${imageDecisionPacket.selectedMode || "not specified"}
+- business archetype: ${imageDecisionPacket.businessArchetype || "unknown_smb"}
+- message intent: ${imageDecisionPacket.messageIntent || "not specified"}
+- visual source level: ${imageDecisionPacket.visualSourceLevel || "not specified"}
+- recommended visual job: ${imageDecisionPacket.recommendedVisualJob || "choose the most trustworthy visual move before generation"}
+
+APPROVED VISUAL CLAIMS:
+${
+  Array.isArray(imageDecisionPacket.approvedVisualClaims) &&
+  imageDecisionPacket.approvedVisualClaims.length > 0
+    ? imageDecisionPacket.approvedVisualClaims.map((item) => `- ${item}`).join("\n")
+    : "- only show visually grounded business context"
+}
+
+BLOCKED VISUAL CLAIMS:
+${
+  Array.isArray(imageDecisionPacket.blockedVisualClaims) &&
+  imageDecisionPacket.blockedVisualClaims.length > 0
+    ? imageDecisionPacket.blockedVisualClaims.map((item) => `- ${item}`).join("\n")
+    : "- invented logos\n- fake labels\n- fake signage\n- fake uniforms\n- fake certifications\n- readable text"
+}
+
+IMAGE DECISION MUST-SHOW RULES:
+${
+  Array.isArray(imageDecisionPacket.mustShow) &&
+  imageDecisionPacket.mustShow.length > 0
+    ? imageDecisionPacket.mustShow.map((item) => `- ${item}`).join("\n")
+    : "- the safest visual proof of the message"
+}
+
+IMAGE DECISION MUST-NOT-SHOW RULES:
+${
+  Array.isArray(imageDecisionPacket.mustNotShow) &&
+  imageDecisionPacket.mustNotShow.length > 0
+    ? imageDecisionPacket.mustNotShow.map((item) => `- ${item}`).join("\n")
+    : "- unsupported branding\n- fake work\n- identity drift\n- role swaps"
+}
+
+IMAGE DECISION PROMPT GUIDANCE:
+${imageDecisionPacket.promptGuidance || "Show proof of the message, not always a literal enactment of the message."}
+`.trim()
+      : "";
+
+const hardenedPrompt = `
+Create exactly one documentary-realistic 4-panel collage image.
+
+ORIGINAL REQUEST:
+${clipText(imagePrompt || "", 2200)}
+
+${imageDecisionLines}
+
+GLOBAL SCENE:
+${scenePlan.globalScene || "A single coherent real-world scene built from the request."}
+
+PRIMARY SUBJECT:
+${scenePlan.primarySubject || scenePlan.mainSubject || "the primary subject from the request"}
+
+SUPPORT SUBJECTS:
+${Array.isArray(scenePlan.supportSubjects) && scenePlan.supportSubjects.length > 0 ? scenePlan.supportSubjects.join(", ") : scenePlan.supportingSubject || "none"}
+
+PROBLEM-STATE SUBJECT:
+${scenePlan.problemStateSubject || scenePlan.primarySubject || scenePlan.mainSubject || "the primary subject from the request"}
+
+RESOLVED-STATE SUBJECT:
+${scenePlan.resolvedStateSubject || scenePlan.primarySubject || scenePlan.mainSubject || "the primary subject from the request"}
+
+PRIMARY ACTOR:
+${scenePlan.primaryActor || "the primary actor from the request"}
+
+SECONDARY ACTORS:
+${Array.isArray(scenePlan.secondaryActors) && scenePlan.secondaryActors.length > 0 ? scenePlan.secondaryActors.join(", ") : "none"}
+
+SERVICEABLE AREA:
+${scenePlan.serviceableArea || "the plausible serviceable area where hands-on work can realistically happen"}
+
+CONTINUITY RULES:
+${continuityLines}
+
+FORBIDDEN SWAPS:
+${forbiddenSwapLines}
+
+${panelLines}
+
+NON-NEGOTIABLE STRUCTURE RULES:
+- create exactly 4 clearly distinct panels
+- each panel must be visually different, but part of the same story
+- do not return a single-scene image
+- do not collapse all panels into the same shot
+- panel-to-panel continuity must make sense
+
+PANEL ROLE ENFORCEMENT:
+- panel 1 must establish the situation
+- panel 2 must show inspection, setup, or preparation (NOT outcome)
+- panel 3 must show the main process or action (NOT setup or filler)
+- panel 4 must show the outcome or resolved state (NOT revert backward)
+
+UNIVERSAL SUBJECT-ROLE ENFORCEMENT:
+- the primary subject must remain the hero subject in all panels unless the story explicitly changes it
+- support subjects may appear but must remain secondary and must never replace the primary subject
+- the primary actor must remain the main action owner in all panels unless the story explicitly changes it
+- secondary actors may appear but must remain secondary and must never replace the primary actor
+- the problem state must belong only to the problem-state subject
+- the resolved state must belong only to the resolved-state subject
+- if hands-on work is shown, it must happen on a plausible serviceable area of the target subject
+- each panel may contain support context, but only one true operative subject may own the action
+- the subject being touched, inspected, repaired, or resolved must be the same subject that visually owns the frame
+
+NON-NEGOTIABLE CAST IDENTITY RULES:
+- define one clear primary actor and keep that exact person visually consistent across every panel where they appear
+- define one clear secondary actor and keep that exact person visually consistent across every panel where they appear
+- clothing, safety gear, facial hair, hair colour, age, body type, and role must not swap between actors
+- a person wearing a hard hat or high-visibility workwear in one panel must not become the plain-clothed client in another panel
+- a plain-clothed client, owner, or laptop user must not gain a hard hat, safety vest, trade uniform, or worker role in another panel
+- if one actor is operating the laptop in any panel, that same actor identity must operate or review the laptop consistently in all related laptop panels
+- do not merge two people into one mixed identity
+- do not give a secondary actor the costume, equipment, or job role of the primary actor
+- do not introduce a new person in a panel unless the request explicitly requires a new person
+- every person in each panel must be recognisable as one of the already established actors
+
+NON-NEGOTIABLE FRAMING RULES:
+- each panel must frame its target subject clearly and readably at first glance
+- if a panel shows inspection, setup, or repair, the full working area must be clearly visible in frame
+- do not crop the operative surface so tightly that it becomes partial, unclear, or secondary
+- do not let background subjects, nearby tools, or support objects dominate the frame over the target subject
+- use framing that makes the intended action obvious without needing text
+- do not allow a foreground surface on one subject while the real target sits in the background
+- each action panel must show one operative surface only
+
+NON-NEGOTIABLE IMAGE MATCH RULES:
+- the image must align closely with the post meaning
+- do not generate a generic business collage
+- the final image must feel like a visual translation of the selected post
+- each panel should reveal a different part of the post's meaning, scene, effort, or outcome
+- if a real-life moment is implied, show that real-life moment clearly
+- if the post is about standards, care, routine, pressure, community, education, founder presence, emergency response, or practical support, show those things visibly
+- the post should feel recognisable through the image even without words
+
+NON-NEGOTIABLE WEBSITE ALIGNMENT RULES:
+- where possible, match the website's imagery style, colour palette, visual tone, atmosphere, textures, and overall theme
+- keep the image feeling like it belongs to the same business identity as the website
+- do not use random colours, props, or moods that clash with the website
+- if the website feels minimal, earthy, luxurious, warm, clinical, handcrafted, industrial, soft, family-led, or modern, reflect that visually
+
+NON-NEGOTIABLE DIGITAL / ONLINE BUSINESS RULES:
+- if the business archetype is digital_saas_online, the image must show business clarity, owner relief, planning, review, workflow, or digital service value
+- if the business archetype is digital_saas_online, do not turn the scene into literal construction, trade labour, or physical building work unless the business itself is a construction business
+- website, app, software, marketing tool, dashboard, platform, or online service imagery must not use fake readable UI text
+- do not show fake interface claims, fake dashboards, fake metrics, fake client data, or readable website copy
+- if showing a laptop, screen, app, website, or dashboard, keep the UI mostly abstract, blurred, or layout-based with no readable text
+- do not use construction helmets, safety vests, building sites, or trade uniforms as metaphors for digital work unless they are explicitly grounded by the business source
+- show the human outcome of the digital tool before showing fake software details
+- no signage text, shop signs, labels, written words, route numbers, motorway names, street names, suburb names, or location text
+- no readable logos anywhere in the image
+- no fake brand names
+- no invented company names on clothing, packaging, signage, or vehicles
+- no letters or text on garments
+- no readable or semi-readable transport markings, road labels, destination signs, registration text, or roadside information boards
+- if a location is implied, show it through environment only, never through text or signage unless exact verified text was explicitly provided and intentionally requested
+- do not invent Australian road labels, motorway numbers, or geographic markers
+- keep all clothing, vehicles, roads, signage, and objects visually unbranded unless real assets were explicitly provided
+NON-NEGOTIABLE IMAGE SAFETY RULES:
+- no readable words anywhere in the image
+`.trim();
+
+    const response = await openai.images.generate({
+      model: "gpt-image-1",
+      prompt: hardenedPrompt,
+      size: "1024x1024",
+    });
+
+    const base64Image = response.data?.[0]?.b64_json;
+    if (!base64Image) {
+      return res.status(500).json({ error: "No image returned from OpenAI." });
+    }
+
+                res.json({
+   imageUrl: `data:image/png;base64,${base64Image}`,
+   scenePlan,
+   sceneType,
+   imageDecisionPacket,
+   safePlanningPrompt,
+ });
+  } catch (err) {
+    console.error("IMAGE GENERATION ERROR:", err);
+    res.status(500).json({
+      error:
+        err?.response?.data?.error?.message ||
+        err?.message ||
+        "Unknown image generation error",
+    });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+
+  if (
+    process.env.NODE_ENV !== "production" &&
+    process.argv.includes("--ubdg-self-test")
+  ) {
+    runUbdgEvidenceHelperSelfTest().catch((err) => {
+      console.error("UBDG SELF TEST ERROR:", err);
+      process.exitCode = 1;
+    });
+  }
+});
