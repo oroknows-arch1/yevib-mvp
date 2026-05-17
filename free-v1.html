@@ -1,4 +1,3 @@
-cat > free-v1.html <<'EOF'
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,7 +11,7 @@ cat > free-v1.html <<'EOF'
   <main class="yevib-demo-shell">
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-icon">🌿</div>
+        <div class="brand-icon">☕</div>
         <div>
           <h1>YEVIB</h1>
           <p>Your business. Your voice.</p>
@@ -20,195 +19,208 @@ cat > free-v1.html <<'EOF'
       </div>
 
       <nav class="side-nav">
-        <button class="side-link active" data-step="1">🌐 <span>Website</span></button>
-        <button class="side-link" data-step="2">💬 <span>Owner Truth</span></button>
-        <button class="side-link" data-step="3">◎ <span>Scan</span></button>
-        <button class="side-link" data-step="4">💡 <span>Recommendation</span></button>
-        <button class="side-link" data-step="5">📄 <span>Post Options</span></button>
-        <button class="side-link" data-step="6">🖼️ <span>Visual Direction</span></button>
-        <button class="side-link" data-step="7">✓ <span>Ready to Use</span></button>
+        <button class="side-link active" data-step="1">🌐 <span>Scan</span></button>
+        <button class="side-link" data-step="2">💡 <span>Read</span></button>
+        <button class="side-link" data-step="3">📄 <span>Create</span></button>
+        <button class="side-link" data-step="4">✓ <span>Use</span></button>
       </nav>
 
-      <div class="sidebar-footer">
-        <p>Built for real business owners —<br />Not agencies.</p>
+<div class="sidebar-photo">
+  <img src="yevib-smb-owner-coffee.jpeg" alt="Small business owner using YEVIB with coffee" />
+</div>
+
+<div class="sidebar-footer">
+        <p>Free demo: one useful marketing move from one website.</p>
       </div>
     </aside>
 
     <section class="workspace">
-      <header class="top-tracker">
-        <button class="track-step active" data-step="1"><span>1</span>Website</button>
-        <button class="track-step" data-step="2"><span>2</span>Owner Truth</button>
-        <button class="track-step" data-step="3"><span>3</span>Scan</button>
-        <button class="track-step" data-step="4"><span>4</span>Recommendation</button>
-        <button class="track-step" data-step="5"><span>5</span>Post Options</button>
-        <button class="track-step" data-step="6"><span>6</span>Visual Direction</button>
-        <button class="track-step" data-step="7"><span>7</span>Ready to Use</button>
+      <header class="demo-hero">
+        <h2>Turn a business website into one useful content move.</h2>
+        <p>Paste a URL, add a little owner truth, and YEVIB creates a recommendation, post options, and a visual direction.</p>
       </header>
 
-      <section class="card-grid">
-        <article class="demo-card step-card" data-panel="1">
-          <div class="card-title"><span>1</span><div><h2>Website</h2><p>Tell us where to look.</p></div></div>
+      <header class="top-tracker four-steps">
+        <button class="track-step active" data-step="1"><span>1</span>Scan</button>
+        <button class="track-step" data-step="2"><span>2</span>Read</button>
+        <button class="track-step" data-step="3"><span>3</span>Create</button>
+        <button class="track-step" data-step="4"><span>4</span>Use</button>
+      </header>
 
-          <label>Enter your website URL</label>
+      <section class="card-grid four-card-grid">
+        <article class="demo-card step-card wide" data-panel="1">
+          <div class="card-title">
+            <span>1</span>
+            <div>
+              <h2>Scan</h2>
+              <p>Website source + owner context.</p>
+            </div>
+          </div>
+
+          <label>Business website</label>
           <div class="input-check">
-            <input id="businessUrl" value="https://oakandstonebuilders.com" />
+            <input id="businessUrl" placeholder="https://yourbusiness.com.au" />
             <strong>✓</strong>
           </div>
 
-          <div class="note-box">🌿 We’ll scan your website to understand your business and find your strongest content angle.</div>
+          <label>Founder’s goal</label>
+<select id="founderGoal">
+  <option value="Build more trust">Build more trust</option>
+  <option value="Improve posting consistency">Improve posting consistency</option>
+  <option value="Promote products or services">Promote products or services</option>
+  <option value="Clarify brand voice" disabled>Clarify brand voice — Paid</option>
+  <option value="Educational content" disabled>Educational content — Paid</option>
+  <option value="Founder presence" disabled>Founder presence — Paid</option>
+  <option value="Subscription" disabled>Subscription — Paid</option>
+</select>
 
-          <button class="primary-btn next-btn" data-next="2">Continue <span>→</span></button>
-          <p class="tiny-note">Takes about 60 seconds</p>
+<label>Owner’s Voice</label>
+<textarea id="ownerTruth" placeholder="Write in your own style here. YEVIB will use this to shape the tone, wording, and writing style of the post."></textarea>
+
+          <label>Common misunderstanding <em>(optional)</em></label>
+          <textarea id="ownerMisunderstanding" placeholder="What do people often miss, assume, or misunderstand?"></textarea>
+
+          <button id="startFreeScanBtn" class="primary-btn next-btn" data-next="2">Start Free Scan <span>→</span></button>
+          <p class="tiny-note" id="scanStatus">No signup. No card. Review before use.</p>
         </article>
 
         <article class="demo-card step-card" data-panel="2">
-          <div class="card-title"><span>2</span><div><h2>Owner Truth</h2><p>Help us get to know the real you.</p></div></div>
-
-          <label>What do you want customers to understand about how you run your business?</label>
-          <textarea id="ownerTruth">We treat every project like it’s our own home. Clear communication, quality craftsmanship, and showing up when we say we will.</textarea>
-
-          <label>What are customers often misunderstanding about your business? (optional)</label>
-          <textarea id="ownerMisunderstanding">That custom building is only for luxury budgets. We’re actually very transparent and have options for different budgets.</textarea>
-
-          <button class="primary-btn next-btn" data-next="3">Continue to Scan <span>→</span></button>
-        </article>
-
-        <article class="demo-card step-card" data-panel="3">
-          <div class="card-title"><span>3</span><div><h2>Scan</h2><p>YEVIB is reading your business.</p></div></div>
+          <div class="card-title">
+            <span>2</span>
+            <div>
+              <h2>Read</h2>
+              <p>What YEVIB understands.</p>
+            </div>
+          </div>
 
           <div class="scan-list">
-            <div class="scan-row done">📄 <p>Reading your website</p><strong>✓</strong></div>
-            <div class="scan-row done">📦 <p>Understanding your services and offers</p><strong>✓</strong></div>
-            <div class="scan-row done">🛡️ <p>Checking trust signals</p><strong>✓</strong></div>
-            <div class="scan-row active">🎯 <p>Finding your strongest content angle</p><strong class="spinner"></strong></div>
-            <div class="scan-row muted">♡ <p>Preparing your recommendation</p></div>
+            <div class="scan-row done">📄 <p>Website read</p><strong>✓</strong></div>
+            <div class="scan-row done">🛡️ <p>Trust signals checked</p><strong>✓</strong></div>
+            <div class="scan-row muted" id="bestMoveRow">🎯 <p>Best move identified after scan</p><strong>–</strong></div>
           </div>
 
-          <div class="note-box">🌿 We’re looking for what makes your business different and worth talking about.</div>
-        </article>
+          <div class="read-summary-grid">
+  <div class="read-pill"><span>Business readability</span><strong>Usable</strong></div>
+  <div class="read-pill"><span>Source confidence</span><strong>Medium</strong></div>
+  <div class="read-pill"><span>Claim safety</span><strong>Cautious</strong></div>
+  <div class="read-pill"><span>Best content lane</span><strong>Owner voice + website signal</strong></div>
+</div>
 
-        <article class="demo-card step-card" data-panel="4">
-          <div class="card-title"><span>4</span><div><h2>Recommendation</h2><p>Here’s the smartest move right now.</p></div></div>
-
-          <div class="recommend-box">
-            <p class="label">🌿 Top Recommendation</p>
-            <h3>Show Your Process, Build More Trust</h3>
-            <p>Your site shows great work. Now show how you build it. People want to see your process, communication, and reliability.</p>
-
-            <h4>Why this will work</h4>
-            <ul>
-              <li>Builds trust with homeowners early</li>
-              <li>Differentiates you from other builders</li>
-              <li>Positions you as organized and dependable</li>
-              <li>Makes your content more shareable</li>
-            </ul>
+          <div class="recommend-box compact">
+            <p class="label">Recommendation</p>
+            <h3 id="recommendationTitle">Show the clearest trust signal.</h3>
+            <p id="recommendationText">YEVIB will replace this with a business-specific read after the scan.</p>
           </div>
 
-          <button class="primary-btn next-btn" data-next="5">See Post Options <span>→</span></button>
+          <button class="primary-btn next-btn" data-next="3">Create Options <span>→</span></button>
         </article>
 
-        <article class="demo-card step-card wide" data-panel="5">
-          <div class="card-title"><span>5</span><div><h2>Post Options</h2><p>Choose the version that feels most like you.</p></div></div>
-
-          <div class="option-tabs">
-            <button class="active">Option 1</button>
-            <button>Option 2</button>
-            <button>Option 3</button>
+        <article class="demo-card step-card wide" data-panel="3">
+          <div class="card-title">
+            <span>3</span>
+            <div>
+              <h2>Create</h2>
+              <p>Post options + visual direction.</p>
+            </div>
           </div>
 
           <div class="post-options">
-            <div class="post-option recommended">
-              <small>⭐ Recommended</small>
-              <h3>The Home Starts Long Before Construction</h3>
-              <p>A behind-the-scenes look at how we plan, communicate, and build with care.</p>
-              <ul><li>Process-focused</li><li>Trust-building</li><li>Owner-led</li></ul>
+            <div class="post-option selected">
+              <small>Option 1</small>
+              <p>Your generated post option will appear here.</p>
             </div>
-
             <div class="post-option">
-              <h3>It’s Not Just What We Build, It’s How We Build It</h3>
-              <p>Highlight your values, communication, and commitment to doing things the right way.</p>
-              <ul><li>Values-led</li><li>Differentiating</li><li>Relationship-focused</li></ul>
+              <small>Option 2</small>
+              <p>Alternative angle will appear here.</p>
             </div>
-
             <div class="post-option">
-              <h3>Custom Homes. Real Budgets. Clear Process.</h3>
-              <p>Address the budget misconception and show your transparent approach.</p>
-              <ul><li>Objection-handling</li><li>Reassuring</li><li>Conversion-focused</li></ul>
+              <small>Option 3</small>
+              <p>Another usable option will appear here.</p>
             </div>
           </div>
+<div class="why-box">
+  <h4>Why YEVIB chose this</h4>
+  <ul>
+    <li>Uses the website signal</li>
+    <li>Matches the selected founder goal</li>
+    <li>Uses the supplied owner voice</li>
+    <li>Keeps claims inside safe demo limits</li>
+  </ul>
+</div>
+          <div class="visual-summary">
+  <h4>Demo image draft</h4>
+  <p id="visualDirectionText">
+  Optional: generate a review-before-use image draft for this post. If the image does not feel right, use your own real business photo instead and pair it with the selected text post.
+</p>
 
-          <button class="primary-btn next-btn" data-next="6">Choose Option 1</button>
+<p class="image-caution-note">
+  Image drafts must be checked before posting. Paid YEVIB adds tighter business-specific image controls.
+</p>
+
+<button type="button" id="generateDemoImageBtn" class="caution-btn">
+  Generate Review Image Draft
+</button>
+
+  <div class="image-check-list">
+    <div class="image-check-row muted">📷 <p>Demo image request prepared</p><strong>–</strong></div>
+    <div class="image-check-row muted">🛡️ <p>No fake branding rule applied</p><strong>–</strong></div>
+    <div class="image-check-row muted">✓ <p>Review-before-use reminder added</p><strong>–</strong></div>
+  </div>
+
+  <div class="demo-image-preview" id="demoImagePreview">
+    <p>No image generated yet.</p>
+  </div>
+</div>
+
+          <button class="primary-btn next-btn" data-next="4">Use Selected Post <span>→</span></button>
         </article>
 
-        <article class="demo-card step-card wide visual-panel" data-panel="6">
-          <div class="card-title"><span>6</span><div><h2>Visual Direction</h2><p>Here’s a visual idea for your post.</p></div></div>
-
-          <div class="visual-layout">
+        <article class="demo-card step-card ready-card" data-panel="4">
+          <div class="card-title">
+            <span>4</span>
             <div>
-              <h4>Visual Direction</h4>
-              <p>Warm, natural photo from a job site or in-progress home. Shows planning and care, not just the finished result.</p>
-
-              <h4>Suggested Overlay Text</h4>
-              <p>Built with care.<br />Built for you.</p>
-
-              <h4>Tone</h4>
-              <div class="tone-tags"><span>Warm</span><span>Authentic</span><span>Trustworthy</span></div>
-            </div>
-
-            <div class="image-mock">
-              <div class="image-shape"></div>
-              <strong>Built with care.<br />Built for you.</strong>
+              <h2>Use</h2>
+              <p>Ready to review, copy, and post.</p>
             </div>
           </div>
 
-          <div class="note-box">🌿 This is a draft idea. You’ll review and approve before using.</div>
-        </article>
-
-        <article class="demo-card step-card ready-card" data-panel="7">
-          <div class="card-title"><span>7</span><div><h2>Ready to Use</h2><p>Your post is ready.</p></div></div>
-
-          <div class="ready-layout">
-            <div class="final-post">
-              <h4>Your Post</h4>
-              <p>The home starts long before construction begins.</p>
-              <p>Here’s what you can expect when we build with you: clear communication, honest timelines, quality craftsmanship, and a team that treats your home like our own.</p>
-              <p>That’s the Oak & Stone difference.</p>
-
-              <div class="button-row">
-                <button>Copy Text</button>
-                <button>Download</button>
-              </div>
-            </div>
-
-            <div class="final-preview">
-              <div class="social-icons">● ● ●</div>
-              <div class="image-mock small">
-                <div class="image-shape"></div>
-                <strong>Built with care.<br />Built for you.</strong>
-              </div>
-            </div>
-
-            <div class="all-set">
-              <div class="big-check">✓</div>
-              <h3>You’re all set.</h3>
-              <p>Your owner-led content is ready to share and start building trust.</p>
-
-              <div class="next-box">
-                <h4>What’s Next?</h4>
-                <p>↗ Post on your social channels</p>
-                <p>✉ Add to your email newsletter</p>
-                <p>▣ Save for future use</p>
-              </div>
-
-              <button class="primary-btn" data-next="1">Start a New Scan</button>
+          <div class="final-post">
+            <h4>Selected post</h4>
+            <p id="selectedPostText">Choose or generate a post first.</p>
+<div class="final-guidance">
+  <strong>Recommended next move</strong>
+  <p>Review the post and image draft, then use the version that feels most accurate to the business. Subscription YEVIB adds saved memory, deeper readability, and campaign continuity.</p>
+</div>
+            <div class="button-row">
+              <button type="button" id="copyFinalPostBtn">Copy Text</button>
+              <button type="button" data-next="1">Start Again</button>
             </div>
           </div>
-        </article>
-      </section>
+
+          <section class="paid-yevib-panel">
+  <div class="paid-yevib-header">
+    <h4>Business readability + growth system</h4>
+    <p>
+      YEVIB combines business readability, strategic interpretation, and controlled marketing generation into a single evolving system.
+    </p>
+  </div>
+
+  <div class="paid-system-heading">
+  <h3>YEVIB Subscription Tier Features</h3>
+</div>
+
+<div class="paid-feature-grid">
+  <div class="paid-feature-item"><span>🌐</span><div><strong>YEVIB Readability Engine</strong><p>Reads website, ecommerce, and online business signals more deeply.</p></div></div>
+  <div class="paid-feature-item"><span>🛡️</span><div><strong>UBDG Evidence Engine</strong><p>Checks source strength before YEVIB makes stronger business claims.</p></div></div>
+  <div class="paid-feature-item"><span>🧠</span><div><strong>Owner Voice Memory</strong><p>Saves the business tone, language, and communication style.</p></div></div>
+  <div class="paid-feature-item"><span>📊</span><div><strong>Live SWOT Lens</strong><p>A distinctive SWOT-style scan layer for ecommerce and SMB websites.</p></div></div>
+  <div class="paid-feature-item"><span>📈</span><div><strong>Campaign Direction Engine</strong><p>Turns business signal into longer-term content direction.</p></div></div>
+  <div class="paid-feature-item"><span>📷</span><div><strong>Visual Governance Engine</strong><p>Adds tighter controls for image realism, brand safety, and review-before-use assets.</p></div></div>
+</div>
+</section>
 
       <footer class="workspace-footer">
-        <p>🌿 YEVIB helps you turn what you already show online into content that builds trust.</p>
-        <p>Slower pace. Stronger content. Sustainable growth.</p>
+        <p>Free demo promise: one website → one useful move → review-before-use content.</p>
       </footer>
     </section>
   </main>
@@ -216,4 +228,3 @@ cat > free-v1.html <<'EOF'
   <script src="free-v1.js"></script>
 </body>
 </html>
-EOF
